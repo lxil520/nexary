@@ -1,0 +1,26 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // Starter selector adoption path:
+    // - application code uses only Nexary cache API types such as CacheClient and CacheCounterClient.
+    // - the starter aggregates the cache API and Redis provider.
+    // - application*.yml selects the provider/mode through nexary.* properties.
+    implementation project(':nexary-boot:nexary-cache-spring-boot-starter')
+
+    // SPI/provider dependency adoption path:
+    // - in a plain service, replace the starter with nexary-cache-api plus a provider artifact.
+    // - for Redis this means adding nexary-cache-redis as the provider dependency.
+    // - provider setup stays outside controller/service code.
+    // implementation project(':nexary-cache:nexary-cache-api')
+    // runtimeOnly project(':nexary-cache:nexary-cache-redis')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.cache.app.CacheSampleApplication'
+}

@@ -1,0 +1,36 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  central-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build Maven Central Portal bundle
+        env:
+          ORG_GRADLE_PROJECT_nexaryVersion: ${{ github.ref_name }}
+          ORG_GRADLE_PROJECT_nexarySigningKey: ${{ secrets.NEXARY_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_nexarySigningPassword: ${{ secrets.NEXARY_SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_projectWebsite: ${{ vars.NEXARY_PROJECT_WEBSITE }}
+          ORG_GRADLE_PROJECT_projectScmUrl: ${{ vars.NEXARY_PROJECT_SCM_URL }}
+          ORG_GRADLE_PROJECT_projectScmConnection: ${{ vars.NEXARY_PROJECT_SCM_CONNECTION }}
+          ORG_GRADLE_PROJECT_projectScmDeveloperConnection: ${{ vars.NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./gradlew mavenCentralBundle -PnexaryVersion="${VERSION}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maven-central-bundle
+          path: build/distributions/*.zip

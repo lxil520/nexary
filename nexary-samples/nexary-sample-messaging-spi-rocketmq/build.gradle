@@ -1,0 +1,21 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // SPI/provider dependency adoption path:
+    // - business code still uses only org.nexary.messaging.* abstractions.
+    // - this module introduces exactly one provider: RocketMQ.
+    // - switching to Kafka/Redis/Disruptor means changing the provider module,
+    //   not changing facade/controller/consumer code.
+    implementation project(':nexary-messaging:nexary-messaging-api')
+    runtimeOnly project(':nexary-messaging:nexary-messaging-rocketmq')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.messaging.spi.rocketmq.app.MessagingSampleApplication'
+}

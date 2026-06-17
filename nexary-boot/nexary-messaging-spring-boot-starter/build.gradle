@@ -1,0 +1,9 @@
+dependencies {
+    api project(':nexary-messaging:nexary-messaging-api')
+    api project(':nexary-messaging:nexary-messaging-disruptor')
+    api project(':nexary-messaging:nexary-messaging-kafka')
+    api project(':nexary-messaging:nexary-messaging-redis')
+    api project(':nexary-messaging:nexary-messaging-rocketmq')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}

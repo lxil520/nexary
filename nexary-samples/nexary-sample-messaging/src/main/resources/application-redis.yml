@@ -1,0 +1,35 @@
+spring:
+  data:
+    redis:
+      # Local Redis from ./scripts/middleware/up.sh.
+      host: 127.0.0.1
+      port: 16379
+
+nexary:
+  messaging:
+    # Switch to Redis queue by config. Business code stays provider-neutral.
+    provider: redis
+    disruptor:
+      enabled: false
+    redis:
+      enabled: true
+      # Topic maps to a Redis ready list key under this prefix.
+      queue-prefix: "nexary:sample:mq:"
+      # Redis queue moves ready messages into a processing list before calling the handler.
+      processing-prefix: "nexary:sample:mq:processing:"
+      # A processing lease lets stale recovery detect messages that were moved but not acked.
+      processing-lease-prefix: "nexary:sample:mq:processing:lease:"
+      # When this lease expires, the subscription worker may recover the message back to ready.
+      # This is not an exactly-once or transaction guarantee.
+      visibility-timeout: 30s
+      # How often the Redis subscription worker scans its processing list for stale messages.
+      processing-recovery-interval: 5s
+      # Duplicate-consumption protection is backed by Redis set-if-absent keys.
+      deduplication-prefix: "nexary:sample:mq:dedup:"
+      deduplication-ttl: 1h
+      # Nexary retries failed handlers by re-queueing the processing message after bounded backoff.
+      # When attempts are exhausted, Nexary writes a terminal MessageDeadLetterRecord.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

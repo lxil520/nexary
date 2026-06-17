@@ -1,0 +1,10 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Nexary mark</title>
+  <desc id="desc">A provider-neutral middleware mark with an N core and three connected capability nodes.</desc>
+  <rect x="14" y="14" width="100" height="100" rx="28" fill="#0F172A"/>
+  <path d="M35 82V46H48.5L78 82H65L35.5 46H49L80 82H93V46H80V68.5L61.5 46H35V82Z" fill="#F8FAFC"/>
+  <circle cx="96" cy="37" r="8" fill="#19B67F"/>
+  <circle cx="104" cy="64" r="8" fill="#14B8A6"/>
+  <circle cx="96" cy="91" r="8" fill="#0EA5A4"/>
+  <path d="M84 52L91 42M84 64H96M84 76L91 86" stroke="#F8FAFC" stroke-width="4" stroke-linecap="round"/>
+</svg>

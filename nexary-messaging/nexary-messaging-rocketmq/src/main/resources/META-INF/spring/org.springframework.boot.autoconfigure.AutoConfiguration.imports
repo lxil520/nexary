@@ -1,0 +1,2 @@
+org.nexary.messaging.rocketmq.RocketMqProviderClientAutoConfiguration
+org.nexary.messaging.rocketmq.RocketMqMessagingAutoConfiguration

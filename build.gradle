@@ -1,0 +1,312 @@
+plugins {
+    id 'base'
+}
+
+ext {
+    springBootVersion = '3.3.5'
+    junitVersion = '5.10.5'
+    caffeineVersion = '3.2.4'
+    disruptorVersion = '4.0.0'
+    rocketMqVersion = '5.3.1'
+    centralReleaseModulePaths = [
+            ':nexary-boot:nexary-bom',
+            ':nexary-framework:nexary-core',
+            ':nexary-framework:nexary-spi',
+            ':nexary-cache:nexary-cache-api',
+            ':nexary-cache:nexary-cache-tiered-internal',
+            ':nexary-cache:nexary-cache-redis',
+            ':nexary-messaging:nexary-messaging-api',
+            ':nexary-messaging:nexary-messaging-disruptor',
+            ':nexary-messaging:nexary-messaging-kafka',
+            ':nexary-messaging:nexary-messaging-redis',
+            ':nexary-messaging:nexary-messaging-rocketmq',
+            ':nexary-job:nexary-job-api',
+            ':nexary-job:nexary-job-scheduler',
+            ':nexary-job:nexary-job-xxljob',
+            ':nexary-job:nexary-job-execution-store-redis',
+            ':nexary-boot:nexary-cache-spring-boot-starter',
+            ':nexary-boot:nexary-messaging-spring-boot-starter',
+            ':nexary-boot:nexary-job-spring-boot-starter',
+            ':nexary-boot:nexary-observation-micrometer-spring-boot-starter'
+    ] as Set
+    projectWebsite = findProperty('projectWebsite') ?: 'https://github.com/lxil520/nexary'
+    projectScmUrl = findProperty('projectScmUrl') ?: "${projectWebsite}.git"
+    projectScmDeveloperConnection =
+            findProperty('projectScmDeveloperConnection') ?: 'scm:git:ssh://git@github.com:lxil520/nexary.git'
+    projectScmConnection = findProperty('projectScmConnection') ?: "scm:git:${projectScmUrl}"
+}
+
+allprojects {
+    group = 'org.nexary'
+    version = findProperty('nexaryVersion') ?: '0.2.0-SNAPSHOT'
+}
+
+configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists() }) {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    dependencies {
+        implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBootVersion}")
+        annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBootVersion}")
+        testImplementation platform("org.junit:junit-bom:${rootProject.ext.junitVersion}")
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testImplementation 'org.assertj:assertj-core:3.26.3'
+        testImplementation 'org.mockito:mockito-core:5.12.0'
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-parameters', '-Xlint:deprecation']
+    }
+
+    tasks.withType(Javadoc).configureEach {
+        options.encoding = 'UTF-8'
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    publishing {
+        repositories {
+            maven {
+                name = 'releaseStaging'
+                url = rootProject.layout.buildDirectory.dir('release-staging').get().asFile.toURI()
+            }
+        }
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                pom {
+                    name = project.name
+                    description = "Nexary ${project.name} module"
+                    url = rootProject.ext.projectWebsite
+                    licenses {
+                        license {
+                            name = 'The Apache License, Version 2.0'
+                            url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'nexary'
+                            name = 'Nexary contributors'
+                        }
+                    }
+                    scm {
+                        connection = rootProject.ext.projectScmConnection
+                        developerConnection = rootProject.ext.projectScmDeveloperConnection
+                        url = rootProject.ext.projectWebsite
+                    }
+                }
+            }
+        }
+    }
+
+    signing {
+        required {
+            rootProject.ext.centralReleaseModulePaths.contains(project.path) &&
+                    !project.version.toString().endsWith('-SNAPSHOT') &&
+                    (rootProject.findProperty('nexarySigningKey') || System.getenv('ORG_GRADLE_PROJECT_nexarySigningKey'))
+        }
+        def inMemoryKey = rootProject.findProperty('nexarySigningKey') ?: System.getenv('ORG_GRADLE_PROJECT_nexarySigningKey')
+        def inMemoryPassword = rootProject.findProperty('nexarySigningPassword') ?: System.getenv('ORG_GRADLE_PROJECT_nexarySigningPassword')
+        if (inMemoryKey) {
+            useInMemoryPgpKeys(inMemoryKey.toString(), inMemoryPassword?.toString())
+        }
+        sign publishing.publications
+    }
+}
+
+configure(subprojects.findAll { it.name == 'nexary-bom' && it.buildFile.exists() }) {
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+    afterEvaluate {
+        publishing {
+            repositories {
+                maven {
+                    name = 'releaseStaging'
+                    url = rootProject.layout.buildDirectory.dir('release-staging').get().asFile.toURI()
+                }
+            }
+            publications {
+                mavenBom(MavenPublication) {
+                    from components.javaPlatform
+                    pom {
+                        name = 'nexary-bom'
+                        description = 'Dependency constraints for Nexary modules'
+                        url = rootProject.ext.projectWebsite
+                        licenses {
+                            license {
+                                name = 'The Apache License, Version 2.0'
+                                url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                            }
+                        }
+                        developers {
+                            developer {
+                                id = 'nexary'
+                                name = 'Nexary contributors'
+                            }
+                        }
+                        scm {
+                            connection = rootProject.ext.projectScmConnection
+                            developerConnection = rootProject.ext.projectScmDeveloperConnection
+                            url = rootProject.ext.projectWebsite
+                        }
+                    }
+                }
+            }
+        }
+
+        signing {
+            required {
+                rootProject.ext.centralReleaseModulePaths.contains(project.path) &&
+                        !project.version.toString().endsWith('-SNAPSHOT') &&
+                        (rootProject.findProperty('nexarySigningKey') || System.getenv('ORG_GRADLE_PROJECT_nexarySigningKey'))
+            }
+            def inMemoryKey = rootProject.findProperty('nexarySigningKey') ?: System.getenv('ORG_GRADLE_PROJECT_nexarySigningKey')
+            def inMemoryPassword = rootProject.findProperty('nexarySigningPassword') ?: System.getenv('ORG_GRADLE_PROJECT_nexarySigningPassword')
+            if (inMemoryKey) {
+                useInMemoryPgpKeys(inMemoryKey.toString(), inMemoryPassword?.toString())
+            }
+            sign publishing.publications
+        }
+    }
+}
+
+tasks.register('verifyCentralReleaseInputs') {
+    group = 'verification'
+    description = 'Checks metadata and credentials needed before creating a Maven Central upload bundle.'
+
+    doLast {
+        def versionText = version.toString()
+        if (versionText.endsWith('-SNAPSHOT')) {
+            throw new GradleException("Maven Central release requires a non-SNAPSHOT version. Current version: ${versionText}")
+        }
+        def metadataValues = [
+                projectWebsite,
+                projectScmUrl,
+                projectScmConnection,
+                projectScmDeveloperConnection
+        ]
+        def placeholders = metadataValues.findAll { it.contains('REPLACE_WITH_OWNER') }
+        if (!placeholders.isEmpty()) {
+            throw new GradleException("Set projectWebsite/projectScmUrl/projectScmConnection/projectScmDeveloperConnection before release.")
+        }
+        def signingKey = findProperty('nexarySigningKey') ?: System.getenv('ORG_GRADLE_PROJECT_nexarySigningKey')
+        def signingPassword = findProperty('nexarySigningPassword') ?: System.getenv('ORG_GRADLE_PROJECT_nexarySigningPassword')
+        if (!signingKey || !signingPassword) {
+            throw new GradleException("Maven Central release requires nexarySigningKey and nexarySigningPassword.")
+        }
+        def missingModules = centralReleaseModulePaths.findAll { path -> project(path).buildFile == null || !project(path).buildFile.exists() }
+        if (!missingModules.isEmpty()) {
+            throw new GradleException("Central release module list contains missing projects: ${missingModules}")
+        }
+    }
+}
+
+tasks.register('publishCentralReleaseStaging') {
+    group = 'publishing'
+    description = 'Publishes Central release modules into build/release-staging in Maven repository layout.'
+    dependsOn 'verifyCentralReleaseInputs'
+}
+
+tasks.register('mavenCentralBundle', Zip) {
+    group = 'publishing'
+    description = 'Creates a signed Maven Central Portal upload bundle from release-staging artifacts.'
+    dependsOn 'publishCentralReleaseStaging'
+    from(layout.buildDirectory.dir('release-staging'))
+    archiveFileName = "nexary-${version}-central-bundle.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+}
+
+tasks.register('verifyReleaseGate') {
+    group = 'verification'
+    description = 'Runs the local release gate before tagging a public release.'
+    dependsOn 'check'
+    dependsOn 'publishToMavenLocal'
+}
+
+gradle.projectsEvaluated {
+    def centralProjects = subprojects.findAll { rootProject.ext.centralReleaseModulePaths.contains(it.path) }
+    tasks.named('publishCentralReleaseStaging') {
+        dependsOn centralProjects.collect { project ->
+            project.tasks.named('publishAllPublicationsToReleaseStagingRepository')
+        }
+    }
+}
+
+tasks.register('verifyRepositoryHygiene') {
+    group = 'verification'
+    description = 'Checks for generated desktop files and forbidden legacy or secret-like content.'
+
+    doLast {
+        def forbiddenPatterns = [
+                ['o', 'r', 'g', '.', 'm', 'i', 'n', 'e', 'r', 'v', 'a'].join(''),
+                'Deploy' + '-Token',
+                'gldt' + '-',
+                '192' + '.168.',
+                'Unified ' + 'construction',
+                'ARM ' + 'Cloud',
+                'signing.' + 'password',
+                'secret' + 'KeyRingFile'
+        ]
+        def gitFiles = []
+        if (new File(rootDir, '.git').exists()) {
+            def output = new ByteArrayOutputStream()
+            exec {
+                workingDir rootDir
+                commandLine 'git', 'ls-files'
+                standardOutput = output
+            }
+            gitFiles = output.toString('UTF-8')
+                    .readLines()
+                    .findAll { it.trim() }
+                    .collect { new File(rootDir, it) }
+                    .findAll { it.isFile() }
+        }
+
+        def scannedFiles = gitFiles ?: fileTree(rootDir) {
+            exclude '.gradle/**'
+            exclude '.git/**'
+            exclude '_system/**'
+            exclude '**/build/**'
+            exclude '.idea/**'
+            exclude 'gradle/wrapper/gradle-wrapper.jar'
+            exclude 'gradlew'
+            exclude 'gradlew.bat'
+        }.files.findAll { it.isFile() }
+
+        def desktopFiles = scannedFiles.findAll { it.name == '.DS_Store' }
+        if (!desktopFiles.isEmpty()) {
+            throw new GradleException("Desktop metadata files are not allowed: ${desktopFiles}")
+        }
+
+        def hits = []
+        scannedFiles.each { file ->
+            def text = file.getText('UTF-8')
+            forbiddenPatterns.each { pattern ->
+                if (text.contains(pattern)) {
+                    hits.add("${rootDir.toPath().relativize(file.toPath())}: ${pattern}")
+                }
+            }
+        }
+        if (!hits.isEmpty()) {
+            throw new GradleException("Forbidden content found:\n${hits.join('\n')}")
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'verifyRepositoryHygiene'
+}

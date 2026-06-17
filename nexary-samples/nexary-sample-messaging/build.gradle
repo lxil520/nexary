@@ -1,0 +1,20 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // Main adoption path:
+    // - depend on the Nexary messaging Spring Boot starter
+    // - choose the active provider with nexary.messaging.provider in application*.yml
+    // - keep facade/controller/consumer code on org.nexary.messaging APIs only
+    implementation project(':nexary-boot:nexary-messaging-spring-boot-starter')
+    // Redis profile needs Spring Boot's Redis connection factory. Kafka/RocketMQ clients are pulled by the starter.
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.messaging.app.MessagingSampleApplication'
+}

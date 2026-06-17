@@ -1,0 +1,20 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // SPI/provider-dependency adoption path:
+    // - business code compiles against the Nexary cache API only, including counter abstractions.
+    // - the concrete Redis provider is introduced as a provider dependency.
+    // - switching to another provider should change this dependency and nexary.cache.* config,
+    //   not controller/service source code.
+    implementation project(':nexary-cache:nexary-cache-api')
+    runtimeOnly project(':nexary-cache:nexary-cache-redis')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.cache.app.CacheSampleApplication'
+}

@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: nexary-sample-messaging-spi-disruptor
+
+server:
+  port: 8092
+
+nexary:
+  messaging:
+    # SPI/provider dependency mode:
+    # this module depends on nexary-messaging-api + nexary-messaging-disruptor only.
+    # Business code does not change when you create another SPI module for another provider.
+    provider: disruptor
+    disruptor:
+      enabled: true
+      # Local in-process ring capacity. No external broker is used.
+      capacity: 1024
+      # Provider-neutral retry policy and terminal failure record settings.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s
