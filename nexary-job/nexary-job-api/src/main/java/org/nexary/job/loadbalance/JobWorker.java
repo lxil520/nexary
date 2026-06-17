@@ -6,7 +6,7 @@ import java.util.Objects;
 public record JobWorker(String id, int activeCount, int weight) {
     public JobWorker {
         Objects.requireNonNull(id, "id");
-        if (id.isBlank()) {
+        if (id.trim().isEmpty()) {
             throw new IllegalArgumentException("worker id must not be blank");
         }
         activeCount = Math.max(0, activeCount);

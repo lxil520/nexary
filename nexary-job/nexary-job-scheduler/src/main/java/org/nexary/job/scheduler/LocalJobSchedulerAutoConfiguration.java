@@ -1,6 +1,5 @@
 package org.nexary.job.scheduler;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,6 +12,7 @@ import org.nexary.job.JobExecutionListener;
 import org.nexary.job.NexaryJob;
 import org.nexary.job.NexaryJobOperations;
 import org.nexary.job.NexaryJobScheduler;
+import org.nexary.job.internal.JobCompatibilityCollections;
 import org.nexary.job.execution.InMemoryJobExecutionStore;
 import org.nexary.job.execution.JobExecutionRunner;
 import org.nexary.job.execution.JobExecutionStore;
@@ -72,7 +72,7 @@ public class LocalJobSchedulerAutoConfiguration {
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
             ObjectProvider<NexaryObservationListener> observationListeners) {
         return new JobExecutionRunner(
-                listeners.orderedStream().toList(),
+                JobCompatibilityCollections.collectList(listeners.orderedStream()),
                 nexaryJobExecutionExecutor,
                 executionStore,
                 observationPublisher(observationPublisher, observationListeners),
@@ -122,12 +122,17 @@ public class LocalJobSchedulerAutoConfiguration {
             NexaryJobScheduler scheduler,
             JobExecutionRunner executionRunner,
             LocalJobSchedulerProperties properties) {
-        return new LocalNexaryJobOperations(jobs.orderedStream().toList(), scheduler, executionRunner, properties);
+        return new LocalNexaryJobOperations(
+                JobCompatibilityCollections.collectList(jobs.orderedStream()),
+                scheduler,
+                executionRunner,
+                properties);
     }
 
     private NexaryObservationPublisher observationPublisher(
             ObjectProvider<NexaryObservationPublisher> publisher,
             ObjectProvider<NexaryObservationListener> listeners) {
-        return publisher.getIfAvailable(() -> NexaryObservationPublisher.fanOut(listeners.orderedStream().toList()));
+        return publisher.getIfAvailable(() -> NexaryObservationPublisher.fanOut(
+                JobCompatibilityCollections.collectList(listeners.orderedStream())));
     }
 }

@@ -1,5 +1,6 @@
 package org.nexary.messaging.redis;
 
+import java.util.Collections;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
@@ -132,12 +133,12 @@ public class RedisMessageQueue implements MessagePublisher, MessageSubscriber, M
     private <T> MessageEnvelope<T> decode(String topic, Class<T> payloadType, String encoded) {
         String[] parts = encoded.split("\\|", 4);
         String messageId = parts[0];
-        String key = parts.length > 1 && !parts[1].isBlank() ? parts[1] : null;
+        String key = parts.length > 1 && !isBlank(parts[1]) ? parts[1] : null;
         byte[] payload = parts.length > 2 ? Base64.getDecoder().decode(parts[2].getBytes(StandardCharsets.UTF_8)) : new byte[0];
         T deserialized = serializer.deserialize(payload, payloadType);
         Map<String, String> headers = parts.length > 3
                 ? decodeHeaders(new String(Base64.getDecoder().decode(parts[3]), StandardCharsets.UTF_8))
-                : Map.of();
+                : Collections.emptyMap();
         Map<String, String> effectiveHeaders = new LinkedHashMap<>(headers);
         effectiveHeaders.putIfAbsent(MessageEnvelope.MESSAGE_ID_HEADER, messageId);
         return new MessageEnvelope<>(
@@ -160,12 +161,12 @@ public class RedisMessageQueue implements MessagePublisher, MessageSubscriber, M
     }
 
     private Map<String, String> decodeHeaders(String encodedHeaders) {
-        if (encodedHeaders == null || encodedHeaders.isBlank()) {
-            return Map.of();
+        if (isBlank(encodedHeaders)) {
+            return Collections.emptyMap();
         }
         Map<String, String> headers = new LinkedHashMap<>();
         for (String line : encodedHeaders.split("\\n")) {
-            if (line.isBlank()) {
+            if (isBlank(line)) {
                 continue;
             }
             String[] parts = line.split(":", 2);
@@ -176,6 +177,10 @@ public class RedisMessageQueue implements MessagePublisher, MessageSubscriber, M
             }
         }
         return headers;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private final class Subscription<T> implements MessageSubscription {

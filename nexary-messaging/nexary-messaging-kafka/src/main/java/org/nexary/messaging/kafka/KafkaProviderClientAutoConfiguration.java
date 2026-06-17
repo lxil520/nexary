@@ -1,6 +1,7 @@
 package org.nexary.messaging.kafka;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,7 +179,7 @@ public class KafkaProviderClientAutoConfiguration {
 
         private void pollLoop() {
             try {
-                consumer.subscribe(java.util.List.of(topic));
+                consumer.subscribe(Collections.singletonList(topic));
                 while (running.get()) {
                     ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(500));
                     if (!consumer.assignment().isEmpty()) {
@@ -211,7 +212,7 @@ public class KafkaProviderClientAutoConfiguration {
                 sleep(result);
                 return false;
             }
-            consumer.commitSync(Map.of(partition, new OffsetAndMetadata(record.offset() + 1)));
+            consumer.commitSync(Collections.singletonMap(partition, new OffsetAndMetadata(record.offset() + 1)));
             return true;
         }
 

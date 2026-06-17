@@ -23,7 +23,7 @@ public class RedisJobExecutionStoreProperties {
     }
 
     public void setKeyPrefix(String keyPrefix) {
-        this.keyPrefix = keyPrefix == null || keyPrefix.isBlank() ? "nexary:job:execution:" : keyPrefix;
+        this.keyPrefix = keyPrefix == null || keyPrefix.trim().isEmpty() ? "nexary:job:execution:" : keyPrefix;
     }
 
     public Duration getRetention() {

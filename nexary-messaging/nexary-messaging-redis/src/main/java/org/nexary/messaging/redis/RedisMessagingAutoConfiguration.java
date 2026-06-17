@@ -1,7 +1,8 @@
 package org.nexary.messaging.redis;
 
-import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.messaging.DefaultStringMessageSerializer;
 import org.nexary.messaging.MessageConsumeExecutor;
@@ -50,7 +51,7 @@ public class RedisMessagingAutoConfiguration {
         return new MessageConsumeExecutor(
                 Optional.ofNullable(deduplicationStore.getIfAvailable()),
                 properties.getDeduplicationTtl(),
-                interceptors.orderedStream().toList(),
+                interceptors.orderedStream().collect(Collectors.toCollection(ArrayList::new)),
                 properties.toRetryPolicy(),
                 deadLetterPublisher.getIfAvailable(MessageDeadLetterPublisher::inMemory),
                 observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));

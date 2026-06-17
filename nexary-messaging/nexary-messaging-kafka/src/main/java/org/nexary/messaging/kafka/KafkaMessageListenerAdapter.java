@@ -45,7 +45,7 @@ public class KafkaMessageListenerAdapter<T> {
         this.consumeExecutor = consumeExecutor;
         this.serializer = serializer;
         this.payloadType = payloadType;
-        this.consumerGroup = consumerGroup == null || consumerGroup.isBlank() ? "default" : consumerGroup;
+        this.consumerGroup = isBlank(consumerGroup) ? "default" : consumerGroup;
         this.consumer = consumer;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
     }
@@ -75,5 +75,9 @@ public class KafkaMessageListenerAdapter<T> {
                     null);
         }
         return result;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

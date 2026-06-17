@@ -1,6 +1,7 @@
 package org.nexary.spi;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Combines multiple registries, for example ServiceLoader and a Spring-backed registry. */
@@ -8,7 +9,7 @@ public final class CompositeNexaryServiceRegistry implements NexaryServiceRegist
     private final List<NexaryServiceRegistry> registries;
 
     public CompositeNexaryServiceRegistry(List<NexaryServiceRegistry> registries) {
-        this.registries = List.copyOf(registries);
+        this.registries = immutableCopy(registries);
     }
 
     @Override
@@ -17,6 +18,13 @@ public final class CompositeNexaryServiceRegistry implements NexaryServiceRegist
         for (NexaryServiceRegistry registry : registries) {
             services.addAll(registry.services(type));
         }
-        return List.copyOf(services);
+        return Collections.unmodifiableList(services);
+    }
+
+    private static <T> List<T> immutableCopy(List<T> values) {
+        if (values == null || values.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(values));
     }
 }

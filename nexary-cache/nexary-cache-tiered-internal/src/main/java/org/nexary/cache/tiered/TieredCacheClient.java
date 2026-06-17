@@ -4,9 +4,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import static java.util.stream.Collectors.toList;
 import org.nexary.cache.CacheClient;
 import org.nexary.cache.CacheKey;
 import org.nexary.cache.LockHandle;
@@ -49,7 +51,7 @@ public class TieredCacheClient implements CacheClient, CacheInvalidationListener
         this.remote = remote;
         this.localTtl = localTtl == null ? Duration.ofSeconds(30) : localTtl;
         this.invalidationPublisher = invalidationPublisher == null ? CacheInvalidationPublisher.NOOP : invalidationPublisher;
-        this.originId = originId == null || originId.isBlank() ? "local" : originId;
+        this.originId = hasNoText(originId) ? "local" : originId;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
     }
 
@@ -132,7 +134,9 @@ public class TieredCacheClient implements CacheClient, CacheInvalidationListener
             Map<CacheKey, Object> result = new LinkedHashMap<>(local.getAll(keys));
             TieredCacheObservation.publish(
                     observationPublisher, "cache.batch_get", "l1", result.size() == keys.size() ? "hit" : "miss", startedAt);
-            var misses = keys.stream().filter(key -> !result.containsKey(key)).toList();
+            List<CacheKey> misses = keys.stream()
+                    .filter(key -> !result.containsKey(key))
+                    .collect(toList());
             Instant remoteStartedAt = Instant.now();
             Map<CacheKey, Object> remoteValues = remote.getAll(misses);
             TieredCacheObservation.publish(
@@ -273,5 +277,9 @@ public class TieredCacheClient implements CacheClient, CacheInvalidationListener
             return localTtl;
         }
         return ttl.compareTo(localTtl) < 0 ? ttl : localTtl;
+    }
+
+    private static boolean hasNoText(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

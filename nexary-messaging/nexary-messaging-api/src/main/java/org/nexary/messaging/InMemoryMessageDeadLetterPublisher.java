@@ -1,5 +1,7 @@
 package org.nexary.messaging;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -14,6 +16,6 @@ public class InMemoryMessageDeadLetterPublisher implements MessageDeadLetterPubl
 
     /** Returns terminal failure records captured by this publisher. */
     public List<MessageDeadLetterRecord> records() {
-        return List.copyOf(records);
+        return Collections.unmodifiableList(new ArrayList<>(records));
     }
 }

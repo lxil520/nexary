@@ -2,9 +2,9 @@ package org.nexary.job.store.redis;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Map;
 import java.util.Optional;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.job.internal.JobCompatibilityCollections;
 import org.nexary.job.execution.JobExecutionId;
 import org.nexary.job.execution.JobExecutionRecord;
 import org.nexary.job.execution.JobExecutionStore;
@@ -50,7 +50,9 @@ public class RedisJobExecutionStore implements JobExecutionStore {
                     "redis",
                     record.trigger(),
                     JobObservationSupport.status(record.status()),
-                    Map.of("store", "redis", "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
+                    JobCompatibilityCollections.tags(
+                            "store", "redis",
+                            "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
                     null);
         } catch (JsonProcessingException ex) {
             JobObservationSupport.publish(
@@ -59,7 +61,7 @@ public class RedisJobExecutionStore implements JobExecutionStore {
                     "redis",
                     record.trigger(),
                     "failed",
-                    Map.of("store", "redis"),
+                    JobCompatibilityCollections.tags("store", "redis"),
                     ex);
             throw new IllegalStateException("Failed to serialize Nexary job execution record " + record.executionId().value(), ex);
         }
@@ -74,7 +76,7 @@ public class RedisJobExecutionStore implements JobExecutionStore {
                     "redis",
                     null,
                     "miss",
-                    Map.of("store", "redis"),
+                    JobCompatibilityCollections.tags("store", "redis"),
                     null);
             return Optional.empty();
         }
@@ -86,7 +88,7 @@ public class RedisJobExecutionStore implements JobExecutionStore {
                     "redis",
                     null,
                     "expired",
-                    Map.of("store", "redis"),
+                    JobCompatibilityCollections.tags("store", "redis"),
                     null);
             return Optional.empty();
         }
@@ -98,7 +100,9 @@ public class RedisJobExecutionStore implements JobExecutionStore {
                     "redis",
                     record.trigger(),
                     JobObservationSupport.status(record.status()),
-                    Map.of("store", "redis", "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
+                    JobCompatibilityCollections.tags(
+                            "store", "redis",
+                            "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
                     null);
             return Optional.of(record);
         } catch (JsonProcessingException ex) {
@@ -108,7 +112,7 @@ public class RedisJobExecutionStore implements JobExecutionStore {
                     "redis",
                     null,
                     "failed",
-                    Map.of("store", "redis"),
+                    JobCompatibilityCollections.tags("store", "redis"),
                     ex);
             throw new IllegalStateException("Failed to deserialize Nexary job execution record " + executionId.value(), ex);
         }

@@ -16,6 +16,7 @@ import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.job.JobExecutionListener;
 import org.nexary.job.JobResult;
 import org.nexary.job.NexaryJob;
+import org.nexary.job.internal.JobCompatibilityCollections;
 
 /** Shared provider-neutral pipeline for direct, scheduled, and bridge-triggered job executions. */
 public class JobExecutionRunner {
@@ -45,11 +46,11 @@ public class JobExecutionRunner {
             JobExecutionStore executionStore,
             NexaryObservationPublisher observationPublisher,
             String provider) {
-        this.listeners = List.copyOf(listeners);
+        this.listeners = JobCompatibilityCollections.copyList(listeners);
         this.executorService = executorService;
         this.executionStore = executionStore == null ? new InMemoryJobExecutionStore() : executionStore;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
-        this.provider = provider == null || provider.isBlank() ? "unknown" : provider;
+        this.provider = provider == null || provider.trim().isEmpty() ? "unknown" : provider;
     }
 
     /** Executes a job through timeout, retry, concurrency, listener, and record handling. */
@@ -212,10 +213,10 @@ public class JobExecutionRunner {
             return future.get(Math.max(1, timeout.toMillis()), TimeUnit.MILLISECONDS);
         } catch (java.util.concurrent.ExecutionException ex) {
             Throwable cause = ex.getCause();
-            if (cause instanceof JobExecutionException wrapper) {
-                Throwable original = wrapper.getCause();
-                if (original instanceof Exception exception) {
-                    throw exception;
+            if (cause instanceof JobExecutionException) {
+                Throwable original = cause.getCause();
+                if (original instanceof Exception) {
+                    throw (Exception) original;
                 }
                 throw new RuntimeException(original);
             }
@@ -242,11 +243,13 @@ public class JobExecutionRunner {
         if (result == null) {
             return JobExecutionStatus.FAILED;
         }
-        return switch (result.status()) {
-            case SUCCESS -> JobExecutionStatus.SUCCESS;
-            case FAILED -> JobExecutionStatus.FAILED;
-            case SKIPPED -> JobExecutionStatus.SKIPPED;
-        };
+        if (result.status() == JobResult.JobStatus.SUCCESS) {
+            return JobExecutionStatus.SUCCESS;
+        }
+        if (result.status() == JobResult.JobStatus.SKIPPED) {
+            return JobExecutionStatus.SKIPPED;
+        }
+        return JobExecutionStatus.FAILED;
     }
 
     private String concurrencyKey(JobExecutionRequest request) {
@@ -265,7 +268,8 @@ public class JobExecutionRunner {
                         provider,
                         record.trigger(),
                         JobObservationSupport.status(record.status()),
-                        Map.of("shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
+                        JobCompatibilityCollections.tags(
+                                "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
                         null);
             } catch (RuntimeException ex) {
                 JobObservationSupport.publish(
@@ -274,7 +278,8 @@ public class JobExecutionRunner {
                         provider,
                         record.trigger(),
                         "failed",
-                        Map.of("shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
+                        JobCompatibilityCollections.tags(
+                                "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
                         ex);
                 throw ex;
             }

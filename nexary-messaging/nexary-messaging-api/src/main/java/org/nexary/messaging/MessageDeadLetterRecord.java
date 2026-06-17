@@ -1,6 +1,8 @@
 package org.nexary.messaging;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Provider-neutral terminal failure record for a message that exhausted Nexary retry policy. */
@@ -17,7 +19,7 @@ public record MessageDeadLetterRecord(
         String errorMessage,
         Instant occurredAt) {
     public MessageDeadLetterRecord {
-        headers = headers == null ? Map.of() : Map.copyOf(headers);
+        headers = headers == null ? Collections.emptyMap() : Collections.unmodifiableMap(new LinkedHashMap<>(headers));
         occurredAt = occurredAt == null ? Instant.now() : occurredAt;
         status = status == null ? MessageFailureStatus.RETRY_EXHAUSTED : status;
     }

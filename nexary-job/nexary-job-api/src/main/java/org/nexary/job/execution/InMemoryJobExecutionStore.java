@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.job.internal.JobCompatibilityCollections;
 
 /** In-memory execution store used by local development and tests. */
 public class InMemoryJobExecutionStore implements JobExecutionStore {
@@ -41,7 +42,9 @@ public class InMemoryJobExecutionStore implements JobExecutionStore {
                 "memory",
                 record.trigger(),
                 JobObservationSupport.status(record.status()),
-                Map.of("store", "memory", "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
+                JobCompatibilityCollections.tags(
+                        "store", "memory",
+                        "shard_presence", record.context().shardTotal() > 1 ? "true" : "false"),
                 null);
     }
 
@@ -54,7 +57,7 @@ public class InMemoryJobExecutionStore implements JobExecutionStore {
                     "memory",
                     null,
                     "miss",
-                    Map.of("store", "memory"),
+                    JobCompatibilityCollections.tags("store", "memory"),
                     null);
             return Optional.empty();
         }
@@ -66,7 +69,7 @@ public class InMemoryJobExecutionStore implements JobExecutionStore {
                     "memory",
                     null,
                     "miss",
-                    Map.of("store", "memory"),
+                    JobCompatibilityCollections.tags("store", "memory"),
                     null);
             return Optional.empty();
         }
@@ -78,7 +81,7 @@ public class InMemoryJobExecutionStore implements JobExecutionStore {
                     "memory",
                     stored.record().trigger(),
                     "expired",
-                    Map.of("store", "memory"),
+                    JobCompatibilityCollections.tags("store", "memory"),
                     null);
             return Optional.empty();
         }
@@ -88,7 +91,9 @@ public class InMemoryJobExecutionStore implements JobExecutionStore {
                 "memory",
                 stored.record().trigger(),
                 JobObservationSupport.status(stored.record().status()),
-                Map.of("store", "memory", "shard_presence", stored.record().context().shardTotal() > 1 ? "true" : "false"),
+                JobCompatibilityCollections.tags(
+                        "store", "memory",
+                        "shard_presence", stored.record().context().shardTotal() > 1 ? "true" : "false"),
                 null);
         return Optional.of(stored.record());
     }
@@ -99,6 +104,21 @@ public class InMemoryJobExecutionStore implements JobExecutionStore {
                 : retention;
     }
 
-    private record StoredRecord(JobExecutionRecord record, Instant expiresAt) {
+    private static final class StoredRecord {
+        private final JobExecutionRecord record;
+        private final Instant expiresAt;
+
+        private StoredRecord(JobExecutionRecord record, Instant expiresAt) {
+            this.record = record;
+            this.expiresAt = expiresAt;
+        }
+
+        private JobExecutionRecord record() {
+            return record;
+        }
+
+        private Instant expiresAt() {
+            return expiresAt;
+        }
     }
 }

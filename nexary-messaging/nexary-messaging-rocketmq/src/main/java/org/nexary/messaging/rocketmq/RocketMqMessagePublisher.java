@@ -2,6 +2,7 @@ package org.nexary.messaging.rocketmq;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -43,14 +44,14 @@ public class RocketMqMessagePublisher implements MessagePublisher {
             return CompletableFuture.completedFuture(MessagePublishResult.success(result == null ? null : result.toString()));
         } catch (ReflectiveOperationException ex) {
             String detail = failureDetail(ex);
-            MessageObservationSupport.publish(observationPublisher, "publish", "rocketmq", "failure", java.util.Map.of(), ex);
+            MessageObservationSupport.publish(observationPublisher, "publish", "rocketmq", "failure", Collections.emptyMap(), ex);
             return CompletableFuture.completedFuture(MessagePublishResult.failed(detail, RetrySignal.stop(detail)));
         }
     }
 
     private String failureDetail(ReflectiveOperationException ex) {
-        Throwable cause = ex instanceof InvocationTargetException invocationTargetException
-                ? invocationTargetException.getTargetException()
+        Throwable cause = ex instanceof InvocationTargetException
+                ? ((InvocationTargetException) ex).getTargetException()
                 : ex.getCause();
         if (cause != null && cause.getMessage() != null) {
             return cause.getMessage();
@@ -66,9 +67,13 @@ public class RocketMqMessagePublisher implements MessagePublisher {
             }
         });
         builder.setHeaderIfAbsent(MessageEnvelope.MESSAGE_ID_HEADER, envelope.messageId());
-        if (envelope.key() != null && !envelope.key().isBlank()) {
+        if (!isBlank(envelope.key())) {
             builder.setHeader("KEYS", envelope.key());
         }
         return builder.build();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

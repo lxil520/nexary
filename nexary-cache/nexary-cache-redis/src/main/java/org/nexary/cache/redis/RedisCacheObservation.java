@@ -37,9 +37,9 @@ public final class RedisCacheObservation {
         tags.put("capability", CAPABILITY);
         tags.put("operation", operation);
         tags.put("provider", PROVIDER);
-        tags.put("tier", tier == null || tier.isBlank() ? NONE : tier);
-        tags.put("outcome", outcome == null || outcome.isBlank() ? "unknown" : outcome);
-        tags.put("failure", failure == null || failure.isBlank() ? NONE : failure);
+        tags.put("tier", hasNoText(tier) ? NONE : tier);
+        tags.put("outcome", hasNoText(outcome) ? "unknown" : outcome);
+        tags.put("failure", hasNoText(failure) ? NONE : failure);
         safePublisher.publish(new NexaryObservationEvent(
                 NexaryObservationEvent.EventCategory.CACHE,
                 operation,
@@ -58,5 +58,9 @@ public final class RedisCacheObservation {
             return "state";
         }
         return "runtime";
+    }
+
+    private static boolean hasNoText(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

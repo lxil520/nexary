@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import static java.util.stream.Collectors.toList;
 import org.nexary.cache.CacheClient;
 import org.nexary.cache.CacheKey;
 import org.nexary.cache.LockHandle;
@@ -49,7 +50,7 @@ public class UserProfileService {
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
                 .map(id -> CacheKey.of("cache:profile", id))
-                .toList();
+                .collect(toList());
         Map<String, Object> response = new LinkedHashMap<>();
         cacheClient.getAll(keys).forEach((key, value) -> response.put(key.key(), value));
         return response;

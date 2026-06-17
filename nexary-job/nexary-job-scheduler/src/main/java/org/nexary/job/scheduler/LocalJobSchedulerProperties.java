@@ -116,7 +116,7 @@ public class LocalJobSchedulerProperties {
     }
 
     public void setTopology(String topology) {
-        this.topology = topology == null || topology.isBlank() ? "default" : topology;
+        this.topology = topology == null || topology.trim().isEmpty() ? "default" : topology;
     }
 
     public Duration getExecutionTimeout() {

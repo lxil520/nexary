@@ -32,7 +32,7 @@ final class XxlJobRuntime {
             Class<?> helper = Class.forName(HELPER_CLASS);
             Method method = helper.getMethod(methodName);
             Object value = method.invoke(null);
-            return value instanceof Number number ? number.intValue() : fallback;
+            return value instanceof Number ? ((Number) value).intValue() : fallback;
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
             return fallback;
         }

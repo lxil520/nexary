@@ -1,5 +1,6 @@
 package org.nexary.messaging;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -22,17 +23,17 @@ public final class NexaryMessageProducer {
 
     /** Sends a message to a topic with an auto-generated message id. */
     public CompletionStage<MessagePublishResult> sendMessage(String topic, Object message) {
-        return sendMessage(topic, null, UUID.randomUUID().toString(), message, Map.of());
+        return sendMessage(topic, null, UUID.randomUUID().toString(), message, Collections.emptyMap());
     }
 
     /** Sends a keyed message to a topic with an auto-generated message id. */
     public CompletionStage<MessagePublishResult> sendMessage(String topic, String key, Object message) {
-        return sendMessage(topic, key, UUID.randomUUID().toString(), message, Map.of());
+        return sendMessage(topic, key, UUID.randomUUID().toString(), message, Collections.emptyMap());
     }
 
     /** Sends a keyed message with an explicit message id used by duplicate-consumption protection. */
     public CompletionStage<MessagePublishResult> sendMessage(String topic, String key, String messageId, Object message) {
-        return sendMessage(topic, key, messageId, message, Map.of());
+        return sendMessage(topic, key, messageId, message, Collections.emptyMap());
     }
 
     /** Sends a keyed message with an explicit message id and headers. */
@@ -51,7 +52,11 @@ public final class NexaryMessageProducer {
             effectiveHeaders.putAll(headers);
         }
         effectiveHeaders.putIfAbsent(MessageEnvelope.MESSAGE_ID_HEADER,
-                messageId == null || messageId.isBlank() ? UUID.randomUUID().toString() : messageId);
+                isBlank(messageId) ? UUID.randomUUID().toString() : messageId);
         return publisher.publish(new MessageEnvelope<>(topic, key, message, effectiveHeaders, null, null));
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

@@ -15,6 +15,7 @@ import org.nexary.job.execution.JobExecutionRecord;
 import org.nexary.job.execution.JobExecutionRequest;
 import org.nexary.job.execution.JobExecutionRunner;
 import org.nexary.job.execution.JobExecutionTrigger;
+import org.nexary.job.internal.JobCompatibilityCollections;
 import org.nexary.job.execution.JobObservationSupport;
 
 /** Bridges externally triggered XXL-JOB handlers to Nexary jobs and listeners. */
@@ -57,7 +58,7 @@ public class XxlJobBridge {
                 "xxljob",
                 JobExecutionTrigger.BRIDGE,
                 "accepted",
-                Map.of("shard_presence", shardTotal > 1 ? "true" : "false"),
+                JobCompatibilityCollections.tags("shard_presence", shardTotal > 1 ? "true" : "false"),
                 null);
         NexaryJob job = Optional.ofNullable(jobs.get(jobName))
                 .orElseThrow(() -> new IllegalArgumentException("unknown Nexary job: " + jobName));

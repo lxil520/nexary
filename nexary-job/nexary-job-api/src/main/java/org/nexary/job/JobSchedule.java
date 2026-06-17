@@ -1,7 +1,10 @@
 package org.nexary.job;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Collections;
+import java.util.stream.Collectors;
 import org.nexary.job.execution.JobExecutionPolicy;
 import org.nexary.job.loadbalance.JobLoadBalanceStrategy;
 
@@ -24,17 +27,22 @@ public record JobSchedule(
         Objects.requireNonNull(jobName, "jobName");
         Objects.requireNonNull(cron, "cron");
         shardTotal = Math.max(1, shardTotal);
-        workerIds = workerIds == null ? List.of() : List.copyOf(workerIds.stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .toList());
-        workerId = workerId == null || workerId.isBlank() ? null : workerId.trim();
+        if (workerIds == null) {
+            workerIds = Collections.emptyList();
+        } else {
+            ArrayList<String> normalizedWorkerIds = workerIds.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .collect(Collectors.toCollection(ArrayList::new));
+            workerIds = Collections.unmodifiableList(normalizedWorkerIds);
+        }
+        workerId = workerId == null || workerId.trim().isEmpty() ? null : workerId.trim();
     }
 
     /** Creates a schedule without explicit distributed worker assignment. */
     public JobSchedule(String jobName, String cron, boolean singleInstance, int shardTotal) {
-        this(jobName, cron, singleInstance, shardTotal, null, null, List.of(), null);
+        this(jobName, cron, singleInstance, shardTotal, null, null, Collections.emptyList(), null);
     }
 
     /** Creates a single-instance schedule. */

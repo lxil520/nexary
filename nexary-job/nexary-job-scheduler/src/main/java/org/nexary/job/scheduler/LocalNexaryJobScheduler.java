@@ -20,6 +20,7 @@ import org.nexary.job.execution.JobExecutionPolicy;
 import org.nexary.job.execution.JobExecutionRequest;
 import org.nexary.job.execution.JobExecutionRunner;
 import org.nexary.job.execution.JobExecutionTrigger;
+import org.nexary.job.internal.JobCompatibilityCollections;
 import org.nexary.job.execution.JobObservationSupport;
 import org.nexary.job.loadbalance.JobLoadBalanceStrategy;
 import org.nexary.job.loadbalance.JobLoadBalancer;
@@ -86,13 +87,13 @@ public class LocalNexaryJobScheduler implements NexaryJobScheduler {
                 "local",
                 JobExecutionTrigger.SCHEDULED,
                 "started",
-                Map.of("shard_presence", schedule.shardTotal() > 1 ? "true" : "false"),
+                JobCompatibilityCollections.tags("shard_presence", schedule.shardTotal() > 1 ? "true" : "false"),
                 null);
         JobExecutionPolicy policy = effectivePolicy(schedule);
         if (schedule.singleInstance() && cacheClient.isPresent()) {
             CacheKey lockKey = CacheKey.of("job", schedule.jobName());
             Optional<LockHandle> lock = cacheClient.get().tryLock(lockKey, Duration.ZERO, policy.lockLeaseTime());
-            if (lock.isEmpty()) {
+            if (!lock.isPresent()) {
                 JobContext context = new JobContext(schedule.jobName(), Instant.now(), 0, schedule.shardTotal(), null);
                 executionRunner.skipped(request(JobExecutionTrigger.SCHEDULED, context, policy),
                         "single instance lock not acquired");
@@ -102,7 +103,9 @@ public class LocalNexaryJobScheduler implements NexaryJobScheduler {
                         "local",
                         JobExecutionTrigger.SCHEDULED,
                         "skipped",
-                        Map.of("skip_reason", "single_instance", "shard_presence", schedule.shardTotal() > 1 ? "true" : "false"),
+                        JobCompatibilityCollections.tags(
+                                "skip_reason", "single_instance",
+                                "shard_presence", schedule.shardTotal() > 1 ? "true" : "false"),
                         null);
                 return;
             }
@@ -118,7 +121,7 @@ public class LocalNexaryJobScheduler implements NexaryJobScheduler {
                 "local",
                 JobExecutionTrigger.SCHEDULED,
                 "completed",
-                Map.of("shard_presence", schedule.shardTotal() > 1 ? "true" : "false"),
+                JobCompatibilityCollections.tags("shard_presence", schedule.shardTotal() > 1 ? "true" : "false"),
                 null);
     }
 
@@ -154,9 +157,9 @@ public class LocalNexaryJobScheduler implements NexaryJobScheduler {
         if (workerIds.isEmpty() || currentWorkerId == null) {
             return true;
         }
-        List<JobWorker> workers = workerIds.stream()
+        List<JobWorker> workers = JobCompatibilityCollections.collectList(workerIds.stream()
                 .map(workerId -> new JobWorker(workerId, activeCounts.getOrDefault(workerId, new AtomicInteger()).get(), 1))
-                .toList();
+        );
         JobWorker selected = loadBalancer.select(jobName, shard, workers);
         return currentWorkerId.equals(selected.id());
     }

@@ -10,6 +10,7 @@ import org.nexary.cache.CacheClient;
 import org.nexary.cache.CacheKey;
 import org.nexary.cache.LockHandle;
 import org.nexary.job.JobSchedule;
+import org.nexary.job.internal.JobCompatibilityCollections;
 
 /** Cache-backed worker registry used by the local distributed scheduler. */
 class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
@@ -29,7 +30,7 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
             return schedule.workerId();
         }
         String workerId = properties.getWorkerId();
-        return workerId == null || workerId.isBlank() ? null : workerId.trim();
+        return workerId == null || workerId.trim().isEmpty() ? null : workerId.trim();
     }
 
     @Override
@@ -38,7 +39,7 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
             return schedule.workerIds();
         }
         List<String> configuredWorkers = configuredWorkers();
-        if (cacheClient.isEmpty() || !properties.isHeartbeatEnabled() || currentWorkerId(schedule) == null) {
+        if (!cacheClient.isPresent() || !properties.isHeartbeatEnabled() || currentWorkerId(schedule) == null) {
             return configuredWorkers;
         }
         heartbeat();
@@ -54,7 +55,7 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
         String workerId = configuredCurrentWorkerId();
         CacheClient cache = cacheClient.get();
         Optional<LockHandle> lock = cache.tryLock(lockKey(), Duration.ZERO, properties.getHeartbeatTtl());
-        if (lock.isEmpty()) {
+        if (!lock.isPresent()) {
             return;
         }
         try (LockHandle ignored = lock.get()) {
@@ -75,24 +76,24 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
     private List<String> activeWorkers() {
         Map<String, Long> topology = topology();
         long expiresBefore = Instant.now().toEpochMilli() - properties.getHeartbeatTtl().toMillis();
-        return topology.entrySet().stream()
+        return JobCompatibilityCollections.collectList(topology.entrySet().stream()
                 .filter(entry -> entry.getValue() >= expiresBefore)
                 .map(Map.Entry::getKey)
-                .sorted()
-                .toList();
+                .sorted());
     }
 
     private Map<String, Long> topology() {
-        if (cacheClient.isEmpty()) {
+        if (!cacheClient.isPresent()) {
             return new LinkedHashMap<>();
         }
         Optional<Object> stored = cacheClient.get().get(topologyKey(), Object.class);
         Map<String, Long> topology = new LinkedHashMap<>();
         stored.ifPresent(value -> {
-            if (value instanceof Map<?, ?> values) {
+            if (value instanceof Map<?, ?>) {
+                Map<?, ?> values = (Map<?, ?>) value;
                 values.forEach((key, timestamp) -> {
-                    if (key != null && timestamp instanceof Number number) {
-                        topology.put(String.valueOf(key), number.longValue());
+                    if (key != null && timestamp instanceof Number) {
+                        topology.put(String.valueOf(key), ((Number) timestamp).longValue());
                     }
                 });
             }
@@ -101,16 +102,15 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
     }
 
     private List<String> configuredWorkers() {
-        return properties.getWorkers().stream()
-                .filter(worker -> worker != null && !worker.isBlank())
+        return JobCompatibilityCollections.collectList(properties.getWorkers().stream()
+                .filter(worker -> worker != null && !worker.trim().isEmpty())
                 .map(String::trim)
-                .sorted()
-                .toList();
+                .sorted());
     }
 
     private String configuredCurrentWorkerId() {
         String workerId = properties.getWorkerId();
-        return workerId == null || workerId.isBlank() ? null : workerId.trim();
+        return workerId == null || workerId.trim().isEmpty() ? null : workerId.trim();
     }
 
     private CacheKey topologyKey() {

@@ -2,6 +2,7 @@ package org.nexary.cache.redis;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.OptionalLong;
 import org.nexary.cache.counter.CacheCounterClient;
@@ -14,16 +15,14 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 /** Redis-backed atomic counter implementation. */
 public class RedisCacheCounterClient implements CacheCounterClient {
     private static final DefaultRedisScript<List> INCREMENT_SCRIPT = new DefaultRedisScript<>(
-            """
-            local existed = redis.call('exists', KEYS[1])
-            local value = redis.call('incrby', KEYS[1], ARGV[1])
-            local ttlApplied = 0
-            if existed == 0 and tonumber(ARGV[2]) > 0 then
-                redis.call('pexpire', KEYS[1], ARGV[2])
-                ttlApplied = 1
-            end
-            return {value, existed == 0 and 1 or 0, ttlApplied}
-            """,
+            "local existed = redis.call('exists', KEYS[1])\n"
+                    + "local value = redis.call('incrby', KEYS[1], ARGV[1])\n"
+                    + "local ttlApplied = 0\n"
+                    + "if existed == 0 and tonumber(ARGV[2]) > 0 then\n"
+                    + "    redis.call('pexpire', KEYS[1], ARGV[2])\n"
+                    + "    ttlApplied = 1\n"
+                    + "end\n"
+                    + "return {value, existed == 0 and 1 or 0, ttlApplied}\n",
             List.class);
 
     private final StringRedisTemplate stringRedisTemplate;
@@ -47,7 +46,7 @@ public class RedisCacheCounterClient implements CacheCounterClient {
         try {
             List<?> result = stringRedisTemplate.execute(
                     INCREMENT_SCRIPT,
-                    List.of(key.qualified()),
+                    Collections.singletonList(key.qualified()),
                     String.valueOf(delta),
                     String.valueOf(ttlMillis(ttlOnCreate)));
             if (result == null || result.size() < 3) {
@@ -121,8 +120,8 @@ public class RedisCacheCounterClient implements CacheCounterClient {
     }
 
     private long asLong(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
         }
         return Long.parseLong(String.valueOf(value));
     }

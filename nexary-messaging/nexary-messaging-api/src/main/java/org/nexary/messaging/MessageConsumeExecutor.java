@@ -1,6 +1,8 @@
 package org.nexary.messaging;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +39,7 @@ public class MessageConsumeExecutor {
             NexaryObservationPublisher observationPublisher) {
         this.deduplicationStore = deduplicationStore;
         this.deduplicationTtl = deduplicationTtl == null ? Duration.ofHours(1) : deduplicationTtl;
-        this.interceptors = interceptors == null ? List.of() : List.copyOf(interceptors);
+        this.interceptors = interceptors == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(interceptors));
         this.retryPolicy = retryPolicy == null ? MessageRetryPolicy.defaults() : retryPolicy;
         this.deadLetterPublisher = deadLetterPublisher == null ? MessageDeadLetterPublisher.inMemory() : deadLetterPublisher;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
@@ -65,10 +67,10 @@ public class MessageConsumeExecutor {
             }
         } catch (RuntimeException ex) {
             MessageObservationSupport.publish(
-                    observationPublisher, "dedup.claim", "core", "failure", Map.of(), ex);
+                    observationPublisher, "dedup.claim", "core", "failure", Collections.emptyMap(), ex);
             throw ex;
         }
-        if (deduplicationStore.isPresent() && claim.isEmpty()) {
+        if (deduplicationStore.isPresent() && !claim.isPresent()) {
             MessageObservationSupport.publish(
                     observationPublisher, "dedup.claim", "core", "duplicate");
             return MessageConsumeResult.duplicate("message already consumed: " + prepared.messageId());
@@ -85,7 +87,7 @@ public class MessageConsumeExecutor {
         } catch (Throwable ex) {
             error = ex;
             MessageObservationSupport.publish(
-                    observationPublisher, "handler", "core", "failure", Map.of(), ex);
+                    observationPublisher, "handler", "core", "failure", Collections.emptyMap(), ex);
             return onFailure(prepared, consumerGroup, claim, ex);
         } finally {
             claim.ifPresent(MessageDeduplicationClaim::close);

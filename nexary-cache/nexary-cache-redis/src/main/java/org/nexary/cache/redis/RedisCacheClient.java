@@ -2,13 +2,16 @@ package org.nexary.cache.redis;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
+import static java.util.stream.Collectors.toList;
 import org.nexary.cache.CacheClient;
 import org.nexary.cache.CacheKey;
 import org.nexary.cache.LockHandle;
@@ -26,13 +29,11 @@ public class RedisCacheClient implements CacheClient {
             "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
             Long.class);
     private static final DefaultRedisScript<Long> LOCK_WITH_FENCE_SCRIPT = new DefaultRedisScript<>(
-            """
-            local locked = redis.call('set', KEYS[1], ARGV[1], 'NX', 'PX', ARGV[2])
-            if locked then
-                return redis.call('incr', KEYS[2])
-            end
-            return 0
-            """,
+            "local locked = redis.call('set', KEYS[1], ARGV[1], 'NX', 'PX', ARGV[2])\n"
+                    + "if locked then\n"
+                    + "    return redis.call('incr', KEYS[2])\n"
+                    + "end\n"
+                    + "return 0\n",
             Long.class);
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -124,7 +125,7 @@ public class RedisCacheClient implements CacheClient {
     public Map<CacheKey, Object> getAll(Collection<CacheKey> keys) {
         Instant startedAt = Instant.now();
         try {
-            List<String> redisKeys = keys.stream().map(CacheKey::qualified).toList();
+            List<String> redisKeys = keys.stream().map(CacheKey::qualified).collect(toList());
             List<Object> values = redisTemplate.opsForValue().multiGet(redisKeys);
             Map<CacheKey, Object> result = new LinkedHashMap<>();
             int index = 0;
@@ -221,7 +222,7 @@ public class RedisCacheClient implements CacheClient {
             do {
                 Long fencingToken = stringRedisTemplate.execute(
                         LOCK_WITH_FENCE_SCRIPT,
-                        List.of(lockKey, fencingKey),
+                        Arrays.asList(lockKey, fencingKey),
                         token,
                         String.valueOf(normalizeTtl(leaseTime).toMillis()));
                 if (fencingToken != null && fencingToken > 0) {
@@ -290,7 +291,7 @@ public class RedisCacheClient implements CacheClient {
             try {
                 Long result = stringRedisTemplate.execute(
                         RENEW_SCRIPT,
-                        List.of(redisKey),
+                        Collections.singletonList(redisKey),
                         ownerToken,
                         String.valueOf(normalizeTtl(leaseTime).toMillis()));
                 boolean renewed = result != null && result > 0;
@@ -313,7 +314,7 @@ public class RedisCacheClient implements CacheClient {
         public void close() {
             Instant startedAt = Instant.now();
             try {
-                Long result = stringRedisTemplate.execute(UNLOCK_SCRIPT, List.of(redisKey), ownerToken);
+                Long result = stringRedisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(redisKey), ownerToken);
                 RedisCacheObservation.publish(
                         observationPublisher,
                         "cache.lock_release",

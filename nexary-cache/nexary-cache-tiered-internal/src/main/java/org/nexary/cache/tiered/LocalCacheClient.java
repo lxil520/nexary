@@ -113,7 +113,19 @@ public class LocalCacheClient implements CacheClient {
         }
     }
 
-    private record Entry(Object value, long expiresAtNanos) {
+    private static final class Entry {
+        private final Object value;
+        private final long expiresAtNanos;
+
+        private Entry(Object value, long expiresAtNanos) {
+            this.value = value;
+            this.expiresAtNanos = expiresAtNanos;
+        }
+
+        private Object value() {
+            return value;
+        }
+
         private long remainingNanos(long currentTimeNanos) {
             long remaining = expiresAtNanos - currentTimeNanos;
             return remaining > 0 ? remaining : 1L;
@@ -155,7 +167,22 @@ public class LocalCacheClient implements CacheClient {
         }
     }
 
-    private record LockEntry(String ownerToken, long expiresAtNanos) {
+    private static final class LockEntry {
+        private final String ownerToken;
+        private final long expiresAtNanos;
+
+        private LockEntry(String ownerToken, long expiresAtNanos) {
+            this.ownerToken = ownerToken;
+            this.expiresAtNanos = expiresAtNanos;
+        }
+
+        private String ownerToken() {
+            return ownerToken;
+        }
+
+        private long expiresAtNanos() {
+            return expiresAtNanos;
+        }
     }
 
     private static final class EntryExpiry implements Expiry<CacheKey, Entry> {

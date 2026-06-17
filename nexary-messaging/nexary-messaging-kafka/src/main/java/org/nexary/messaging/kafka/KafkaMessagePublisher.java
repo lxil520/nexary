@@ -2,6 +2,7 @@ package org.nexary.messaging.kafka;
 
 import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -39,7 +40,8 @@ public class KafkaMessagePublisher implements MessagePublisher {
             ProducerRecord<String, byte[]> record = createRecord(envelope);
             Method send = kafkaTemplate.getClass().getMethod("send", ProducerRecord.class);
             Object result = send.invoke(kafkaTemplate, record);
-            if (result instanceof CompletableFuture<?> future) {
+            if (result instanceof CompletableFuture<?>) {
+                CompletableFuture<?> future = (CompletableFuture<?>) result;
                 return future.handle((ignored, error) -> {
                     MessagePublishResult publishResult = error == null
                             ? MessagePublishResult.success(null)
@@ -51,7 +53,7 @@ public class KafkaMessagePublisher implements MessagePublisher {
                             "publish",
                             "kafka",
                             MessageObservationSupport.outcome(publishResult),
-                            java.util.Map.of(),
+                            Collections.emptyMap(),
                             error);
                     return publishResult;
                 });
@@ -59,7 +61,7 @@ public class KafkaMessagePublisher implements MessagePublisher {
             MessageObservationSupport.publish(observationPublisher, "publish", "kafka", "success");
             return CompletableFuture.completedFuture(MessagePublishResult.success(null));
         } catch (ReflectiveOperationException ex) {
-            MessageObservationSupport.publish(observationPublisher, "publish", "kafka", "failure", java.util.Map.of(), ex);
+            MessageObservationSupport.publish(observationPublisher, "publish", "kafka", "failure", Collections.emptyMap(), ex);
             return CompletableFuture.completedFuture(MessagePublishResult.failed(ex.getMessage(), RetrySignal.stop(ex.getMessage())));
         }
     }

@@ -33,7 +33,22 @@ public class ConcurrentMapMessageDeduplicationStore implements MessageDeduplicat
         return ttl == null || ttl.isZero() || ttl.isNegative() ? Duration.ofMinutes(30) : ttl;
     }
 
-    private record Entry(boolean consumed, Instant expiresAt) {
+    private static final class Entry {
+        private final boolean consumed;
+        private final Instant expiresAt;
+
+        private Entry(boolean consumed, Instant expiresAt) {
+            this.consumed = consumed;
+            this.expiresAt = expiresAt;
+        }
+
+        private boolean consumed() {
+            return consumed;
+        }
+
+        private Instant expiresAt() {
+            return expiresAt;
+        }
     }
 
     private final class Claim implements MessageDeduplicationClaim {

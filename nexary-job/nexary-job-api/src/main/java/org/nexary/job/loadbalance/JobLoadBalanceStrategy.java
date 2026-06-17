@@ -32,7 +32,7 @@ public enum JobLoadBalanceStrategy {
 
     /** Parses a strategy id, accepting enum names and external ids. */
     public static JobLoadBalanceStrategy parse(String value) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.trim().isEmpty()) {
             return ROUND_ROBIN;
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');

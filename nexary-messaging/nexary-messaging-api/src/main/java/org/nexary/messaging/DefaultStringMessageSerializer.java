@@ -13,8 +13,8 @@ public final class DefaultStringMessageSerializer implements MessageSerializer {
         if (payload == null) {
             return new byte[0];
         }
-        if (payload instanceof byte[] bytes) {
-            return bytes;
+        if (payload instanceof byte[]) {
+            return (byte[]) payload;
         }
         if (!(payload instanceof CharSequence)) {
             try {

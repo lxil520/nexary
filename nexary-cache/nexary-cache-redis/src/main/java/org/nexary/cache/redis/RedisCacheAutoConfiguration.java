@@ -108,9 +108,10 @@ public class RedisCacheAutoConfiguration {
             CacheClient cacheClient,
             RedisCacheProperties properties,
             NexaryObservationPublisher observationPublisher) {
-        if (!(cacheClient instanceof CacheInvalidationListener listener)) {
+        if (!(cacheClient instanceof CacheInvalidationListener)) {
             throw new IllegalStateException("Cache invalidation requires a local-tier CacheClient");
         }
+        CacheInvalidationListener listener = (CacheInvalidationListener) cacheClient;
         return new RedisCacheInvalidationSubscriber(
                 container,
                 listener,

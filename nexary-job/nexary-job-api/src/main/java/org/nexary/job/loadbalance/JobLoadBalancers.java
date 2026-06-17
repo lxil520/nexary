@@ -14,13 +14,20 @@ public final class JobLoadBalancers {
 
     /** Returns a built-in load balancer for the strategy. */
     public static JobLoadBalancer create(JobLoadBalanceStrategy strategy) {
-        return switch (strategy == null ? JobLoadBalanceStrategy.ROUND_ROBIN : strategy) {
-            case ROUND_ROBIN -> new RoundRobinJobLoadBalancer();
-            case RANDOM -> new RandomJobLoadBalancer();
-            case CONSISTENT_HASH -> new ConsistentHashJobLoadBalancer();
-            case LEAST_ACTIVE -> new LeastActiveJobLoadBalancer();
-            case FIRST_AVAILABLE -> new FirstAvailableJobLoadBalancer();
-        };
+        JobLoadBalanceStrategy effective = strategy == null ? JobLoadBalanceStrategy.ROUND_ROBIN : strategy;
+        switch (effective) {
+            case RANDOM:
+                return new RandomJobLoadBalancer();
+            case CONSISTENT_HASH:
+                return new ConsistentHashJobLoadBalancer();
+            case LEAST_ACTIVE:
+                return new LeastActiveJobLoadBalancer();
+            case FIRST_AVAILABLE:
+                return new FirstAvailableJobLoadBalancer();
+            case ROUND_ROBIN:
+            default:
+                return new RoundRobinJobLoadBalancer();
+        }
     }
 
     private abstract static class AbstractJobLoadBalancer implements JobLoadBalancer {
@@ -98,7 +105,7 @@ public final class JobLoadBalancers {
             return workers.stream()
                     .min(Comparator.comparingInt(JobWorker::activeCount)
                             .thenComparing(worker -> hash(jobName + ":" + shardIndex + ":" + worker.id())))
-                    .orElseThrow();
+                    .orElseThrow(() -> new IllegalArgumentException("workers must not be empty"));
         }
     }
 

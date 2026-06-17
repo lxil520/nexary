@@ -7,7 +7,7 @@ import java.util.UUID;
 public record JobExecutionId(String value) {
     public JobExecutionId {
         Objects.requireNonNull(value, "value");
-        if (value.isBlank()) {
+        if (value.trim().isEmpty()) {
             throw new IllegalArgumentException("execution id must not be blank");
         }
     }

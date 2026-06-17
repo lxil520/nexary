@@ -1,6 +1,7 @@
 package org.nexary.messaging;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.nexary.core.observation.NexaryObservationEvent;
@@ -19,7 +20,7 @@ public final class MessageObservationSupport {
             String operation,
             String provider,
             String outcome) {
-        publish(publisher, operation, provider, outcome, Map.of(), null);
+        publish(publisher, operation, provider, outcome, Collections.emptyMap(), null);
     }
 
     /** Publishes a messaging observation event while filtering tags to the supported bounded tag set. */
@@ -44,17 +45,17 @@ public final class MessageObservationSupport {
 
     /** Creates bounded retry attempt tags. */
     public static Map<String, String> retryTags(int attempt) {
-        return Map.of("retry_attempt_bucket", attemptBucket(attempt));
+        return Collections.singletonMap("retry_attempt_bucket", attemptBucket(attempt));
     }
 
     /** Creates bounded terminal status tags. */
     public static Map<String, String> terminalTags(String terminalStatus) {
-        return Map.of("terminal_status", sanitize(terminalStatus, "unknown"));
+        return Collections.singletonMap("terminal_status", sanitize(terminalStatus, "unknown"));
     }
 
     /** Creates bounded provider boundary tags. */
     public static Map<String, String> boundaryTags(String boundary) {
-        return Map.of("boundary", sanitize(boundary, "unknown"));
+        return Collections.singletonMap("boundary", sanitize(boundary, "unknown"));
     }
 
     /** Maps a publish result to a bounded outcome value. */
@@ -70,13 +71,20 @@ public final class MessageObservationSupport {
         if (result == null || result.status() == null) {
             return "unknown";
         }
-        return switch (result.status()) {
-            case SUCCESS -> "success";
-            case DUPLICATE -> "duplicate";
-            case RETRY -> "retry";
-            case DEAD_LETTER -> "dead_letter";
-            case FAILED -> "failure";
-        };
+        switch (result.status()) {
+            case SUCCESS:
+                return "success";
+            case DUPLICATE:
+                return "duplicate";
+            case RETRY:
+                return "retry";
+            case DEAD_LETTER:
+                return "dead_letter";
+            case FAILED:
+                return "failure";
+            default:
+                return "unknown";
+        }
     }
 
     /** Buckets retry attempts into bounded tag values. */
@@ -129,31 +137,32 @@ public final class MessageObservationSupport {
     }
 
     private static boolean isAllowedTag(String key) {
-        return switch (key) {
-            case "capability",
-                    "operation",
-                    "provider",
-                    "outcome",
-                    "retry_attempt_bucket",
-                    "terminal_status",
-                    "failure_category",
-                    "boundary" -> true;
-            default -> false;
-        };
+        return "capability".equals(key)
+                || "operation".equals(key)
+                || "provider".equals(key)
+                || "outcome".equals(key)
+                || "retry_attempt_bucket".equals(key)
+                || "terminal_status".equals(key)
+                || "failure_category".equals(key)
+                || "boundary".equals(key);
     }
 
     private static String sanitizeKey(String value) {
-        if (value == null || value.isBlank()) {
+        if (isBlank(value)) {
             return null;
         }
         return value.trim().toLowerCase(java.util.Locale.ROOT).replace('-', '_');
     }
 
     private static String sanitize(String value, String fallback) {
-        if (value == null || value.isBlank()) {
+        if (isBlank(value)) {
             return fallback;
         }
         String normalized = value.trim().toLowerCase(java.util.Locale.ROOT).replace('-', '_');
         return normalized.length() > 64 ? normalized.substring(0, 64) : normalized;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

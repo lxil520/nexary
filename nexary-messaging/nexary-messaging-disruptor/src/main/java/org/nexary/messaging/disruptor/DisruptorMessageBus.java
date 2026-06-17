@@ -1,6 +1,7 @@
 package org.nexary.messaging.disruptor;
 
 import com.lmax.disruptor.BlockingWaitStrategy;
+import java.util.Collections;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.EventTranslatorOneArg;
@@ -79,7 +80,7 @@ public class DisruptorMessageBus implements MessagePublisher, MessageSubscriber,
             MessageObservationSupport.publish(observationPublisher, "publish", "disruptor", "success");
             return CompletableFuture.completedFuture(MessagePublishResult.success(envelope.messageId()));
         } catch (RuntimeException ex) {
-            MessageObservationSupport.publish(observationPublisher, "publish", "disruptor", "failure", java.util.Map.of(), ex);
+            MessageObservationSupport.publish(observationPublisher, "publish", "disruptor", "failure", Collections.emptyMap(), ex);
             return CompletableFuture.completedFuture(MessagePublishResult.failed(ex.getMessage(), null));
         }
     }

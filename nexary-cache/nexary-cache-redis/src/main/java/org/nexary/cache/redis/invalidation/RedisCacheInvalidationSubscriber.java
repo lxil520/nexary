@@ -2,6 +2,7 @@ package org.nexary.cache.redis.invalidation;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import org.nexary.cache.invalidation.CacheInvalidationEvent;
 import org.nexary.cache.invalidation.CacheInvalidationListener;
 import org.nexary.cache.redis.RedisCacheObservation;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -50,7 +51,7 @@ public class RedisCacheInvalidationSubscriber implements MessageListener, SmartL
         Instant startedAt = Instant.now();
         try {
             String payload = new String(message.getBody(), StandardCharsets.UTF_8);
-            var event = RedisCacheInvalidationCodec.decode(payload);
+            CacheInvalidationEvent event = RedisCacheInvalidationCodec.decode(payload);
             if (!originId.equals(event.originId())) {
                 listener.onInvalidation(event);
                 RedisCacheObservation.publish(

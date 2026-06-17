@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.job.internal.JobCompatibilityCollections;
 
 /** Internal helpers for provider-neutral job observation events. */
 public final class JobObservationSupport {
@@ -65,21 +66,21 @@ public final class JobObservationSupport {
     /** Creates a tag map for shard metadata without exposing shard indexes. */
     public static Map<String, String> shardTags(JobExecutionRequest request) {
         if (request == null || request.context() == null) {
-            return Map.of("shard_presence", "false");
+            return JobCompatibilityCollections.tags("shard_presence", "false");
         }
-        return Map.of("shard_presence", request.context().shardTotal() > 1 ? "true" : "false");
+        return JobCompatibilityCollections.tags("shard_presence", request.context().shardTotal() > 1 ? "true" : "false");
     }
 
     /** Creates a bounded retry attempt tag. */
     public static Map<String, String> retryTags(int attempt, int maxAttempts) {
-        return Map.of(
+        return JobCompatibilityCollections.tags(
                 "retry_attempt_bucket", attemptBucket(attempt),
                 "retry_phase", attempt >= maxAttempts ? "final" : attempt == 1 ? "first" : "retry");
     }
 
     /** Creates a bounded skip reason tag. */
     public static Map<String, String> skipTags(String reason) {
-        return Map.of("skip_reason", skipReason(reason));
+        return JobCompatibilityCollections.tags("skip_reason", skipReason(reason));
     }
 
     /** Maps raw skip text to a bounded reason. */
@@ -152,20 +153,17 @@ public final class JobObservationSupport {
     }
 
     private static boolean isAllowedTag(String key) {
-        return switch (key) {
-            case "capability",
-                    "operation",
-                    "provider",
-                    "trigger",
-                    "status",
-                    "skip_reason",
-                    "shard_presence",
-                    "failure_category",
-                    "retry_attempt_bucket",
-                    "retry_phase",
-                    "store" -> true;
-            default -> false;
-        };
+        return "capability".equals(key)
+                || "operation".equals(key)
+                || "provider".equals(key)
+                || "trigger".equals(key)
+                || "status".equals(key)
+                || "skip_reason".equals(key)
+                || "shard_presence".equals(key)
+                || "failure_category".equals(key)
+                || "retry_attempt_bucket".equals(key)
+                || "retry_phase".equals(key)
+                || "store".equals(key);
     }
 
     private static String attemptBucket(int attempt) {
@@ -182,14 +180,14 @@ public final class JobObservationSupport {
     }
 
     private static String sanitizeKey(String value) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.trim().isEmpty()) {
             return null;
         }
         return value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
     }
 
     private static String sanitize(String value, String fallback) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.trim().isEmpty()) {
             return fallback;
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');

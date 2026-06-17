@@ -9,6 +9,7 @@ import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.job.JobExecutionListener;
 import org.nexary.job.NexaryJob;
 import org.nexary.job.NexaryJobOperations;
+import org.nexary.job.internal.JobCompatibilityCollections;
 import org.nexary.job.execution.InMemoryJobExecutionStore;
 import org.nexary.job.execution.JobExecutionRunner;
 import org.nexary.job.execution.JobExecutionStore;
@@ -56,7 +57,7 @@ public class XxlJobAutoConfiguration {
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
             ObjectProvider<NexaryObservationListener> observationListeners) {
         return new JobExecutionRunner(
-                listeners.orderedStream().toList(),
+                JobCompatibilityCollections.collectList(listeners.orderedStream()),
                 nexaryJobExecutionExecutor,
                 executionStore,
                 observationPublisher(observationPublisher, observationListeners),
@@ -72,7 +73,7 @@ public class XxlJobAutoConfiguration {
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
             ObjectProvider<NexaryObservationListener> observationListeners) {
         return new XxlJobBridge(
-                jobs.orderedStream().toList(),
+                JobCompatibilityCollections.collectList(jobs.orderedStream()),
                 executionRunner,
                 properties,
                 observationPublisher(observationPublisher, observationListeners));
@@ -87,6 +88,7 @@ public class XxlJobAutoConfiguration {
     private NexaryObservationPublisher observationPublisher(
             ObjectProvider<NexaryObservationPublisher> publisher,
             ObjectProvider<NexaryObservationListener> listeners) {
-        return publisher.getIfAvailable(() -> NexaryObservationPublisher.fanOut(listeners.orderedStream().toList()));
+        return publisher.getIfAvailable(() -> NexaryObservationPublisher.fanOut(
+                JobCompatibilityCollections.collectList(listeners.orderedStream())));
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.nexary.core.observation.NexaryObservationListener;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.job.internal.JobCompatibilityCollections;
 import org.nexary.job.execution.JobExecutionStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -39,7 +40,8 @@ public class RedisJobExecutionStoreAutoConfiguration {
                 stringRedisTemplate,
                 mapper,
                 properties,
-                observationPublisher.getIfAvailable(() -> NexaryObservationPublisher.fanOut(observationListeners.orderedStream().toList())));
+                observationPublisher.getIfAvailable(() -> NexaryObservationPublisher.fanOut(
+                        JobCompatibilityCollections.collectList(observationListeners.orderedStream()))));
     }
 
     private ObjectMapper defaultObjectMapper() {

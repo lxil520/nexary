@@ -55,9 +55,10 @@ public class RocketMqProviderClientAutoConfiguration {
         }
 
         public SendResult syncSend(String destination, Object messageObject) throws Exception {
-            if (!(messageObject instanceof Message<?> springMessage)) {
+            if (!(messageObject instanceof Message<?>)) {
                 throw new IllegalArgumentException("expected Spring message");
             }
+            Message<?> springMessage = (Message<?>) messageObject;
             if (properties.isAutoCreateTopic()) {
                 producer.createTopic(
                         "TBW102",
@@ -85,8 +86,8 @@ public class RocketMqProviderClientAutoConfiguration {
         }
 
         private byte[] payload(Object payload) {
-            if (payload instanceof byte[] bytes) {
-                return bytes;
+            if (payload instanceof byte[]) {
+                return (byte[]) payload;
             }
             return payload == null ? new byte[0] : payload.toString().getBytes(StandardCharsets.UTF_8);
         }
