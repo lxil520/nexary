@@ -6,11 +6,24 @@ This module does not depend on `nexary-cache-spring-boot-starter`, does not cont
 
 ## Dependency Mode
 
+This sample belongs to the verified Spring Boot 3.3.x + Java 17+ line. It does not use the starter; it shows the API + Redis provider dependency mode.
+
+| Spring Boot | JDK | Status | API / Provider Dependencies |
+| --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | currently verified | `nexary-cache-api` + `nexary-cache-redis` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 target, pending verification, unpublished | proposed Java 8 compatible API/provider line |
+| Spring Boot 4.x | Java 21+ | later v0.2 target, pending verification, unpublished | proposed Boot4 provider line |
+
 `build.gradle`:
 
 ```groovy
+// Currently verified: Spring Boot 3.3.x + Java 17+
 implementation project(':nexary-cache:nexary-cache-api')
 runtimeOnly project(':nexary-cache:nexary-cache-redis')
+
+// Maven Central equivalent after publication:
+// implementation "org.nexary:nexary-cache-api:${nexaryVersion}"
+// runtimeOnly "org.nexary:nexary-cache-redis:${nexaryVersion}"
 ```
 
 To switch providers, change the provider dependency and `nexary.cache.provider` configuration, not controller/service business code.

@@ -19,10 +19,27 @@ org.nexary.samples.cache.common
 
 ## Dependency Mode
 
+This sample belongs to the verified Spring Boot 3.3.x + Java 17+ line.
+
+| Spring Boot | JDK | Status | Cache Starter |
+| --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | currently verified | `nexary-cache-spring-boot-starter` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 target, pending verification, unpublished | proposed `nexary-cache-spring-boot2-starter` |
+| Spring Boot 4.x | Java 21+ | later v0.2 target, pending verification, unpublished | proposed `nexary-cache-spring-boot4-starter` |
+
+Before publication, the recommended naming cleanup is to publish an explicit `nexary-cache-spring-boot3-starter`, or clearly document `nexary-cache-spring-boot-starter` as Boot3-only. Do not copy unverified combinations as production dependencies.
+
 `build.gradle` uses the starter:
 
 ```groovy
+// Currently verified: Spring Boot 3.3.x + Java 17+
 implementation project(':nexary-boot:nexary-cache-spring-boot-starter')
+
+// Maven Central equivalent after publication:
+// implementation "org.nexary:nexary-cache-spring-boot-starter:${nexaryVersion}"
+//
+// If explicit Boot3 coordinates are adopted before publication, use:
+// implementation "org.nexary:nexary-cache-spring-boot3-starter:${nexaryVersion}"
 ```
 
 The starter aggregates the cache API and optional providers. Business code injects Nexary abstractions such as `CacheClient` and `CacheCounterClient`; switching providers must not change controller/service code.
@@ -123,6 +140,13 @@ SPI/provider dependency adoption lives in a separate module:
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache-spi-redis:run
+```
+
+Its production dependency shape is:
+
+```groovy
+implementation "org.nexary:nexary-cache-api:${nexaryVersion}"
+runtimeOnly "org.nexary:nexary-cache-redis:${nexaryVersion}"
 ```
 
 Do not mix the two dependency modes in one business sample.

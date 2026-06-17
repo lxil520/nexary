@@ -12,6 +12,25 @@
 - `nexary-job-xxljob`
 - `nexary-job-execution-store-redis`
 
+## 版本入口
+
+当前已验证组合是 Spring Boot 3.3.x + Java 17+：
+
+```groovy
+implementation 'org.nexary:nexary-job-spring-boot-starter'
+```
+
+如果不用 starter，可以按 SPI/provider 模式选择依赖：
+
+```groovy
+implementation 'org.nexary:nexary-job-api'
+runtimeOnly 'org.nexary:nexary-job-scheduler' // local scheduler provider
+// runtimeOnly 'org.nexary:nexary-job-xxljob' // XXL-JOB bridge provider
+// runtimeOnly 'org.nexary:nexary-job-execution-store-redis' // optional durable records
+```
+
+Spring Boot 2.7 + Java 8+ 和 Spring Boot 4.x + Java 21+ 目前是兼容目标，不是已发布支持。拟定 artifactId 分别是 `nexary-job-spring-boot2-starter` 和 `nexary-job-spring-boot4-starter`；Boot2 provider 线拟定使用 `nexary-job-api-java8`、`nexary-job-scheduler-spring5`、`nexary-job-xxljob-spring5`、`nexary-job-execution-store-redis-spring5`。这些名称在通过独立验证前不能写成可用依赖。
+
 执行记录默认使用 in-memory store。需要跨进程或重建后查询 execution record 时，启用可选 Redis durable store：
 
 ```yaml

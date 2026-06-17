@@ -9,6 +9,61 @@ Cache 是 Nexary 当前最独立的一项能力。
 - 验收清单：[cache-acceptance.md](cache-acceptance.md)
 - 样例说明：[samples.md](samples.md)
 
+## 版本选择
+
+当前开发版本：`0.2.0-SNAPSHOT`。正式发布后，依赖中的 `${nexary.version}` 使用最新 release / tag 版本。
+
+| Spring Boot | JDK | Cache 状态 | Starter artifactId | SPI/provider 依赖 |
+| --- | --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | 当前已验证 | `nexary-cache-spring-boot-starter` | `nexary-cache-api` + `nexary-cache-redis` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 兼容目标，待验证，未发布 | 拟定 `nexary-cache-spring-boot2-starter` | 拟定 Java8 兼容 API/provider 线，待定 |
+| Spring Boot 4.x | Java 21+ | v0.2 后续验证目标，待验证，未发布 | 拟定 `nexary-cache-spring-boot4-starter` | 拟定 Boot4 provider 线，待定 |
+
+当前 cache starter 坐标没有显式写 Boot3，但它只代表已经验证的 Spring Boot 3.3 / Java 17+ 主线。发布前建议将 cache starter 明确为 `nexary-cache-spring-boot3-starter`，或在发布说明中明确现有 `nexary-cache-spring-boot-starter` 是 Boot3-only。Boot2 和 Boot4 坐标在完成独立编译、样例运行和 Redis provider 验证前不能写成已支持。
+
+## 接入方式
+
+### Starter 模式
+
+Starter 模式适合 Spring Boot 服务直接引入 cache 能力。starter 聚合 API 和当前 provider，业务代码只注入 Nexary 抽象，不引入 Redis、Caffeine 或 Spring Data Redis 原生类型。
+
+```groovy
+dependencies {
+    // 当前已验证：Spring Boot 3.3.x + Java 17+
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+    implementation "org.nexary:nexary-cache-spring-boot-starter"
+
+    // 发布前推荐的显式 Boot3 artifactId，待坐标调整后使用：
+    // implementation "org.nexary:nexary-cache-spring-boot3-starter"
+}
+```
+
+```yaml
+nexary:
+  cache:
+    # 由 Nexary cache starter 读取 selector；业务代码不判断 provider。
+    provider: redis
+    redis:
+      # Redis-only 是生产默认路径；tiered cache 需要显式开启。
+      tiered-enabled: false
+```
+
+### SPI/provider 依赖模式
+
+SPI/provider 模式适合希望显式控制 provider 依赖的服务。业务代码编译期只依赖 `nexary-cache-api`，Redis provider 通过运行时依赖和 `nexary.cache.provider` 配置加载。
+
+```groovy
+dependencies {
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
+    // 业务代码只使用 CacheClient / CacheCounterClient 等 Nexary API。
+    implementation "org.nexary:nexary-cache-api"
+
+    // 当前已验证 provider：Redis。切换 provider 时换依赖和配置，不改业务代码。
+    runtimeOnly "org.nexary:nexary-cache-redis"
+}
+```
+
 ## 当前范围
 
 - `nexary-cache-api`

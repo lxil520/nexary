@@ -25,6 +25,68 @@ Read the job capability independently because local scheduling and external plat
 - XXL-JOB is a bridge from external platform triggers back into `NexaryJob`, not a second public job API.
 - Future PowerJob support should also be a bridge and must not force changes into the current public API.
 
+## Version Entry and Dependency Choice
+
+The Job capability declares only verified combinations as supported. Target combinations are marked as target, pending verification, and unpublished.
+
+| Spring Boot | JDK | Status | Recommended Entry |
+| --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | currently verified | `org.nexary:nexary-job-spring-boot-starter` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 compatibility target, pending verification, unpublished | planned `org.nexary:nexary-job-spring-boot2-starter` |
+| Spring Boot 4.x | Java 21+ primary validation target | later v0.2 validation target, pending verification, unpublished | planned `org.nexary:nexary-job-spring-boot4-starter` |
+
+The currently verified starter artifactId is `nexary-job-spring-boot-starter`. If Nexary publishes Boot2 / Boot3 / Boot4 lines side by side, the smallest release-facing naming adjustment should make the current Boot3 entry explicit as `nexary-job-spring-boot3-starter`, while Boot2 and Boot4 remain separate target artifacts until verified. This avoids users applying the Boot3 starter to Boot2 applications by mistake.
+
+Maven starter mode:
+
+```xml
+<!-- Currently verified: Spring Boot 3.3.x + Java 17+ -->
+<dependency>
+  <groupId>org.nexary</groupId>
+  <artifactId>nexary-job-spring-boot-starter</artifactId>
+  <version>${nexary.version}</version>
+</dependency>
+```
+
+Gradle starter mode:
+
+```groovy
+// Currently verified: Spring Boot 3.3.x + Java 17+
+// The starter aggregates Nexary job API, local scheduler, XXL-JOB bridge,
+// and the Redis execution store provider. Select the runtime provider with
+// nexary.job.provider.
+implementation 'org.nexary:nexary-job-spring-boot-starter'
+```
+
+SPI/provider mode is for applications that want exactly one concrete provider dependency. Business jobs still depend only on `NexaryJob`, `JobContext`, and `JobResult`:
+
+```groovy
+// Business code needs only the Nexary job API at compile time.
+implementation 'org.nexary:nexary-job-api'
+
+// Local scheduler provider. Choose either local scheduler or XXL-JOB bridge.
+runtimeOnly 'org.nexary:nexary-job-scheduler'
+
+// XXL-JOB bridge provider. Choose either this or local scheduler.
+// runtimeOnly 'org.nexary:nexary-job-xxljob'
+
+// Optional: Redis durable execution store.
+// Add and enable it only when completed execution records must be looked up
+// across process restarts or provider/store object recreation.
+// runtimeOnly 'org.nexary:nexary-job-execution-store-redis'
+```
+
+Target but unpublished compatibility artifact names:
+
+| Target | Planned artifactId | Status |
+| --- | --- | --- |
+| Boot2 starter | `nexary-job-spring-boot2-starter` | target / pending verification / unpublished |
+| Boot2 Java8 API | `nexary-job-api-java8` | target / pending verification / unpublished |
+| Boot2 local scheduler | `nexary-job-scheduler-spring5` | target / pending verification / unpublished |
+| Boot2 XXL-JOB bridge | `nexary-job-xxljob-spring5` | target / pending verification / unpublished |
+| Boot2 Redis execution store | `nexary-job-execution-store-redis-spring5` | target / pending verification / unpublished |
+| Boot4 starter | `nexary-job-spring-boot4-starter` | target / pending verification / unpublished |
+
 ## Adoption Modes
 
 Business code should implement or call only Nexary job API:

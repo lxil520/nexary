@@ -19,10 +19,27 @@ org.nexary.samples.cache.common
 
 ## 引入方式
 
+当前样例对应 Spring Boot 3.3.x + Java 17+ 已验证线。
+
+| Spring Boot | JDK | 状态 | Cache starter |
+| --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | 当前已验证 | `nexary-cache-spring-boot-starter` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 目标，待验证，未发布 | 拟定 `nexary-cache-spring-boot2-starter` |
+| Spring Boot 4.x | Java 21+ | v0.2 后续目标，待验证，未发布 | 拟定 `nexary-cache-spring-boot4-starter` |
+
+发布前建议把当前 Boot3 入口显式命名为 `nexary-cache-spring-boot3-starter`，或明确 `nexary-cache-spring-boot-starter` 是 Boot3-only。未验证组合不要复制成生产依赖。
+
 `build.gradle` 使用 starter：
 
 ```groovy
+// 当前已验证：Spring Boot 3.3.x + Java 17+
 implementation project(':nexary-boot:nexary-cache-spring-boot-starter')
+
+// Maven Central 发布后等价写法：
+// implementation "org.nexary:nexary-cache-spring-boot-starter:${nexaryVersion}"
+//
+// 若发布前完成显式 Boot3 坐标调整，则改用：
+// implementation "org.nexary:nexary-cache-spring-boot3-starter:${nexaryVersion}"
 ```
 
 starter 负责聚合 cache API 和可选 provider。业务代码只注入 `CacheClient` / `CacheCounterClient` 等 Nexary 抽象，切换 provider 时不改 controller/service。
@@ -123,6 +140,13 @@ SPI/provider dependency 引入方式在独立模块：
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache-spi-redis:run
+```
+
+该方式的生产依赖形态是：
+
+```groovy
+implementation "org.nexary:nexary-cache-api:${nexaryVersion}"
+runtimeOnly "org.nexary:nexary-cache-redis:${nexaryVersion}"
 ```
 
 不要把两种引入方式混在一个业务样例里。

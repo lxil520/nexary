@@ -9,6 +9,10 @@ Starter selector adoption sample for Nexary messaging, focused on simple busines
 - `kafka`: real Kafka broker profile for local middleware validation
 - `rocketmq`: real RocketMQ broker profile for local middleware validation
 
+## Version Selection
+
+This sample is verified for Spring Boot 3.3 + Java 17+. The current starter artifactId is `nexary-messaging-spring-boot-starter`; before public release, the clearer entry should be `nexary-messaging-spring-boot3-starter` or an explicitly documented Boot3-only coordinate. Spring Boot 2.7 + Java 8+ and Spring Boot 4.x + Java 21+ are future targets only and are not published support lines yet.
+
 ## Main Adoption Mode: Starter Selector
 
 Business code depends on `nexary-messaging-spring-boot-starter` and the `org.nexary.messaging.*` API. Switching providers means changing `nexary.messaging.provider` and provider settings, not facade, controller, or consumer code.
@@ -16,6 +20,8 @@ Business code depends on `nexary-messaging-spring-boot-starter` and the `org.nex
 Main `build.gradle` dependency:
 
 ```gradle
+// The repository sample uses a project dependency. After publication, the current verified artifactId is:
+// implementation 'org.nexary:nexary-messaging-spring-boot-starter'
 implementation project(':nexary-boot:nexary-messaging-spring-boot-starter')
 ```
 
@@ -71,6 +77,19 @@ If you do not want the aggregate starter, use the provider-split SPI samples:
 - `nexary-sample-messaging-spi-rocketmq`
 
 Those modules depend on `nexary-messaging-api` plus exactly one provider module. Business code still uses only the Nexary messaging API; switching providers means changing the provider dependency and configuration, not facade/controller/consumer code. SPI sample packages are provider-scoped, for example `org.nexary.samples.messaging.spi.kafka.*`.
+
+After publication, SPI/provider dependencies look like:
+
+```gradle
+dependencies {
+    implementation 'org.nexary:nexary-messaging-api'
+
+    runtimeOnly 'org.nexary:nexary-messaging-disruptor'
+    // runtimeOnly 'org.nexary:nexary-messaging-redis'
+    // runtimeOnly 'org.nexary:nexary-messaging-kafka'
+    // runtimeOnly 'org.nexary:nexary-messaging-rocketmq'
+}
+```
 
 ## Run
 

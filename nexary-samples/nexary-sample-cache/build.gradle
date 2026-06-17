@@ -4,6 +4,11 @@ plugins {
 
 dependencies {
     // Starter selector adoption path:
+    // - currently verified for Spring Boot 3.3.x + Java 17+.
+    // - published coordinates today map to artifactId: nexary-cache-spring-boot-starter.
+    // - before public release, prefer an explicit Boot3 artifactId:
+    //   nexary-cache-spring-boot3-starter.
+    // - planned Boot2/Boot4 artifactIds are not published or supported yet.
     // - application code uses only Nexary cache API types such as CacheClient and CacheCounterClient.
     // - the starter aggregates the cache API and Redis provider.
     // - application*.yml selects the provider/mode through nexary.* properties.
@@ -12,6 +17,7 @@ dependencies {
     // SPI/provider dependency adoption path:
     // - in a plain service, replace the starter with nexary-cache-api plus a provider artifact.
     // - for Redis this means adding nexary-cache-redis as the provider dependency.
+    // - Boot2/JDK8 needs a future Java8-compatible API/provider line; do not use this sample as Boot2 evidence.
     // - provider setup stays outside controller/service code.
     // implementation project(':nexary-cache:nexary-cache-api')
     // runtimeOnly project(':nexary-cache:nexary-cache-redis')

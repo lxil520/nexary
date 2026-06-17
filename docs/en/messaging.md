@@ -15,6 +15,54 @@ Messaging has the most provider variation and the highest risk of blurred bounda
 - Kafka / RocketMQ / Redis queue / Disruptor
 - shared envelope, serializer, interceptor, retry, and duplicate-protection abstractions
 
+## Version And Adoption Entry
+
+Choose the entry point from your Spring Boot and JDK line first. Combinations that have not passed verification are listed as targets, not supported releases.
+
+| Spring Boot | JDK | Messaging Status | Starter Mode | SPI/provider Mode |
+| --- | --- | --- | --- | --- |
+| Spring Boot 3.3 | Java 17+ | currently verified | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` plus one provider runtime dependency |
+| Spring Boot 2.7 | Java 8+ | `0.2.x` compatibility target, pending verification, unpublished | planned `nexary-messaging-spring-boot2-starter` | planned `nexary-messaging-api-java8` or `nexary-messaging8-api` plus `nexary-messaging-*-spring5` / `nexary-messaging-disruptor-java8` |
+| Spring Boot 4.x | Java 21+ | later verification target, pending verification, unpublished | planned `nexary-messaging-spring-boot4-starter` | pending the Boot4 dependency matrix |
+
+Currently verified starter mode:
+
+```gradle
+dependencies {
+    // Currently verified combination: Spring Boot 3.3 + Java 17+.
+    // This starter aggregates the Messaging API and current provider auto-configuration.
+    // Select disruptor / redis / kafka / rocketmq with nexary.messaging.provider.
+    implementation 'org.nexary:nexary-messaging-spring-boot-starter'
+}
+```
+
+The current artifactId is still `nexary-messaging-spring-boot-starter`. For a clear user selection experience, the minimal pre-release adjustment should be `nexary-messaging-spring-boot3-starter`, or at least BOM and documentation wording that marks the current artifact as Boot3-only. Do not imply Boot2 compatibility through the current Boot3 starter.
+
+SPI/provider mode is for services that do not want the aggregate starter and want to bring exactly one concrete provider. Business code still depends only on the Nexary messaging API and must not import Kafka, RocketMQ, Redis, or Disruptor native types.
+
+```gradle
+dependencies {
+    // Business code compiles against the provider-neutral API only.
+    implementation 'org.nexary:nexary-messaging-api'
+
+    // Choose exactly one provider at runtime. Switching providers changes this
+    // dependency and application.yml, not facade / controller / consumer code.
+    runtimeOnly 'org.nexary:nexary-messaging-disruptor'
+    // runtimeOnly 'org.nexary:nexary-messaging-redis'
+    // runtimeOnly 'org.nexary:nexary-messaging-kafka'
+    // runtimeOnly 'org.nexary:nexary-messaging-rocketmq'
+}
+```
+
+Provider runtime selection:
+
+| Provider | Runtime Dependency | Config Selector | External Dependency | Notes |
+| --- | --- | --- | --- | --- |
+| Disruptor | `nexary-messaging-disruptor` | `nexary.messaging.provider=disruptor` | none | in-process ring buffer for local event dispatch |
+| Redis queue | `nexary-messaging-redis` | `nexary.messaging.provider=redis` | Redis plus a Spring Redis connection factory | lightweight ready / processing / ack queue, not a Kafka/RocketMQ equivalent |
+| Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary maps provider-neutral publish/consume/retry/dedup behavior |
+| RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary maps provider-neutral publish/consume/retry/dedup behavior |
+
 ## Current Boundaries
 
 - in `0.1.x`, one outbound provider per service is the recommended default

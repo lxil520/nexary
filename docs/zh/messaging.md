@@ -15,6 +15,54 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 - Kafka / RocketMQ / Redis queue / Disruptor
 - 统一 envelope、serializer、interceptor、retry、重复消费保护抽象
 
+## 版本与接入入口
+
+先按你的 Spring Boot 和 JDK 版本选入口。没有通过验收的组合只写为目标，不写成已支持。
+
+| Spring Boot | JDK | Messaging 状态 | Starter 模式 | SPI/provider 模式 |
+| --- | --- | --- | --- | --- |
+| Spring Boot 3.3 | Java 17+ | 当前已验证 | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` + 一个 provider runtime 依赖 |
+| Spring Boot 2.7 | Java 8+ | `0.2.x` 兼容目标，待验证，未发布 | 拟定 `nexary-messaging-spring-boot2-starter` | 拟定 `nexary-messaging-api-java8` 或 `nexary-messaging8-api` + `nexary-messaging-*-spring5` / `nexary-messaging-disruptor-java8` |
+| Spring Boot 4.x | Java 21+ | 后续验证目标，待验证，未发布 | 拟定 `nexary-messaging-spring-boot4-starter` | 待 Boot4 依赖矩阵确认 |
+
+当前已验证 starter 模式：
+
+```gradle
+dependencies {
+    // 当前已验证组合：Spring Boot 3.3 + Java 17+。
+    // 这个 starter 聚合 Messaging API 和当前 provider 自动配置。
+    // 用 nexary.messaging.provider 选择 disruptor / redis / kafka / rocketmq。
+    implementation 'org.nexary:nexary-messaging-spring-boot-starter'
+}
+```
+
+当前 artifactId 仍是 `nexary-messaging-spring-boot-starter`。从用户选择体验看，正式发布前建议最小调整为 `nexary-messaging-spring-boot3-starter`，或在 BOM 和文档中明确该 artifact 是 Boot3-only。不要让 Boot2 用户误以为当前 starter 可直接使用。
+
+SPI/provider 模式适合不想引入聚合 starter、只想引入一个具体 provider 的服务。业务代码仍只依赖 Nexary messaging API，不直接 import Kafka、RocketMQ、Redis 或 Disruptor 原生类型。
+
+```gradle
+dependencies {
+    // 业务编译期只依赖 provider-neutral API。
+    implementation 'org.nexary:nexary-messaging-api'
+
+    // 运行时只选择一个 provider。切换 provider 时改这里和 application.yml，
+    // 不改 facade / controller / consumer 业务代码。
+    runtimeOnly 'org.nexary:nexary-messaging-disruptor'
+    // runtimeOnly 'org.nexary:nexary-messaging-redis'
+    // runtimeOnly 'org.nexary:nexary-messaging-kafka'
+    // runtimeOnly 'org.nexary:nexary-messaging-rocketmq'
+}
+```
+
+Provider 运行时选择：
+
+| Provider | Runtime 依赖 | 配置选择 | 外部依赖 | 说明 |
+| --- | --- | --- | --- | --- |
+| Disruptor | `nexary-messaging-disruptor` | `nexary.messaging.provider=disruptor` | 无 | 进程内 ring-buffer，适合本地事件分发 |
+| Redis queue | `nexary-messaging-redis` | `nexary.messaging.provider=redis` | Redis + Spring Redis 连接工厂 | 轻量 ready / processing / ack queue，不等同 Kafka/RocketMQ |
+| Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary 负责 provider-neutral publish/consume/retry/dedup 映射 |
+| RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary 负责 provider-neutral publish/consume/retry/dedup 映射 |
+
 ## 当前边界
 
 - 每个服务在 `0.1.x` 建议只启用一个出站 provider

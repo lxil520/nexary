@@ -5,6 +5,58 @@
 
 本目录是 Nexary 的缓存能力入口，不是全仓库总览。
 
+## 版本与接入入口
+
+当前开发版本：`0.2.0-SNAPSHOT`。发布到 Maven Central 后，请把 `${nexary.version}` 替换为最新 release / tag 版本。
+
+| Spring Boot | JDK | Cache 状态 | Starter artifactId | SPI/provider 依赖 |
+| --- | --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | 当前已验证 | `nexary-cache-spring-boot-starter` | `nexary-cache-api` + `nexary-cache-redis` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 兼容目标，待验证，未发布 | 拟定 `nexary-cache-spring-boot2-starter` | 拟定 Java8 兼容 API/provider 线，待定 |
+| Spring Boot 4.x | Java 21+ | v0.2 后续验证目标，待验证，未发布 | 拟定 `nexary-cache-spring-boot4-starter` | 拟定 Boot4 provider 线，待定 |
+
+当前 `nexary-cache-spring-boot-starter` 是 Boot3 / Java17+ 已验证入口。发布前建议最小调整为显式 Boot3 坐标 `nexary-cache-spring-boot3-starter`，避免用户误以为同一个 starter 同时覆盖 Boot2、Boot3、Boot4。未通过验证的组合不能出现在“已支持”依赖片段中。
+
+### Starter 模式
+
+适合希望由 Nexary starter 聚合 cache API 与 provider，并通过配置选择底层实现的 Spring Boot 服务。业务代码只使用 `CacheClient`、`CacheCounterClient`、`CacheKey`、`CacheCounterKey` 等 Nexary 抽象。
+
+```groovy
+dependencies {
+    // 当前已验证：Spring Boot 3.3.x + Java 17+
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+    implementation "org.nexary:nexary-cache-spring-boot-starter"
+
+    // 发布前推荐的显式 Boot3 artifactId，待坐标调整后使用：
+    // implementation "org.nexary:nexary-cache-spring-boot3-starter"
+}
+```
+
+```yaml
+nexary:
+  cache:
+    provider: redis
+    redis:
+      # Redis-only 是生产默认路径；tiered cache 需要显式开启。
+      tiered-enabled: false
+```
+
+### SPI/provider 依赖模式
+
+适合希望显式控制 provider 依赖的服务。业务代码仍只依赖 Nexary cache API；底层 Redis provider 由运行时依赖和 `nexary.cache.provider` 选择。
+
+```groovy
+dependencies {
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
+    // 业务代码编译期只依赖 Nexary cache API。
+    implementation "org.nexary:nexary-cache-api"
+
+    // 当前已验证 provider：Redis。切换 provider 时换依赖和配置，不改业务代码。
+    runtimeOnly "org.nexary:nexary-cache-redis"
+}
+```
+
 当前关注：
 
 - `nexary-cache-api`

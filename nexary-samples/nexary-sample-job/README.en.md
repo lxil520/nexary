@@ -36,10 +36,14 @@ public class SampleBusinessJob implements NexaryJob {
 
 ## Dependency Mode
 
-This module uses starter mode:
+This module uses starter mode. The currently verified combination is Spring Boot 3.3.x + Java 17+:
 
 ```groovy
+// Verified: Spring Boot 3.3.x + Java 17+
 implementation project(':nexary-boot:nexary-job-spring-boot-starter')
+
+// After Maven Central publication:
+// implementation 'org.nexary:nexary-job-spring-boot-starter'
 ```
 
 The starter aggregates the current Job API, local provider, and XXL-JOB bridge provider. Users select the provider in configuration:
@@ -136,3 +140,13 @@ This keeps the two adoption modes clear:
 
 - starter selector: depend on the starter and select a provider through `nexary.job.provider`
 - SPI/provider: depend on the API and exactly one concrete provider module
+
+Version matrix:
+
+| Spring Boot | JDK | Status | Entry |
+| --- | --- | --- | --- |
+| 3.3.x | Java 17+ | currently verified | `nexary-job-spring-boot-starter` |
+| 2.7.x | Java 8+ | target / pending verification / unpublished | planned `nexary-job-spring-boot2-starter` |
+| 4.x | Java 21+ primary validation target | target / pending verification / unpublished | planned `nexary-job-spring-boot4-starter` |
+
+Do not copy Boot2 or Boot4 artifacts into business projects until their independent verification gates pass.

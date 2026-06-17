@@ -9,6 +9,61 @@ Cache is one of Nexary's clearest standalone capabilities.
 - acceptance checklist: [cache-acceptance.md](cache-acceptance.md)
 - sample guide: [samples.md](samples.md)
 
+## Version Selection
+
+Current development version: `0.2.0-SNAPSHOT`. After publication, replace `${nexary.version}` with the latest release / tag version.
+
+| Spring Boot | JDK | Cache Status | Starter artifactId | SPI/provider Dependencies |
+| --- | --- | --- | --- | --- |
+| Spring Boot 3.3.x | Java 17+ | currently verified | `nexary-cache-spring-boot-starter` | `nexary-cache-api` + `nexary-cache-redis` |
+| Spring Boot 2.7.x | Java 8+ | v0.2 compatibility target, pending verification, unpublished | proposed `nexary-cache-spring-boot2-starter` | proposed Java 8 compatible API/provider line, TBD |
+| Spring Boot 4.x | Java 21+ | later v0.2 validation target, pending verification, unpublished | proposed `nexary-cache-spring-boot4-starter` | proposed Boot4 provider line, TBD |
+
+The current cache starter artifact does not explicitly include Boot3 in its name, but it only represents the verified Spring Boot 3.3 / Java 17+ mainline. Before publication, the recommended minimal adjustment is to publish an explicit `nexary-cache-spring-boot3-starter`, or clearly document the existing `nexary-cache-spring-boot-starter` as Boot3-only. Boot2 and Boot4 coordinates must not be documented as supported until their independent compile, sample runtime, and Redis provider gates pass.
+
+## Dependency Modes
+
+### Starter Mode
+
+Starter mode is for Spring Boot services that want the cache capability aggregated by the Nexary starter. Business code injects only Nexary abstractions and does not import Redis, Caffeine, or Spring Data Redis native types.
+
+```groovy
+dependencies {
+    // Currently verified: Spring Boot 3.3.x + Java 17+
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+    implementation "org.nexary:nexary-cache-spring-boot-starter"
+
+    // Recommended explicit Boot3 artifactId before publication, after coordinates are adjusted:
+    // implementation "org.nexary:nexary-cache-spring-boot3-starter"
+}
+```
+
+```yaml
+nexary:
+  cache:
+    # Loaded by the Nexary cache starter; business code should not branch on provider.
+    provider: redis
+    redis:
+      # Redis-only is the production default; tiered cache must be explicitly enabled.
+      tiered-enabled: false
+```
+
+### SPI/provider Dependency Mode
+
+SPI/provider mode is for services that want explicit provider dependency control. Business code compiles against `nexary-cache-api`; the Redis provider is loaded by the runtime dependency and `nexary.cache.provider` configuration.
+
+```groovy
+dependencies {
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
+    // Business code uses only CacheClient / CacheCounterClient and other Nexary APIs.
+    implementation "org.nexary:nexary-cache-api"
+
+    // Currently verified provider: Redis. Switching providers changes dependency and config, not business code.
+    runtimeOnly "org.nexary:nexary-cache-redis"
+}
+```
+
 ## Current Scope
 
 - `nexary-cache-api`

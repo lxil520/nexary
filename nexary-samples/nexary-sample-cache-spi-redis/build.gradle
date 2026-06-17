@@ -4,6 +4,9 @@ plugins {
 
 dependencies {
     // SPI/provider-dependency adoption path:
+    // - currently verified for Spring Boot 3.3.x + Java 17+.
+    // - published coordinates map to artifactIds: nexary-cache-api + nexary-cache-redis.
+    // - planned Boot2/JDK8 and Boot4/JDK21 provider lines are not published or supported yet.
     // - business code compiles against the Nexary cache API only, including counter abstractions.
     // - the concrete Redis provider is introduced as a provider dependency.
     // - switching to another provider should change this dependency and nexary.cache.* config,

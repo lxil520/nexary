@@ -5,8 +5,17 @@
 ## 引入方式
 
 ```groovy
+// 当前样例使用仓库内 project 依赖。
 implementation project(':nexary-job:nexary-job-api')
 runtimeOnly project(':nexary-job:nexary-job-xxljob')
+
+// Maven Central 发布后对应当前已验证 Spring Boot 3.3.x + Java 17+ artifact：
+// implementation 'org.nexary:nexary-job-api'
+// runtimeOnly 'org.nexary:nexary-job-xxljob'
+//
+// Boot2 / Java8 兼容目标，待验证，未发布：
+// implementation 'org.nexary:nexary-job-api-java8'
+// runtimeOnly 'org.nexary:nexary-job-xxljob-spring5'
 ```
 
 业务代码只使用 `org.nexary.job.*`，不依赖 provider 内部类或 XXL-JOB 原生类型。
