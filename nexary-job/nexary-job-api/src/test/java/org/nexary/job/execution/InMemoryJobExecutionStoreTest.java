@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -13,19 +14,34 @@ import org.nexary.job.JobResult;
 
 class InMemoryJobExecutionStoreTest {
     @Test
-    void retainsRecordUntilConfiguredRetentionExpires() throws Exception {
+    void retainsRecordBeforeConfiguredRetentionExpires() {
         RecordingObservationPublisher publisher = new RecordingObservationPublisher();
-        InMemoryJobExecutionStore store = new InMemoryJobExecutionStore(Duration.ofMillis(60), publisher);
+        InMemoryJobExecutionStore store = new InMemoryJobExecutionStore(Duration.ofSeconds(5), publisher);
         JobExecutionRecord record = record();
 
         store.save(record);
 
         assertThat(store.find(record.executionId())).contains(record);
-        Thread.sleep(90);
+        assertThat(publisher.operations()).contains(
+                JobObservationSupport.OPERATION_STORE_SAVE,
+                JobObservationSupport.OPERATION_STORE_FIND);
+        assertThat(publisher.events)
+                .allSatisfy(event -> assertThat(event.tags()).doesNotContainKeys(
+                        "execution_id", "payload", "exception_message", "stack_trace", "job_name"));
+    }
+
+    @Test
+    void removesRecordAfterConfiguredRetentionExpires() throws Exception {
+        RecordingObservationPublisher publisher = new RecordingObservationPublisher();
+        InMemoryJobExecutionStore store = new InMemoryJobExecutionStore(Duration.ofMillis(1), publisher);
+        JobExecutionRecord record = record();
+
+        store.save(record);
+
+        Thread.sleep(50);
         assertThat(store.find(record.executionId())).isEmpty();
         assertThat(publisher.operations()).contains(
                 JobObservationSupport.OPERATION_STORE_SAVE,
-                JobObservationSupport.OPERATION_STORE_FIND,
                 JobObservationSupport.OPERATION_STORE_RETENTION_EXPIRY);
         assertThat(publisher.events)
                 .allSatisfy(event -> assertThat(event.tags()).doesNotContainKeys(
@@ -57,7 +73,7 @@ class InMemoryJobExecutionStoreTest {
         }
 
         private List<String> operations() {
-            return events.stream().map(NexaryObservationEvent::operation).toList();
+            return events.stream().map(NexaryObservationEvent::operation).collect(Collectors.toList());
         }
     }
 }
