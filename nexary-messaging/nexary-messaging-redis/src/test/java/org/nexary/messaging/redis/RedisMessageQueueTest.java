@@ -50,7 +50,7 @@ class RedisMessageQueueTest {
         RedisMessageQueue queue = newQueue(store, MessageDeadLetterPublisher.inMemory());
         CountDownLatch latch = new CountDownLatch(2);
         AtomicInteger calls = new AtomicInteger();
-        List<String> seenIds = new ArrayList<>();
+        List<String> seenIds = new CopyOnWriteArrayList<>();
         String topic = "unit.redis.retry";
 
         queue.publish(envelope(topic, "redis-retry-1")).toCompletableFuture().join();
@@ -62,6 +62,8 @@ class RedisMessageQueueTest {
             }
         })) {
             assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+            waitUntil(() -> store.requeuedIds().contains("redis-retry-1"), Duration.ofSeconds(5));
+            waitUntil(() -> store.ackedIds().contains("redis-retry-1"), Duration.ofSeconds(5));
             assertThat(store.requeuedIds()).containsExactly("redis-retry-1");
             assertThat(store.ackedIds()).containsExactly("redis-retry-1");
             assertThat(seenIds).containsExactly("redis-retry-1", "redis-retry-1");
@@ -85,6 +87,7 @@ class RedisMessageQueueTest {
         })) {
             assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
             waitUntil(() -> deadLetters.records().size() == 1, Duration.ofSeconds(5));
+            waitUntil(() -> store.ackedIds().contains("redis-deadletter-1"), Duration.ofSeconds(5));
             assertThat(deadLetters.records()).hasSize(1);
             assertThat(deadLetters.records().get(0).messageId()).isEqualTo("redis-deadletter-1");
             assertThat(store.ackedIds()).containsExactly("redis-deadletter-1");
