@@ -18,8 +18,9 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
-      - run: ./gradlew assemble
-      - uses: github/codeql-action/analyze@v3
+          build-mode: manual
+      - run: ./gradlew clean assemble --no-build-cache --rerun-tasks
+      - uses: github/codeql-action/analyze@v4
