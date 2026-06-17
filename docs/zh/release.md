@@ -12,7 +12,7 @@
 - 在 GitHub Actions 中通过 dependency review 和 secret scan
 - 校验 `group`、artifact 名称、license、SCM、developer metadata
 - 校验 sources 和 Javadoc jar 能正常产出
-- 确认仓库中没有内网地址、真实凭证或私有仓库配置
+- 确认仓库中没有真实凭证、私有端点或私有仓库配置
 - 按 SemVer 创建 tag，例如 `v0.2.0`
 
 ## Maven Central 最小要求

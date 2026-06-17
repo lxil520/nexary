@@ -12,7 +12,7 @@ Before cutting a release:
 - run dependency review and secret scanning in GitHub Actions
 - confirm `group`, artifact names, license, SCM, and developer metadata
 - confirm sources and Javadoc jars are generated
-- confirm no internal endpoints, real credentials, or private registry settings exist
+- confirm no real credentials, private endpoints, or private registry settings exist
 - create a SemVer tag such as `v0.2.0`
 
 ## Minimum Maven Central Requirements

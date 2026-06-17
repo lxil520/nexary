@@ -11,6 +11,6 @@
 
 - [ ] `./gradlew check`
 - [ ] `./gradlew publishToMavenLocal`
-- [ ] No secrets or internal endpoints added
+- [ ] No secrets or private endpoints added
 
 ## Notes for Reviewers

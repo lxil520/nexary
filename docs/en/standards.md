@@ -71,7 +71,7 @@ This document is the engineering standards guide for Nexary maintainers and cont
 
 ## Prohibited
 
-- no historical business identifiers, organization domains, personal identities, internal endpoints, or real secrets
+- do not commit real credentials, private endpoints, private registry settings, or non-demo environment values
 - do not bloat the public API for short-term compatibility
-- do not mix sidecars, agents, control-plane work, or admin consoles into `0.1.x`
+- do not mix sidecars, agents, control-plane work, or admin consoles into the current release line
 - do not overstate unverified providers, samples, deployment shapes, or runtime results in documentation

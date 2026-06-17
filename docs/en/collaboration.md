@@ -24,7 +24,7 @@ This page is for public contributors and maintainers. It explains how Nexary acc
 
 - Public APIs must not expose native Redis, Kafka, RocketMQ, XXL-JOB, Caffeine, or similar provider types.
 - Configuration prefixes stay under `nexary.*`.
-- Example configuration may use only local or fake values; never include real secrets, internal addresses, or private implementation identifiers.
+- Example configuration may use only local, demo, or fake values; never include real credentials, private endpoints, or private registry settings.
 - User-facing documentation changes should update Chinese and English versions together.
 - Samples must show the business code users should copy; users should not have to read provider wiring first.
 - New capabilities must describe suitable use cases, non-goals, and residual risks.
