@@ -13,6 +13,15 @@ public class SampleBusinessService {
     }
 
     /** Business receipt returned by the use case. */
-    public record BusinessReceipt(String message) {
+    public static final class BusinessReceipt {
+        private final String message;
+
+        public BusinessReceipt(String message) {
+            this.message = message;
+        }
+
+        public String message() {
+            return message;
+        }
     }
 }
