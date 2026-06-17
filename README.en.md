@@ -122,6 +122,11 @@ Only the currently verified combination should be copied from the snippets below
 Import the BOM first, then choose the starters you need:
 
 ```xml
+<properties>
+  <!-- Today only local 0.2.0-SNAPSHOT is available. After release, replace it with the Maven Central Latest Version or a tag version. -->
+  <nexary.version>0.2.0-SNAPSHOT</nexary.version>
+</properties>
+
 <dependencyManagement>
   <dependencies>
     <dependency>
@@ -161,6 +166,9 @@ Import the BOM first, then choose the starters you need:
 ### 4. Spring Boot 3.3 / Java 17+: Gradle
 
 ```groovy
+// Today only local 0.2.0-SNAPSHOT is available. After release, replace it with the Maven Central Latest Version or a tag version.
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
     // Use the BOM to keep Nexary modules on one version. After release, set nexaryVersion to Latest Version or a tag version.
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -180,6 +188,9 @@ dependencies {
 If you do not want starters, use the SPI/provider dependency mode. Business code still depends only on Nexary APIs; the provider is selected through runtime dependencies and `nexary.*` configuration:
 
 ```groovy
+// Today only local 0.2.0-SNAPSHOT is available. After release, replace it with the Maven Central Latest Version or a tag version.
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 

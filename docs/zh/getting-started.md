@@ -41,6 +41,9 @@ Nexary 当前还没有 Maven Central 正式版本。现在只能先本地安装 
 先引入 BOM，再按需要引入 starter。
 
 ```groovy
+// 当前只能本地使用 0.2.0-SNAPSHOT；正式发布后替换为 Maven Central Latest Version 或 tag 版本。
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
     // 使用 BOM 锁定 Nexary 模块版本；正式发布后使用 Latest Version 或 tag 版本。
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -58,6 +61,11 @@ dependencies {
 ### 4. Maven
 
 ```xml
+<properties>
+  <!-- 当前只能本地使用 0.2.0-SNAPSHOT；正式发布后替换为 Maven Central Latest Version 或 tag 版本。 -->
+  <nexary.version>0.2.0-SNAPSHOT</nexary.version>
+</properties>
+
 <dependencyManagement>
   <dependencies>
     <dependency>
@@ -94,6 +102,9 @@ dependencies {
 不用 starter 时，业务代码仍只依赖 Nexary API。具体 provider 通过运行时依赖和配置选择：
 
 ```groovy
+// 当前只能本地使用 0.2.0-SNAPSHOT；正式发布后替换为 Maven Central Latest Version 或 tag 版本。
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 
