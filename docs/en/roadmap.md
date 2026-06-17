@@ -97,6 +97,31 @@ This batch does not include:
 - new messaging providers, new cache providers, or PowerJob bridge.
 - admin consoles, control planes, sidecars, or agents.
 
+### `0.2.0-alpha.4`
+
+The fourth batch starts the multi-version compatibility workstream with Spring Boot 2.7 / Java 8+ first, not Boot 4 first.
+
+- Build: add a report-only `compatibilityAudit` gate that continuously reports Java 8 / Boot 2 blockers.
+- API: audit public APIs for Java 8-incompatible `record`, Java 9+ collection factories, `Stream.toList()`, pattern matching, and switch expressions.
+- Boot: evaluate independent `spring-boot2` BOM / starter naming and dependency locks without polluting the Boot 3 mainline.
+- Auto-configuration: add Boot 2-compatible `spring.factories` or an equivalent compatibility entry.
+- Samples: prepare independent Boot 2 / Java 8 samples where business code still depends only on Nexary APIs.
+- CI: add Boot 2.7 / Java 8+ compilation, sample runtime, and provider integration gates.
+
+The exit criterion is not a documentation claim. It is a concrete gap list, migration design, and executable gate. README gets Boot2 supported dependency snippets only after that gate passes.
+
+### `0.2.0-alpha.5`
+
+The fifth batch validates Spring Boot 4.x / Java 21+ after the Boot 2 gate passes.
+
+- Build: add a Boot 4 / Java 21+ CI matrix.
+- Boot: evaluate whether independent `spring-boot4` BOM / starter artifacts are needed to prevent user confusion.
+- Dependencies: verify Spring Boot 4 dependency constraints, Micrometer, Spring Data Redis, Kafka, RocketMQ, and the XXL-JOB bridge.
+- Samples: prepare independent Boot 4 / Java 21+ samples.
+- Docs: expand README dependency snippets only after the gate passes.
+
+Spring documentation remains the source for Boot 4's official minimum JDK. Nexary uses Java 21+ as its own primary validation target.
+
 ### `0.2.0` Release Candidate
 
 `0.2.0` should stop adding capabilities and focus on open-source release infrastructure:
@@ -110,12 +135,13 @@ This batch does not include:
 This batch does not include:
 
 - v0.3 governance implementation.
-- unverified Spring Boot 2 / JDK 8 support claims.
+- unverified Spring Boot 2 / JDK 8 or Spring Boot 4 / Java 21+ support claims.
 - automatic Maven Central deployment; the final upload still requires the GitHub owner, Sonatype namespace, and signing keys.
 
 It starts in parallel:
 
-- Spring Boot 2 / JDK 8 compatibility gap audit.
+- Spring Boot 2.7 / Java 8+ compatibility gap audit and migration gate.
+- Spring Boot 4.x / Java 21+ follow-up validation gate.
 - independent BOM / starter / compatibility-branch design.
 - README dependency matrix expansion only after real compilation, samples, and provider integration checks pass.
 

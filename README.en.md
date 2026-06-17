@@ -21,7 +21,7 @@ The currently verified mainline is:
 
 This boundary comes from Spring Boot 3's own Java 17+ requirement, not from Nexary's initial development JDK.
 
-To reach more users, Nexary will plan a Spring Boot 2 / JDK 8 compatibility line. Boot 2 is the important path for Java 8 users, so the project should not simply force everyone onto Java 17. That support cannot be declared by README alone: it needs independent starters, pinned dependency versions, samples, and CI evidence before it is marked as supported. The dependency snippets below describe only the currently verified mainline.
+To reach more users, Nexary will include Spring Boot 2.7 / Java 8+ and Spring Boot 4.x / Java 21+ in the `0.2.x` compatibility target. Boot 2 is the important path for Java 8 users and takes priority over Boot 4; Boot 4 validation should start after the Boot 2 compatibility gate passes. Support cannot be declared by README alone: it needs independent starters, pinned dependency versions, samples, and CI evidence before it is marked as supported. The dependency snippets below describe only the currently verified mainline.
 
 ## Documentation
 
@@ -99,8 +99,8 @@ Current development version: `0.2.0-SNAPSHOT`. After the first Maven Central rel
 | Spring Boot | JDK | Status | Dependency Entry |
 | --- | --- | --- | --- |
 | Spring Boot 3.3 | Java 17+ | currently verified | current starters / BOM |
-| Spring Boot 2.7 | Java 8+ | planned support, under compatibility audit | independent Boot2 starters / BOM, not published |
-| Spring Boot 4.x | Java 21+ primary verification target | not a v0.2 target | evaluate later against the official stable line; the official minimum JDK remains defined by Spring documentation |
+| Spring Boot 2.7 | Java 8+ | `0.2.x` target, priority compatibility audit and adaptation | independent Boot2 starters / BOM, not published |
+| Spring Boot 4.x | Java 21+ primary verification target | `0.2.x` target after the Boot2 gate | independent Boot4 starters / BOM candidate; official minimum JDK remains defined by Spring documentation |
 
 Before the first public release, the compatibility audit will decide whether starter artifacts should use explicit `spring-boot3` / `spring-boot2` suffixes. Unverified combinations must not appear as supported dependency snippets.
 
@@ -170,8 +170,9 @@ The current recommendation is one outbound messaging provider per service. If a 
 ## Release and Versioning
 
 - complete namespace verification, signing, SCM metadata, and sources/javadocs before Maven Central publication
-- stabilize the `0.2.x` mainline and release pipeline while starting the Spring Boot 2 / JDK 8 compatibility gap audit
+- stabilize the `0.2.x` mainline and release pipeline while progressing the Spring Boot 2.7 / Java 8+ compatibility gap audit
 - Spring Boot 2 / JDK 8 support should use a dedicated compatibility line or adapter instead of polluting the mainline API
+- Spring Boot 4.x / Java 21+ is a later `0.2.x` validation target after the Boot2 compatibility gate passes
 
 See [docs/en/release.md](docs/en/release.md) and [docs/en/roadmap.md](docs/en/roadmap.md) for details.
 

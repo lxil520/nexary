@@ -215,6 +215,79 @@ tasks.register('verifyCentralReleaseInputs') {
     }
 }
 
+tasks.register('compatibilityAudit') {
+    group = 'verification'
+    description = 'Reports current Spring Boot 2 / JDK 8 and Spring Boot 4 / JDK 21 compatibility gates.'
+
+    doLast {
+        def sourceRoots = [
+                'nexary-framework',
+                'nexary-cache',
+                'nexary-messaging',
+                'nexary-job',
+                'nexary-boot'
+        ].collect { rootProject.file(it) }
+        def javaFiles = []
+        sourceRoots.each { sourceRoot ->
+            if (sourceRoot.exists()) {
+                javaFiles.addAll(fileTree(sourceRoot) {
+                    include '**/src/main/java/**/*.java'
+                }.files)
+            }
+        }
+
+        def patterns = [
+                'public Java record API'      : ~/\bpublic\s+record\b/,
+                'Java record implementation'  : ~/\brecord\s+[A-Za-z_][A-Za-z0-9_]*\s*\(/,
+                'pattern matching instanceof' : ~/instanceof\s+[A-Za-z0-9_.$<>]+\s+[A-Za-z_][A-Za-z0-9_]*/,
+                'switch expression'           : ~/return\s+switch\s*\(/,
+                'Stream.toList'               : ~/\.toList\s*\(/,
+                'Java 9 collection factories' : ~/\b(List|Map|Set)\.(of|copyOf)\s*\(/,
+                'local var inference'         : ~/\bvar\s+[A-Za-z_][A-Za-z0-9_]*\s*=/
+        ]
+
+        logger.lifecycle('Nexary compatibility audit')
+        logger.lifecycle('- Boot 3.3 / Java 17 remains the verified mainline.')
+        logger.lifecycle('- Boot 2.7 / Java 8 is a v0.2 compatibility target, but support is not declared until blockers are removed and CI gates pass.')
+        logger.lifecycle('- Boot 4.x / Java 21+ is a v0.2 validation target after the Boot 2 gate; official minimum JDK remains defined by Spring documentation.')
+
+        def totalCompatibilityBlockers = 0
+        patterns.each { label, pattern ->
+            def hits = javaFiles.findAll { file -> (file.text =~ pattern).find() }
+            totalCompatibilityBlockers += hits.size()
+            logger.lifecycle(String.format('  %-32s %4d file(s)', label + ':', hits.size()))
+            hits.take(8).each { hit ->
+                logger.lifecycle("    - ${rootProject.relativePath(hit)}")
+            }
+            if (hits.size() > 8) {
+                logger.lifecycle("    - ... ${hits.size() - 8} more")
+            }
+        }
+
+        def boot3AutoConfigurationFiles = []
+        sourceRoots.each { sourceRoot ->
+            if (sourceRoot.exists()) {
+                boot3AutoConfigurationFiles.addAll(fileTree(sourceRoot) {
+                    include '**/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
+                }.files)
+            }
+        }
+        logger.lifecycle(String.format('  %-32s %4d file(s)',
+                'Boot 3 AutoConfiguration imports:', boot3AutoConfigurationFiles.size()))
+        totalCompatibilityBlockers += boot3AutoConfigurationFiles.size()
+        boot3AutoConfigurationFiles.take(8).each { hit ->
+            logger.lifecycle("    - ${rootProject.relativePath(hit)}")
+        }
+        if (boot3AutoConfigurationFiles.size() > 8) {
+            logger.lifecycle("    - ... ${boot3AutoConfigurationFiles.size() - 8} more")
+        }
+
+        if (rootProject.findProperty('failOnCompatibilityGaps') == 'true' && totalCompatibilityBlockers > 0) {
+            throw new GradleException("Compatibility audit found ${totalCompatibilityBlockers} blocker file hits.")
+        }
+    }
+}
+
 tasks.register('publishCentralReleaseStaging') {
     group = 'publishing'
     description = 'Publishes Central release modules into build/release-staging in Maven repository layout.'

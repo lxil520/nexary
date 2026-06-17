@@ -97,6 +97,31 @@
 - 新消息 provider、新 cache provider、PowerJob bridge。
 - 管理后台、控制面、sidecar 或 agent。
 
+### `0.2.0-alpha.4`
+
+第四批进入多版本兼容工作流，先做 Spring Boot 2.7 / Java 8+，不先做 Boot 4。
+
+- Build：新增 `compatibilityAudit` 报告型 gate，持续输出 Java 8 / Boot 2 阻断点。
+- API：审计公共 API 中的 `record`、Java 9+ 集合工厂、`Stream.toList()`、pattern matching、switch expression 等 Java 8 不兼容点。
+- Boot：评估独立 `spring-boot2` BOM / starter 命名和依赖锁定，避免污染 Boot 3 主线。
+- Auto-configuration：补齐 Boot 2 所需 `spring.factories` 或等价兼容入口。
+- Samples：准备 Boot 2 / Java 8 独立样例，业务代码仍只依赖 Nexary API。
+- CI：建立 Boot 2.7 / Java 8+ 编译、样例运行和 provider 集成 gate。
+
+这批的退出标准不是“文档声明支持”，而是形成明确差距清单、改造方案和可执行 gate。只有 gate 通过后，README 才增加 Boot2 已支持依赖片段。
+
+### `0.2.0-alpha.5`
+
+第五批在 Boot 2 gate 通过后推进 Spring Boot 4.x / Java 21+ 验证。
+
+- Build：新增 Boot 4 / Java 21+ CI matrix。
+- Boot：评估独立 `spring-boot4` BOM / starter 是否需要新 artifact，避免用户误选。
+- Dependencies：验证 Spring Boot 4 依赖约束、Micrometer、Spring Data Redis、Kafka、RocketMQ、XXL-JOB bridge 的兼容性。
+- Samples：准备 Boot 4 / Java 21+ 独立样例。
+- Docs：通过 gate 后再扩展 README 依赖矩阵。
+
+Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java 21+ 作为自己的主验证目标。
+
 ### `0.2.0` 发布候选
 
 `0.2.0` 不再继续扩能力，重点是开源发布基础设施：
@@ -110,12 +135,13 @@
 这批不包含：
 
 - v0.3 治理模块实现。
-- 未验证完成的 Spring Boot 2 / JDK 8 兼容声明。
+- 未验证完成的 Spring Boot 2 / JDK 8 或 Spring Boot 4 / Java 21+ 支持声明。
 - 自动发布到 Maven Central；正式上传前仍需确认 GitHub owner、Sonatype namespace 和签名密钥。
 
 同时启动：
 
-- Spring Boot 2 / JDK 8 兼容性差距检查。
+- Spring Boot 2.7 / Java 8+ 兼容性差距检查和改造 gate。
+- Spring Boot 4.x / Java 21+ 后续验证 gate。
 - 独立 BOM / starter / 兼容分支方案评估。
 - 通过真实编译、样例和 provider 集成验证后，再把兼容组合加入 README dependency 矩阵。
 

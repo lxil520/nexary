@@ -38,7 +38,7 @@ The pragmatic path is:
 2. complete namespace verification
 3. add GPG signing and credential handling
 4. lock down one Gradle release pipeline
-5. publish one modern-baseline `0.2.0` first
+5. publish one modern-baseline `0.2.0` first while keeping Boot2 / Boot4 compatibility gates visible
 
 ## Gradle Release Commands
 
@@ -91,13 +91,14 @@ Nexary should plan multi-version support to reach more users, but unverified com
 
 Release policy:
 
-- The current `0.2.x` release claims only the verified Java 17 / Spring Boot 3.3 line.
-- Spring Boot 2 / JDK 8 enters an independent compatibility gap audit and verification gate.
+- The current `0.2.x` release claims only combinations that have passed gates. The currently verified combination is Java 17 / Spring Boot 3.3.
+- Spring Boot 2.7 / JDK 8+ is the priority `0.2.x` compatibility target and enters an independent gap audit, API compatibility migration, and verification gate first.
+- Spring Boot 4.x / Java 21+ is the later `0.2.x` validation target after the Boot2 gate passes.
 - The README dependency matrix is expanded only after those gates pass.
 - Multi-version support should prefer independent BOMs, starters, or compatibility branches instead of polluting the mainline API.
 
 Recommended sequence:
 
-- `0.2.x`: Java 17 / Spring Boot 3.3 mainline release plus Boot2/JDK8 gap audit.
-- Later `0.2.x` patches or `0.3.x`: add Boot2/JDK8 compatibility lines according to verification results.
+- `0.2.x`: Java 17 / Spring Boot 3.3 mainline release plus Boot2/JDK8 gap audit and executable gate.
+- Later `0.2.x`: after the Boot2/JDK8 gate passes, publish independent Boot2 starters / BOM, then progress the Boot4/JDK21 gate.
 - Before `1.0.0`: lock the final compatibility policy and maintenance boundary.
