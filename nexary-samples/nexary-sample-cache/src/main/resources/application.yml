@@ -1,0 +1,8 @@
+spring:
+  profiles:
+    # Starter sample defaults to Redis provider selection.
+    # Start local Redis first with scripts/middleware/up.sh.
+    default: redis
+
+server:
+  port: 8081

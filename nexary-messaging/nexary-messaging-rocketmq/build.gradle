@@ -1,0 +1,8 @@
+dependencies {
+    api project(':nexary-messaging:nexary-messaging-api')
+    implementation "org.apache.rocketmq:rocketmq-client:${rootProject.ext.rocketMqVersion}"
+    implementation project(':nexary-framework:nexary-core')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework:spring-messaging'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}

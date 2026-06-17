@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: nexary-sample-messaging-spi-rocketmq
+
+server:
+  port: 8095
+
+nexary:
+  messaging:
+    # SPI/provider dependency mode:
+    # this module depends on nexary-messaging-api + nexary-messaging-rocketmq only.
+    # Business code does not change when you create another SPI module for another provider.
+    provider: rocketmq
+    rocketmq:
+      enabled: true
+      # Local RocketMQ NameServer from ./scripts/middleware/up.sh.
+      namesrv-addr: 127.0.0.1:19876
+      producer-group: sample-messaging-spi-rocketmq-producer
+      # Local sample convenience only; production topic administration should be outside app startup.
+      auto-create-topic: true
+      topic-queue-nums: 1
+      # Duplicate-consumption protection window for the Nexary consume path.
+      deduplication-ttl: 1h
+      # RocketMQ native retry status is driven by Nexary's provider-neutral retry policy.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

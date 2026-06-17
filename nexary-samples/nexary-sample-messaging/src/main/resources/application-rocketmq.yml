@@ -1,0 +1,21 @@
+nexary:
+  messaging:
+    # Switch to RocketMQ by config. The sample business code is unchanged from Kafka/Redis/Disruptor.
+    provider: rocketmq
+    disruptor:
+      enabled: false
+    rocketmq:
+      enabled: true
+      # Local RocketMQ NameServer from ./scripts/middleware/up.sh.
+      namesrv-addr: 127.0.0.1:19876
+      producer-group: sample-messaging-producer
+      # Local sample convenience only; production topic administration should be handled outside app startup.
+      auto-create-topic: true
+      topic-queue-nums: 1
+      # Duplicate-consumption protection window for the Nexary consume path.
+      deduplication-ttl: 1h
+      # Nexary retry policy. RocketMQ reconsume is requested until Nexary writes a terminal record.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

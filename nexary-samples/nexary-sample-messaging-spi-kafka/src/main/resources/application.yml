@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: nexary-sample-messaging-spi-kafka
+
+server:
+  port: 8094
+
+nexary:
+  messaging:
+    # SPI/provider dependency mode:
+    # this module depends on nexary-messaging-api + nexary-messaging-kafka only.
+    # Business code does not change when you create another SPI module for another provider.
+    provider: kafka
+    kafka:
+      enabled: true
+      # Local Kafka from ./scripts/middleware/up.sh.
+      bootstrap-servers: 127.0.0.1:19092
+      # Duplicate-consumption protection window for the Nexary consume path.
+      deduplication-ttl: 1h
+      # Kafka native SDK types are not exposed to business code; Nexary maps retry/terminal results.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

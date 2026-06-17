@@ -1,0 +1,45 @@
+# XXL-JOB bridge-shaped adoption mode.
+# This profile demonstrates how an external scheduler trigger maps to the same
+# business NexaryJob through the active Nexary provider. Provider-specific
+# executor registration belongs in Nexary provider infrastructure, not in
+# business job code.
+#
+# Current v0.1 evidence is bridge-shaped only. It does not claim real XXL-JOB
+# Admin scheduling, executor registration, callback lifecycle, or platform
+# trigger validation.
+nexary:
+  job:
+    # Selects the bridge provider from the job starter. Business code still uses
+    # NexaryJob only.
+    provider: xxljob
+    execution:
+      store:
+        redis:
+          # Execution records are in-memory by default. Enable this only when
+          # Redis connectivity is present. The bridge still does not own XXL-JOB
+          # Admin scheduling, executor registration, or callbacks.
+          enabled: false
+          key-prefix: "nexary:job:execution:"
+          retention: 1d
+    xxljob:
+      # Bridge execution lifecycle options. Nexary applies these after an
+      # external platform trigger enters the bridge. The external XXL-JOB Admin
+      # still owns scheduling, routing, executor registration, and callbacks.
+      execution-timeout: 5m
+      retry-attempts: 0
+      retry-backoff: 0s
+      concurrency-policy: allow
+      misfire-policy: fire_once
+      misfire-threshold: 1m
+
+# Observation events emitted by the bridge include:
+# - job.xxljob.bridge.trigger
+# - job.trigger
+# - job.execution.start / job.execution.end
+# - job.retry.attempt
+# - job.execution.timeout
+# - job.execution.skip
+# - job.store.save / job.store.find / job.store.retention_expiry
+# These events describe Nexary bridge execution only. They do not prove XXL-JOB
+# Admin scheduling, executor registration, callback lifecycle, or platform
+# trigger delivery.

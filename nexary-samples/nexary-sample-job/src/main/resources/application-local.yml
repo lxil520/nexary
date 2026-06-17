@@ -1,0 +1,69 @@
+# Local scheduler adoption mode.
+# This profile selects the local provider brought in by the job starter.
+# Nexary framework auto-configuration owns provider wiring and configuration
+# binding. Business job code stays in `business/SampleBusinessJob` and is
+# not changed when switching to XXL-JOB bridge mode.
+nexary:
+  job:
+    # Selects the local provider from the job starter.
+    provider: local
+    execution:
+      store:
+        redis:
+          # Execution records are in-memory by default. Enable this only when
+          # the application also provides Redis connectivity, for example
+          # through the cache starter or Spring Data Redis.
+          # Redis store saves completed execution records with TTL retention.
+          enabled: false
+          key-prefix: "nexary:job:execution:"
+          retention: 1d
+    scheduler:
+      # Local distributed scheduling options. Business job code does not read
+      # these values. Nexary scheduler uses them when JobSchedule does not
+      # provide explicit worker assignment.
+      #
+      # worker-id: node-a
+      # topology: demo
+      # workers:
+      #   - node-a
+      #   - node-b
+      # load-balance supports:
+      #   round_robin, random, consistent_hash, least_active, first_available
+      # Execution lifecycle options. Nexary scheduler reads these values and
+      # applies them to direct triggers and cron executions. Business jobs do
+      # not load these values.
+      # - execution-timeout: max runtime for one attempt
+      # - retry-attempts: retries after the first failed attempt
+      # - retry-backoff: wait time between retry attempts
+      # - concurrency-policy:
+      #     allow            run concurrent executions for the same job shard
+      #     skip_if_running  record SKIPPED when the same job shard is running
+      # - misfire-policy:
+      #     fire_once  execute a late scheduled run once
+      #     skip       record SKIPPED when later than misfire-threshold
+      # - lock-lease-time: single-instance distributed lock lease
+      execution-timeout: 5m
+      retry-attempts: 0
+      retry-backoff: 0s
+      concurrency-policy: allow
+      misfire-policy: fire_once
+      misfire-threshold: 1m
+      lock-lease-time: 5m
+      # Cache-backed topology discovery:
+      # - when a Nexary CacheClient is available and worker-id is set, the
+      #   scheduler writes worker heartbeats and removes expired workers.
+      # - heartbeat-enabled: true
+      # - heartbeat-interval: 10s
+      # - heartbeat-ttl: 30s
+      load-balance: round_robin
+
+# Observation events emitted by the local provider include:
+# - job.scheduler.run
+# - job.trigger
+# - job.execution.start / job.execution.end
+# - job.retry.attempt
+# - job.execution.timeout
+# - job.execution.skip
+# - job.store.save / job.store.find / job.store.retention_expiry
+# Tags are bounded to provider, trigger, status, skip_reason,
+# shard_presence, failure_category, retry buckets, and store.

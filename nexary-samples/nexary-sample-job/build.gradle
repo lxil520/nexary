@@ -1,0 +1,31 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // Job starter is the application-facing dependency for the sample.
+    // It aggregates the stable Nexary job API plus the current local scheduler
+    // and XXL-JOB bridge providers. It also brings the optional Redis execution
+    // store module, which stays disabled unless application*.yml enables it and
+    // Redis connectivity is present. Select the provider with nexary.job.provider.
+    // Business code should use org.nexary.job.* only.
+    implementation project(':nexary-boot:nexary-job-spring-boot-starter')
+
+    // SPI/provider examples are intentionally separate modules:
+    // - nexary-sample-job-spi-scheduler
+    // - nexary-sample-job-spi-xxljob
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.job.app.JobSampleApplication'
+}
+
+tasks.register('runProcessor', JavaExec) {
+    group = 'application'
+    description = 'Runs the non-web job processor sample.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.nexary.samples.job.processor.JobProcessorSampleApplication'
+}

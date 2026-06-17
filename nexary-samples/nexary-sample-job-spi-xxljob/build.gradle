@@ -1,0 +1,22 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // SPI/provider dependency adoption path:
+    // - business code uses only org.nexary.job.* abstractions.
+    // - this module introduces exactly one provider: the XXL-JOB bridge.
+    // - switching to the local scheduler means using nexary-sample-job-spi-scheduler
+    //   or changing the provider dependency/configuration, not changing business code.
+    // - durable execution records are optional; add
+    //   nexary-job-execution-store-redis plus Redis connectivity when needed.
+    implementation project(':nexary-job:nexary-job-api')
+    runtimeOnly project(':nexary-job:nexary-job-xxljob')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.job.spi.xxljob.JobSpiXxlJobSampleApplication'
+}

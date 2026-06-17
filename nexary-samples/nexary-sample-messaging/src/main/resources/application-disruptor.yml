@@ -1,0 +1,12 @@
+nexary:
+  messaging:
+    # In-process provider. No broker is required.
+    provider: disruptor
+    disruptor:
+      enabled: true
+      capacity: 1024
+      # Provider-neutral retry policy. The handler code does not receive provider retry objects.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s
