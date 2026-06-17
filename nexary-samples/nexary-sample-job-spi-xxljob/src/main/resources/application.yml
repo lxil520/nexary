@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: nexary-sample-job-spi-xxljob
+
+nexary:
+  job:
+    # SPI/provider mode:
+    # This module does not depend on nexary-job-spring-boot-starter.
+    # It depends on nexary-job-api and adds exactly one provider artifact:
+    # nexary-job-xxljob. The provider is selected here.
+    provider: xxljob
+    execution:
+      store:
+        redis:
+          # SPI mode needs an explicit provider dependency for Redis durable
+          # records: nexary-job-execution-store-redis plus Redis connectivity.
+          # Keep false for this minimal bridge sample.
+          enabled: false
+          key-prefix: "nexary:job:execution:"
+          retention: 1d
+    xxljob:
+      # Bridge provider execution lifecycle. Nexary framework loads these values
+      # after an external platform trigger reaches the bridge.
+      execution-timeout: 5m
+      retry-attempts: 0
+      retry-backoff: 0s
+      concurrency-policy: allow
+      misfire-policy: fire_once
+      misfire-threshold: 1m

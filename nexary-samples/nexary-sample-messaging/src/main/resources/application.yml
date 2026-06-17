@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: nexary-sample-messaging
+  profiles:
+    default: disruptor
+
+server:
+  port: 8082
+
+nexary:
+  messaging:
+    # Starter selector. Supported values:
+    # disruptor, redis, kafka, rocketmq.
+    # Business facade/controller/consumer code does not change when this value changes.
+    # Retry and terminal failure handling are loaded by Nexary messaging,
+    # not by sample business code.
+    provider: disruptor

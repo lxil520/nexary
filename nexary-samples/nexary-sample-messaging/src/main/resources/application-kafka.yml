@@ -1,0 +1,17 @@
+nexary:
+  messaging:
+    # Switch to Kafka by config. The facade/controller/consumer still use Nexary messaging APIs only.
+    provider: kafka
+    disruptor:
+      enabled: false
+    kafka:
+      enabled: true
+      # Local Kafka from ./scripts/middleware/up.sh.
+      bootstrap-servers: 127.0.0.1:19092
+      # Duplicate-consumption protection window for the Nexary consume path.
+      deduplication-ttl: 1h
+      # Nexary retry policy. Kafka offsets are committed only after success, duplicate, or terminal record.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

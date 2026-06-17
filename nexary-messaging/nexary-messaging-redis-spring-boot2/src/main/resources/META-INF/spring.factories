@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.nexary.messaging.redis.boot2.RedisBoot2MessagingAutoConfiguration

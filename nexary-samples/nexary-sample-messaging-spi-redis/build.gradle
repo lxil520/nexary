@@ -1,0 +1,24 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // SPI/provider dependency adoption path:
+    // - after publication, import org.nexary:nexary-bom:${nexaryVersion}.
+    // - compile business code against org.nexary:nexary-messaging-api only.
+    // - add exactly one provider at runtime: org.nexary:nexary-messaging-redis.
+    // - switching to Kafka/RocketMQ/Disruptor means changing the provider module,
+    //   not changing facade/controller/consumer code.
+    implementation project(':nexary-messaging:nexary-messaging-api')
+    runtimeOnly project(':nexary-messaging:nexary-messaging-redis')
+
+    // Redis provider needs a Spring Redis connection factory.
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.messaging.spi.redis.app.MessagingSampleApplication'
+}

@@ -1,0 +1,2 @@
+org.nexary.messaging.kafka.KafkaProviderClientAutoConfiguration
+org.nexary.messaging.kafka.KafkaMessagingAutoConfiguration

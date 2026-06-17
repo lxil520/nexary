@@ -1,0 +1,6 @@
+// Core module intentionally has no external dependencies.
+// Keep the shared foundation consumable by planned Boot2/JDK8 compatibility modules.
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

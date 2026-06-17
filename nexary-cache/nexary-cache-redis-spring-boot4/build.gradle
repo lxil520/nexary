@@ -1,0 +1,15 @@
+dependencies {
+    api project(':nexary-cache:nexary-cache-api')
+    implementation project(':nexary-cache:nexary-cache-tiered-internal')
+    implementation project(':nexary-framework:nexary-core')
+    implementation "org.springframework.boot:spring-boot-autoconfigure:${rootProject.ext.springBoot4Version}"
+    implementation "org.springframework.boot:spring-boot-starter-data-redis:${rootProject.ext.springBoot4Version}"
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.springBoot4Version}"
+    testImplementation "org.springframework.boot:spring-boot-test:${rootProject.ext.springBoot4Version}"
+    testImplementation "org.springframework.boot:spring-boot-test-autoconfigure:${rootProject.ext.springBoot4Version}"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}

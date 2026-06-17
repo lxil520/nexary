@@ -1,0 +1,10 @@
+dependencies {
+    api project(':nexary-cache:nexary-cache-api')
+    api project(':nexary-cache:nexary-cache-redis-spring-boot2')
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${rootProject.ext.springBoot2Version}"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

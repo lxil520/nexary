@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.nexary.cache.redis.boot2.RedisBoot2CacheAutoConfiguration

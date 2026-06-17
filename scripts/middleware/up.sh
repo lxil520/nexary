@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COMPOSE_FILE="$ROOT_DIR/deploy/middleware/docker-compose.yml"
+ENV_FILE="$ROOT_DIR/deploy/middleware/.env"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  ENV_FILE="$ROOT_DIR/deploy/middleware/.env.example"
+fi
+
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait --wait-timeout 180

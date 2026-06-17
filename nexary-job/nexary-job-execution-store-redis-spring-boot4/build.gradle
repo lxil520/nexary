@@ -1,0 +1,18 @@
+dependencies {
+    api project(':nexary-job:nexary-job-api')
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework.data:spring-data-redis'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation enforcedPlatform("org.junit:junit-bom:${rootProject.ext.junitVersion}")
+    testImplementation "org.springframework.boot:spring-boot-starter-data-redis:${rootProject.ext.springBoot4Version}"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}

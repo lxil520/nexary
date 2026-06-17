@@ -1,0 +1,3 @@
+org.nexary.job.scheduler.boot4.LocalJobSchedulerAutoConfiguration
+org.nexary.job.xxljob.boot4.XxlJobAutoConfiguration
+org.nexary.job.store.redis.boot4.RedisJobExecutionStoreAutoConfiguration

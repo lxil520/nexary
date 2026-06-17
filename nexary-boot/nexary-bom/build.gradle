@@ -1,0 +1,43 @@
+plugins {
+    id 'java-platform'
+}
+
+javaPlatform {
+    allowDependencies()
+}
+
+dependencies {
+    api platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBootVersion}")
+
+    constraints {
+        api project(':nexary-framework:nexary-core')
+        api project(':nexary-framework:nexary-spi')
+        api project(':nexary-cache:nexary-cache-api')
+        api project(':nexary-cache:nexary-cache-redis')
+        api project(':nexary-cache:nexary-cache-redis-spring-boot2')
+        api project(':nexary-messaging:nexary-messaging-api')
+        api project(':nexary-messaging:nexary-messaging-disruptor')
+        api project(':nexary-messaging:nexary-messaging-kafka')
+        api project(':nexary-messaging:nexary-messaging-redis')
+        api project(':nexary-messaging:nexary-messaging-redis-spring-boot2')
+        api project(':nexary-messaging:nexary-messaging-rocketmq')
+        api project(':nexary-job:nexary-job-api')
+        api project(':nexary-job:nexary-job-scheduler')
+        api project(':nexary-job:nexary-job-scheduler-spring-boot2')
+        api project(':nexary-job:nexary-job-scheduler-spring-boot4')
+        api project(':nexary-job:nexary-job-xxljob')
+        api project(':nexary-job:nexary-job-xxljob-spring-boot2')
+        api project(':nexary-job:nexary-job-xxljob-spring-boot4')
+        api project(':nexary-job:nexary-job-execution-store-redis')
+        api project(':nexary-job:nexary-job-execution-store-redis-spring-boot2')
+        api project(':nexary-job:nexary-job-execution-store-redis-spring-boot4')
+        api project(':nexary-boot:nexary-cache-spring-boot-starter')
+        api project(':nexary-boot:nexary-cache-spring-boot2-starter')
+        api project(':nexary-boot:nexary-messaging-spring-boot-starter')
+        api project(':nexary-boot:nexary-messaging-spring-boot2-starter')
+        api project(':nexary-boot:nexary-job-spring-boot-starter')
+        api project(':nexary-boot:nexary-job-spring-boot2-starter')
+        api project(':nexary-boot:nexary-job-spring-boot4-starter')
+        api project(':nexary-boot:nexary-observation-micrometer-spring-boot-starter')
+    }
+}

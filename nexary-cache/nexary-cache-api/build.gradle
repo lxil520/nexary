@@ -1,0 +1,9 @@
+dependencies {
+    api project(':nexary-framework:nexary-core')
+}
+
+// Keep the provider-neutral cache API consumable by planned Boot2/JDK8 provider modules.
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

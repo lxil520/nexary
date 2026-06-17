@@ -1,0 +1,9 @@
+dependencies {
+    api project(':nexary-cache:nexary-cache-api')
+    implementation project(':nexary-cache:nexary-cache-tiered-internal')
+    implementation project(':nexary-framework:nexary-core')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

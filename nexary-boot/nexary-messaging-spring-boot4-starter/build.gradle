@@ -1,0 +1,8 @@
+dependencies {
+    api project(':nexary-messaging:nexary-messaging-api')
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    testImplementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${rootProject.ext.springBoot4Version}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

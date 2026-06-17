@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: nexary-sample-job
+  profiles:
+    # The sample defaults to local scheduler mode for a first run.
+    # Switch to `xxljob` without changing business job code:
+    #   ./gradlew :nexary-samples:nexary-sample-job:run --args='--spring.profiles.active=xxljob'
+    # Processor mode uses the dedicated runProcessor task and a non-web startup.
+    default: local
+
+nexary:
+  job:
+    # Starter selector mode:
+    # - `local` selects Nexary's local job provider.
+    # - switch to another provider by changing this value and its profile config.
+    # Business job code stays unchanged.
+    provider: local
+
+# Observation:
+# - Business jobs do not import metrics/provider types.
+# - If the application defines a NexaryObservationListener or
+#   NexaryObservationPublisher bean, the Nexary job provider emits bounded
+#   provider-neutral events such as job.execution.end and job.execution.skip.
+# - Do not use execution id, parameters, payload, exception message, or stack
+#   trace as metric tags.

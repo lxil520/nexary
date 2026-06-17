@@ -1,0 +1,23 @@
+dependencies {
+    api project(':nexary-messaging:nexary-messaging-api')
+    implementation project(':nexary-framework:nexary-core')
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    testImplementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    implementation 'org.apache.kafka:kafka-clients'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${rootProject.ext.springBoot4Version}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+    main {
+        java.srcDirs = ['../nexary-messaging-kafka/src/main/java']
+        resources.srcDirs = ['../nexary-messaging-kafka/src/main/resources']
+    }
+    test {
+        java.srcDirs = ['../nexary-messaging-kafka/src/test/java']
+        resources.srcDirs = ['../nexary-messaging-kafka/src/test/resources']
+    }
+}

@@ -1,0 +1,4 @@
+dependencies {
+    api project(':nexary-cache:nexary-cache-api')
+    implementation "com.github.ben-manes.caffeine:caffeine:${rootProject.ext.caffeineVersion}"
+}

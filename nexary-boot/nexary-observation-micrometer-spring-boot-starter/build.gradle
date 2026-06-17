@@ -1,0 +1,7 @@
+dependencies {
+    api project(':nexary-framework:nexary-core')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'io.micrometer:micrometer-core'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

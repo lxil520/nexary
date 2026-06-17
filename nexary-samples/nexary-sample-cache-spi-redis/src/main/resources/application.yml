@@ -1,0 +1,46 @@
+spring:
+  data:
+    redis:
+      # Local Redis from scripts/middleware/docker-compose.yml.
+      # Override when the provider dependency points to a different Redis endpoint.
+      host: ${NEXARY_SAMPLE_REDIS_HOST:127.0.0.1}
+      port: ${NEXARY_SAMPLE_REDIS_PORT:16379}
+
+server:
+  port: 8082
+
+nexary:
+  cache:
+    # SPI/provider dependency mode:
+    # business code depends on nexary-cache-api, while Redis is selected by provider dependency.
+    # Change this value and the provider dependency to switch implementations.
+    provider: redis
+    redis:
+      # Cache values without an explicit TTL use this fallback.
+      default-ttl: 10m
+      # Internal L1 TTL when tiered cache is explicitly enabled.
+      # If Pub/Sub invalidation is unavailable or missed, this TTL is the fallback stale window.
+      local-ttl: 30s
+      # Retry interval used by Redis lock acquisition.
+      lock-retry-interval: 50ms
+      # Redis lock acquisition returns an optional provider-neutral fencing token.
+      # Callers must pass the token to the protected resource and let that resource reject stale tokens.
+      # This is not Redlock or strong distributed coordination.
+      fencing-token-prefix: "nexary:sample:fence:"
+      # Atomic counters use CacheCounterClient and Redis atomic operations directly.
+      # They are not ordinary cache objects, do not enter JVM-local L1, and are not affected by tiered cache.
+      # Counter TTL is TTL-on-create: the first increment/decrement can set expiry; later mutations do not refresh it.
+      # false = Redis only; no JVM-local L1 and no invalidation listener.
+      # true = add JVM-local L1 for read-mostly data that tolerates short stale windows.
+      tiered-enabled: false
+      # Applies only when tiered-enabled=true.
+      # Redis Pub/Sub invalidation is best-effort; local-ttl remains the fallback.
+      invalidation-enabled: true
+      # Use one channel per application/cache domain to avoid unrelated invalidations.
+      invalidation-channel: nexary:sample:cache:invalidation
+      # Leave unset in real services unless you need a stable node id for diagnostics.
+      # Nexary generates a random origin id by default and ignores self-originated events.
+      # invalidation-origin-id: sample-node-a
+      # Listener lifecycle and reconnect backoff for the Redis Pub/Sub subscriber.
+      invalidation-listener-auto-start: true
+      invalidation-listener-recovery-backoff: 5s

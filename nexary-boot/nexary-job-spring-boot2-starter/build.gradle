@@ -1,0 +1,13 @@
+dependencies {
+    api project(':nexary-job:nexary-job-api')
+    api project(':nexary-job:nexary-job-scheduler-spring-boot2')
+    api project(':nexary-job:nexary-job-xxljob-spring-boot2')
+    api project(':nexary-job:nexary-job-execution-store-redis-spring-boot2')
+    implementation "org.springframework.boot:spring-boot-autoconfigure:${rootProject.ext.springBoot2Version}"
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${rootProject.ext.springBoot2Version}"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
