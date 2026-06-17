@@ -230,6 +230,11 @@ tasks.register('mavenCentralBundle', Zip) {
     destinationDirectory = layout.buildDirectory.dir('distributions')
 }
 
+tasks.register('publishToMavenLocal') {
+    group = 'publishing'
+    description = 'Publishes all publishable Nexary modules to the local Maven repository.'
+}
+
 tasks.register('verifyReleaseGate') {
     group = 'verification'
     description = 'Runs the local release gate before tagging a public release.'
@@ -242,6 +247,11 @@ gradle.projectsEvaluated {
     tasks.named('publishCentralReleaseStaging') {
         dependsOn centralProjects.collect { project ->
             project.tasks.named('publishAllPublicationsToReleaseStagingRepository')
+        }
+    }
+    tasks.named('publishToMavenLocal') {
+        dependsOn subprojects.collect { project ->
+            project.tasks.matching { task -> task.name == 'publishToMavenLocal' }
         }
     }
 }
