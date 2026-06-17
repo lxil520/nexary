@@ -246,21 +246,27 @@ tasks.register('compatibilityAudit') {
                 'local var inference'         : ~/\bvar\s+[A-Za-z_][A-Za-z0-9_]*\s*=/
         ]
 
-        logger.lifecycle('Nexary compatibility audit')
-        logger.lifecycle('- Boot 3.3 / Java 17 remains the verified mainline.')
-        logger.lifecycle('- Boot 2.7 / Java 8 is a v0.2 compatibility target, but support is not declared until blockers are removed and CI gates pass.')
-        logger.lifecycle('- Boot 4.x / Java 21+ is a v0.2 validation target after the Boot 2 gate; official minimum JDK remains defined by Spring documentation.')
+        def reportLines = []
+        def report = { line ->
+            logger.lifecycle(line)
+            reportLines.add(line)
+        }
+
+        report('Nexary compatibility audit')
+        report('- Boot 3.3 / Java 17 remains the verified mainline.')
+        report('- Boot 2.7 / Java 8 is a v0.2 compatibility target, but support is not declared until blockers are removed and CI gates pass.')
+        report('- Boot 4.x / Java 21+ is a v0.2 validation target after the Boot 2 gate; official minimum JDK remains defined by Spring documentation.')
 
         def totalCompatibilityBlockers = 0
         patterns.each { label, pattern ->
             def hits = javaFiles.findAll { file -> (file.text =~ pattern).find() }
             totalCompatibilityBlockers += hits.size()
-            logger.lifecycle(String.format('  %-32s %4d file(s)', label + ':', hits.size()))
+            report(String.format('  %-32s %4d file(s)', label + ':', hits.size()))
             hits.take(8).each { hit ->
-                logger.lifecycle("    - ${rootProject.relativePath(hit)}")
+                report("    - ${rootProject.relativePath(hit)}")
             }
             if (hits.size() > 8) {
-                logger.lifecycle("    - ... ${hits.size() - 8} more")
+                report("    - ... ${hits.size() - 8} more")
             }
         }
 
@@ -272,15 +278,26 @@ tasks.register('compatibilityAudit') {
                 }.files)
             }
         }
-        logger.lifecycle(String.format('  %-32s %4d file(s)',
+        report(String.format('  %-32s %4d file(s)',
                 'Boot 3 AutoConfiguration imports:', boot3AutoConfigurationFiles.size()))
         totalCompatibilityBlockers += boot3AutoConfigurationFiles.size()
         boot3AutoConfigurationFiles.take(8).each { hit ->
-            logger.lifecycle("    - ${rootProject.relativePath(hit)}")
+            report("    - ${rootProject.relativePath(hit)}")
         }
         if (boot3AutoConfigurationFiles.size() > 8) {
-            logger.lifecycle("    - ... ${boot3AutoConfigurationFiles.size() - 8} more")
+            report("    - ... ${boot3AutoConfigurationFiles.size() - 8} more")
         }
+        report("  Total compatibility blocker file hits: ${totalCompatibilityBlockers}")
+        report('')
+        report('Compatibility gate boundary:')
+        report('- This report is evidence for current blockers, not a support declaration.')
+        report('- Boot2/JDK8 support requires independent Boot2 BOM/starter/sample/provider gates.')
+        report('- Boot4/JDK21 support starts after the Boot2 gate and requires its own dependency matrix.')
+
+        def reportFile = layout.buildDirectory.file('reports/nexary/compatibility-audit.md').get().asFile
+        reportFile.parentFile.mkdirs()
+        reportFile.text = reportLines.collect { line -> line ?: '' }.join(System.lineSeparator()) + System.lineSeparator()
+        logger.lifecycle("Compatibility audit report written to ${rootProject.relativePath(reportFile)}")
 
         if (rootProject.findProperty('failOnCompatibilityGaps') == 'true' && totalCompatibilityBlockers > 0) {
             throw new GradleException("Compatibility audit found ${totalCompatibilityBlockers} blocker file hits.")
@@ -390,6 +407,71 @@ tasks.register('verifyRepositoryHygiene') {
     }
 }
 
+tasks.register('verifyPublicDocsHygiene') {
+    group = 'verification'
+    description = 'Checks public documentation for internal coordination records and accidental agent files.'
+
+    doLast {
+        def trackedPaths = []
+        if (new File(rootDir, '.git').exists()) {
+            def output = new ByteArrayOutputStream()
+            exec {
+                workingDir rootDir
+                commandLine 'git', 'ls-files'
+                standardOutput = output
+            }
+            trackedPaths = output.toString('UTF-8').readLines().findAll { it.trim() }
+        }
+
+        def forbiddenTrackedPaths = trackedPaths.findAll { path ->
+            path == 'AGENTS.md' || path.startsWith('_system/')
+        }
+        if (!forbiddenTrackedPaths.isEmpty()) {
+            throw new GradleException("Internal coordination files must not be tracked publicly: ${forbiddenTrackedPaths}")
+        }
+
+        def publicDocPaths = trackedPaths.findAll { path ->
+            (path == 'README.md' || path == 'README.en.md' ||
+                    path.startsWith('docs/') ||
+                    path.endsWith('/README.md') ||
+                    path.endsWith('/README.en.md')) &&
+                    !path.startsWith('_system/')
+        }
+        def forbiddenPatterns = [
+                ~/Message\s+\d{4}/,
+                ~/REQ-\d{8}-\d+/,
+                ~/\bfrom_lane\b/,
+                ~/\bto_lane\b/,
+                ~/\bworklog\b/,
+                ~/\bshared\.md\b/,
+                ~/\bcodex_delegation\b/,
+                ~/_system\/collaboration/,
+                ~/\bArchitect Lane\b/,
+                ~/\bVerification Lane\b/,
+                ~/\bCache Lane\b/,
+                ~/\bMessaging Lane\b/,
+                ~/\bJob Lane\b/
+        ]
+
+        def hits = []
+        publicDocPaths.each { path ->
+            def file = new File(rootDir, path)
+            if (file.isFile()) {
+                def text = file.getText('UTF-8')
+                forbiddenPatterns.each { pattern ->
+                    if ((text =~ pattern).find()) {
+                        hits.add("${path}: ${pattern.pattern()}")
+                    }
+                }
+            }
+        }
+        if (!hits.isEmpty()) {
+            throw new GradleException("Public documentation contains internal coordination records:\n${hits.join('\n')}")
+        }
+    }
+}
+
 tasks.named('check') {
     dependsOn 'verifyRepositoryHygiene'
+    dependsOn 'verifyPublicDocsHygiene'
 }

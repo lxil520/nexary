@@ -31,6 +31,10 @@ Nexary should reach more users like mature frameworks do, but each compatibility
 4. After the Boot 2 gate passes, add Boot 4.x / Java 21+ BOM, starters, samples, and CI gates.
 5. Add Maven / Gradle dependency snippets to README only after the corresponding gate passes.
 
+`compatibilityAudit` prints blocker counts to the console and writes `build/reports/nexary/compatibility-audit.md`. This report is compatibility-gap evidence, not a support declaration.
+
+`./gradlew check` also runs public documentation hygiene checks to prevent internal coordination records, task IDs, and agent instruction files from entering user-facing docs.
+
 ## Compatibility Policy
 
 - Public APIs should change conservatively within `0.2.x`, but strict compatibility is not promised before `1.0.0`.
