@@ -149,9 +149,9 @@ scheduler.schedule(job, JobSchedule.single("demo-job", "0 */5 * * * *"));
 Choose the focused sample for the capability you need:
 
 ```bash
-./gradlew :nexary-samples:nexary-sample-cache:bootRun
-./gradlew :nexary-samples:nexary-sample-messaging:bootRun
-./gradlew :nexary-samples:nexary-sample-job:bootRun
+./gradlew :nexary-samples:nexary-sample-cache:run
+./gradlew :nexary-samples:nexary-sample-messaging:run
+./gradlew :nexary-samples:nexary-sample-job:run
 ```
 
 Next: [Core Concepts](concepts.md)

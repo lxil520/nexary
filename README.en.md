@@ -73,9 +73,9 @@ General references:
 ### 2. Run the focused reference apps
 
 ```bash
-./gradlew :nexary-samples:nexary-sample-cache:bootRun
-./gradlew :nexary-samples:nexary-sample-messaging:bootRun
-./gradlew :nexary-samples:nexary-sample-job:bootRun
+./gradlew :nexary-samples:nexary-sample-cache:run
+./gradlew :nexary-samples:nexary-sample-messaging:run
+./gradlew :nexary-samples:nexary-sample-job:run
 ```
 
 The sample suite now documents what each app is meant to teach and what should be copied into a production service. See [nexary-samples/README.md](nexary-samples/README.md).

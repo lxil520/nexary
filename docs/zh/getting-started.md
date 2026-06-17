@@ -149,9 +149,9 @@ scheduler.schedule(job, JobSchedule.single("demo-job", "0 */5 * * * *"));
 按能力选择专项样例：
 
 ```bash
-./gradlew :nexary-samples:nexary-sample-cache:bootRun
-./gradlew :nexary-samples:nexary-sample-messaging:bootRun
-./gradlew :nexary-samples:nexary-sample-job:bootRun
+./gradlew :nexary-samples:nexary-sample-cache:run
+./gradlew :nexary-samples:nexary-sample-messaging:run
+./gradlew :nexary-samples:nexary-sample-job:run
 ```
 
 下一步建议阅读：[核心概念](concepts.md)
