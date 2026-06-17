@@ -58,7 +58,7 @@ configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists()
         annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBootVersion}")
         testImplementation platform("org.junit:junit-bom:${rootProject.ext.junitVersion}")
         testImplementation 'org.junit.jupiter:junit-jupiter'
-        testImplementation 'org.assertj:assertj-core:3.26.3'
+        testImplementation 'org.assertj:assertj-core:3.27.7'
         testImplementation 'org.mockito:mockito-core:5.12.0'
     }
 
