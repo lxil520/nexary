@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     // SPI/provider dependency adoption path:
+    // - after publication, import org.nexary:nexary-bom:${nexaryVersion}.
     // - compile business code against org.nexary:nexary-messaging-api only.
     // - add exactly one provider at runtime: org.nexary:nexary-messaging-rocketmq.
     // - switching to Kafka/Redis/Disruptor means changing the provider module,

@@ -8,15 +8,18 @@
 // 当前样例使用仓库内 project 依赖。
 implementation project(':nexary-job:nexary-job-api')
 runtimeOnly project(':nexary-job:nexary-job-xxljob')
-
-// Maven Central 发布后对应当前已验证 Spring Boot 3.3.x + Java 17+ artifact：
-// implementation 'org.nexary:nexary-job-api'
-// runtimeOnly 'org.nexary:nexary-job-xxljob'
-//
-// Boot2 / Java8 兼容目标，待验证，未发布：
-// implementation 'org.nexary:nexary-job-api-java8'
-// runtimeOnly 'org.nexary:nexary-job-xxljob-spring5'
 ```
+
+Maven Central 发布后的当前已验证依赖入口：
+
+```groovy
+def nexaryVersion = "0.2.0-alpha.2"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+implementation 'org.nexary:nexary-job-api'
+runtimeOnly 'org.nexary:nexary-job-xxljob'
+```
+
+Boot2 / Java8 兼容目标仍处于待验证、未发布状态。拟定名称为 `nexary-job-api-java8` 和 `nexary-job-xxljob-spring5`，通过独立验证前不要作为依赖复制使用。
 
 业务代码只使用 `org.nexary.job.*`，不依赖 provider 内部类或 XXL-JOB 原生类型。
 

@@ -41,9 +41,14 @@ This module uses starter mode. The currently verified combination is Spring Boot
 ```groovy
 // Verified: Spring Boot 3.3.x + Java 17+
 implementation project(':nexary-boot:nexary-job-spring-boot-starter')
+```
 
-// After Maven Central publication:
-// implementation 'org.nexary:nexary-job-spring-boot-starter'
+Current verified dependency entry after Maven Central publication:
+
+```groovy
+def nexaryVersion = "0.2.0-alpha.2"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+implementation 'org.nexary:nexary-job-spring-boot-starter'
 ```
 
 The starter aggregates the current Job API, local provider, and XXL-JOB bridge provider. Users select the provider in configuration:

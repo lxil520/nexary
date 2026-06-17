@@ -28,7 +28,12 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 当前已验证 starter 模式：
 
 ```gradle
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
+    // 使用 Nexary BOM 锁定当前已验证的 Boot3 / Java17+ Messaging 依赖版本。
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
     // 当前已验证组合：Spring Boot 3.3 + Java 17+。
     // 这个 starter 聚合 Messaging API 和当前 provider 自动配置。
     // 用 nexary.messaging.provider 选择 disruptor / redis / kafka / rocketmq。
@@ -41,7 +46,12 @@ dependencies {
 SPI/provider 模式适合不想引入聚合 starter、只想引入一个具体 provider 的服务。业务代码仍只依赖 Nexary messaging API，不直接 import Kafka、RocketMQ、Redis 或 Disruptor 原生类型。
 
 ```gradle
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
+    // 使用 Nexary BOM 锁定当前已验证的 Boot3 / Java17+ Messaging 依赖版本。
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
     // 业务编译期只依赖 provider-neutral API。
     implementation 'org.nexary:nexary-messaging-api'
 

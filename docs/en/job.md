@@ -41,10 +41,21 @@ Maven starter mode:
 
 ```xml
 <!-- Currently verified: Spring Boot 3.3.x + Java 17+ -->
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.nexary</groupId>
+      <artifactId>nexary-bom</artifactId>
+      <version>${nexaryVersion}</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+
 <dependency>
   <groupId>org.nexary</groupId>
   <artifactId>nexary-job-spring-boot-starter</artifactId>
-  <version>${nexary.version}</version>
 </dependency>
 ```
 
@@ -52,6 +63,7 @@ Gradle starter mode:
 
 ```groovy
 // Currently verified: Spring Boot 3.3.x + Java 17+
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 // The starter aggregates Nexary job API, local scheduler, XXL-JOB bridge,
 // and the Redis execution store provider. Select the runtime provider with
 // nexary.job.provider.
@@ -62,6 +74,7 @@ SPI/provider mode is for applications that want exactly one concrete provider de
 
 ```groovy
 // Business code needs only the Nexary job API at compile time.
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-api'
 
 // Local scheduler provider. Choose either local scheduler or XXL-JOB bridge.

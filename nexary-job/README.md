@@ -17,12 +17,16 @@
 当前已验证组合是 Spring Boot 3.3.x + Java 17+：
 
 ```groovy
+def nexaryVersion = "0.2.0-alpha.2"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-spring-boot-starter'
 ```
 
 如果不用 starter，可以按 SPI/provider 模式选择依赖：
 
 ```groovy
+def nexaryVersion = "0.2.0-alpha.2"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-api'
 runtimeOnly 'org.nexary:nexary-job-scheduler' // local scheduler provider
 // runtimeOnly 'org.nexary:nexary-job-xxljob' // XXL-JOB bridge provider

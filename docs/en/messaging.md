@@ -28,7 +28,12 @@ Choose the entry point from your Spring Boot and JDK line first. Combinations th
 Currently verified starter mode:
 
 ```gradle
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
+    // Use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging dependency versions.
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
     // Currently verified combination: Spring Boot 3.3 + Java 17+.
     // This starter aggregates the Messaging API and current provider auto-configuration.
     // Select disruptor / redis / kafka / rocketmq with nexary.messaging.provider.
@@ -41,7 +46,12 @@ The current artifactId is still `nexary-messaging-spring-boot-starter`. For a cl
 SPI/provider mode is for services that do not want the aggregate starter and want to bring exactly one concrete provider. Business code still depends only on the Nexary messaging API and must not import Kafka, RocketMQ, Redis, or Disruptor native types.
 
 ```gradle
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
+    // Use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging dependency versions.
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
     // Business code compiles against the provider-neutral API only.
     implementation 'org.nexary:nexary-messaging-api'
 

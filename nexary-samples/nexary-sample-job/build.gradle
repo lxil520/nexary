@@ -4,11 +4,12 @@ plugins {
 
 dependencies {
     // Job starter mode, currently verified for Spring Boot 3.3.x + Java 17+.
-    // Published artifactId after release: org.nexary:nexary-job-spring-boot-starter.
+    // Published artifactId after release: nexary-job-spring-boot-starter.
+    // For a copyable published dependency block, use this sample README's
+    // Maven Central section, which includes the Nexary BOM/version.
     // If Boot2/Boot4 compatibility lines are published later, use their explicit
-    // starters instead of this Boot3-verified starter:
-    // - org.nexary:nexary-job-spring-boot2-starter (target, not released)
-    // - org.nexary:nexary-job-spring-boot4-starter (target, not released)
+    // starters instead of this Boot3-verified starter. Their names are targets,
+    // pending verification, and intentionally not shown as dependency snippets here.
     //
     // Job starter is the application-facing dependency for the sample.
     // It aggregates the stable Nexary job API plus the current local scheduler
@@ -19,11 +20,7 @@ dependencies {
     implementation project(':nexary-boot:nexary-job-spring-boot-starter')
 
     // SPI/provider examples are intentionally separate modules. In published
-    // artifact form they correspond to:
-    // - org.nexary:nexary-job-api
-    // - org.nexary:nexary-job-scheduler
-    // - org.nexary:nexary-job-xxljob
-    // - org.nexary:nexary-job-execution-store-redis (optional durable records)
+    // artifact form, see the SPI sample READMEs for BOM-backed dependency blocks.
     //
     // Sample modules:
     // - nexary-sample-job-spi-scheduler

@@ -20,9 +20,16 @@ Business code depends on `nexary-messaging-spring-boot-starter` and the `org.nex
 Main `build.gradle` dependency:
 
 ```gradle
-// The repository sample uses a project dependency. After publication, the current verified artifactId is:
-// implementation 'org.nexary:nexary-messaging-spring-boot-starter'
-implementation project(':nexary-boot:nexary-messaging-spring-boot-starter')
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
+dependencies {
+    // After publication, use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging versions.
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
+    // This repository sample develops against project(':nexary-boot:nexary-messaging-spring-boot-starter');
+    // user projects should copy the current verified artifactId below.
+    implementation 'org.nexary:nexary-messaging-spring-boot-starter'
+}
 ```
 
 The Redis profile also needs Spring Boot's Redis connection factory. Kafka and RocketMQ clients are aggregated by the messaging starter.
@@ -81,7 +88,11 @@ Those modules depend on `nexary-messaging-api` plus exactly one provider module.
 After publication, SPI/provider dependencies look like:
 
 ```gradle
+def nexaryVersion = "0.2.0-SNAPSHOT"
+
 dependencies {
+    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
     implementation 'org.nexary:nexary-messaging-api'
 
     runtimeOnly 'org.nexary:nexary-messaging-disruptor'

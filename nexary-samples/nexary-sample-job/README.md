@@ -41,9 +41,14 @@ public class SampleBusinessJob implements NexaryJob {
 ```groovy
 // 已验证：Spring Boot 3.3.x + Java 17+
 implementation project(':nexary-boot:nexary-job-spring-boot-starter')
+```
 
-// Maven Central 发布后对应：
-// implementation 'org.nexary:nexary-job-spring-boot-starter'
+Maven Central 发布后的当前已验证依赖入口：
+
+```groovy
+def nexaryVersion = "0.2.0-alpha.2"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+implementation 'org.nexary:nexary-job-spring-boot-starter'
 ```
 
 starter 聚合当前 Job API、local provider 和 XXL-JOB bridge provider。使用者通过配置选择 provider：

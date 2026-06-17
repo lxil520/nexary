@@ -8,15 +8,18 @@ SPI/provider dependency sample for the Job capability. This module shows only th
 // The sample uses project dependencies inside this repository.
 implementation project(':nexary-job:nexary-job-api')
 runtimeOnly project(':nexary-job:nexary-job-xxljob')
-
-// Maven Central artifacts for the currently verified Spring Boot 3.3.x + Java 17+ line:
-// implementation 'org.nexary:nexary-job-api'
-// runtimeOnly 'org.nexary:nexary-job-xxljob'
-//
-// Boot2 / Java8 compatibility target, pending verification and unpublished:
-// implementation 'org.nexary:nexary-job-api-java8'
-// runtimeOnly 'org.nexary:nexary-job-xxljob-spring5'
 ```
+
+Current verified dependency entry after Maven Central publication:
+
+```groovy
+def nexaryVersion = "0.2.0-alpha.2"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+implementation 'org.nexary:nexary-job-api'
+runtimeOnly 'org.nexary:nexary-job-xxljob'
+```
+
+Boot2 / Java8 compatibility is still a pending, unpublished target. Planned names are `nexary-job-api-java8` and `nexary-job-xxljob-spring5`; do not copy them as dependencies before independent verification.
 
 Business code uses only `org.nexary.job.*` and does not depend on provider internals or native XXL-JOB types.
 

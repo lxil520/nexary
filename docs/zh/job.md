@@ -41,10 +41,21 @@ Maven starter 模式：
 
 ```xml
 <!-- 当前已验证：Spring Boot 3.3.x + Java 17+ -->
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.nexary</groupId>
+      <artifactId>nexary-bom</artifactId>
+      <version>${nexaryVersion}</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+
 <dependency>
   <groupId>org.nexary</groupId>
   <artifactId>nexary-job-spring-boot-starter</artifactId>
-  <version>${nexary.version}</version>
 </dependency>
 ```
 
@@ -52,6 +63,7 @@ Gradle starter 模式：
 
 ```groovy
 // 当前已验证：Spring Boot 3.3.x + Java 17+
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 // starter 聚合 Nexary job API、local scheduler、XXL-JOB bridge、
 // Redis execution store provider；通过 nexary.job.provider 选择运行 provider。
 implementation 'org.nexary:nexary-job-spring-boot-starter'
@@ -61,6 +73,7 @@ SPI/provider 模式适合只引入一个具体 provider。业务 job 仍只依�
 
 ```groovy
 // 业务代码编译期只需要 Nexary job API。
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-api'
 
 // 本地调度 provider。二选一：local scheduler 或 XXL-JOB bridge。

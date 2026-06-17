@@ -30,9 +30,9 @@ Full details live in [../../nexary-samples/README.md](../../nexary-samples/READM
 ## Focused Samples
 
 ```bash
-./gradlew :nexary-samples:nexary-sample-cache:bootRun
-./gradlew :nexary-samples:nexary-sample-messaging:bootRun
-./gradlew :nexary-samples:nexary-sample-job:bootRun
+./gradlew :nexary-samples:nexary-sample-cache:run
+./gradlew :nexary-samples:nexary-sample-messaging:run
+./gradlew :nexary-samples:nexary-sample-job:run
 ```
 
 These answer the question: how should a service be structured if I only adopt one capability?

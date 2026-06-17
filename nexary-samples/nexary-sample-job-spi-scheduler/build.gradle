@@ -5,20 +5,16 @@ plugins {
 dependencies {
     // SPI/provider dependency adoption path:
     // - currently verified for Spring Boot 3.3.x + Java 17+.
-    // - published artifactIds after release:
-    //   implementation org.nexary:nexary-job-api
-    //   runtimeOnly    org.nexary:nexary-job-scheduler
-    // - Boot2 target artifacts, pending verification and not released:
-    //   org.nexary:nexary-job-api-java8
-    //   org.nexary:nexary-job-scheduler-spring5
+    // - published artifactIds after release are shown in this sample README
+    //   with the Nexary BOM/version in the same copyable block.
+    // - Boot2 target artifact names are pending verification and not released;
+    //   they are documented as prose only, not as dependency snippets.
     // - business code uses only org.nexary.job.* abstractions.
     // - this module introduces exactly one provider: the local scheduler.
     // - switching to the XXL-JOB bridge means using nexary-sample-job-spi-xxljob
     //   or changing the provider dependency/configuration, not changing business code.
-    // - durable execution records are optional; add
-    //   org.nexary:nexary-job-execution-store-redis plus Redis connectivity
-    //   when needed. Boot2 target name is
-    //   org.nexary:nexary-job-execution-store-redis-spring5.
+    // - durable execution records are optional; see the README for the
+    //   BOM-backed Redis execution store dependency when needed.
     implementation project(':nexary-job:nexary-job-api')
     runtimeOnly project(':nexary-job:nexary-job-scheduler')
 
