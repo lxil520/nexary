@@ -92,19 +92,32 @@ The repository ships with local Docker workflows for Redis, Kafka, RocketMQ, MyS
 
 ## Add Nexary to a Spring Boot service
 
-Current development version: `0.2.0-SNAPSHOT`. After the first Maven Central release, replace `${nexary.version}` with the latest release version.
+### 1. Choose the Nexary version first
 
-### Version Matrix
+Nexary does not have a Maven Central release yet. Today, only the locally built `0.2.0-SNAPSHOT` is available:
 
-| Spring Boot | JDK | Status | Dependency Entry |
-| --- | --- | --- | --- |
-| Spring Boot 3.3 | Java 17+ | currently verified | current starters / BOM |
-| Spring Boot 2.7 | Java 8+ | `0.2.x` target, priority compatibility audit and adaptation | independent Boot2 starters / BOM, not published |
-| Spring Boot 4.x | Java 21+ primary verification target | `0.2.x` target after the Boot2 gate | independent Boot4 starters / BOM candidate; official minimum JDK remains defined by Spring documentation |
+```bash
+./gradlew publishToMavenLocal
+```
 
-Before the first public release, the compatibility audit will decide whether starter artifacts should use explicit `spring-boot3` / `spring-boot2` suffixes. Unverified combinations must not appear as supported dependency snippets.
+After the first public release, choose a version in one of two ways:
 
-### Maven
+- Use the Latest Version shown by Maven Central.
+- Use a GitHub Releases / Tags version. For example, tag `v0.2.0` maps to dependency version `0.2.0`.
+
+Do not use a `main` branch commit hash or an unpublished `0.2.0-SNAPSHOT` as a production dependency version.
+
+### 2. Choose the Spring Boot / JDK entry
+
+| Spring Boot | JDK | Status | Version Choice | BOM | Starter artifactId |
+| --- | --- | --- | --- | --- | --- |
+| Spring Boot 3.3 | Java 17+ | currently verified | local `0.2.0-SNAPSHOT`; after release, use Latest Version or a tag version | `nexary-bom` | `nexary-cache-spring-boot-starter`<br>`nexary-messaging-spring-boot-starter`<br>`nexary-job-spring-boot-starter`<br>`nexary-observation-micrometer-spring-boot-starter` |
+| Spring Boot 2.7 | Java 8+ | `0.2.x` target, priority compatibility audit and adaptation, not published | official version only after the gate passes | planned `nexary-spring-boot2-bom` | planned `nexary-cache-spring-boot2-starter`<br>planned `nexary-messaging-spring-boot2-starter`<br>planned `nexary-job-spring-boot2-starter` |
+| Spring Boot 4.x | Java 21+ primary verification target | `0.2.x` target after the Boot2 gate, not published | official version only after the gate passes | planned `nexary-spring-boot4-bom` | planned `nexary-cache-spring-boot4-starter`<br>planned `nexary-messaging-spring-boot4-starter`<br>planned `nexary-job-spring-boot4-starter` |
+
+Only the currently verified combination should be copied from the snippets below. ArtifactIds marked as planned are `0.2.x` compatibility targets, not published or supported artifacts.
+
+### 3. Spring Boot 3.3 / Java 17+: Maven
 
 Import the BOM first, then choose the starters you need:
 
@@ -122,18 +135,22 @@ Import the BOM first, then choose the starters you need:
 </dependencyManagement>
 
 <dependencies>
+  <!-- Cache: CacheClient, locks, atomic counters, and Redis provider auto-configuration. -->
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-cache-spring-boot-starter</artifactId>
   </dependency>
+  <!-- Messaging: provider-neutral publisher/consumer APIs; provider selected by configuration. -->
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-messaging-spring-boot-starter</artifactId>
   </dependency>
+  <!-- Job: shared job API, local scheduler, and XXL-JOB bridge extension points. -->
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-job-spring-boot-starter</artifactId>
   </dependency>
+  <!-- Optional: Micrometer observation bridge. -->
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-observation-micrometer-spring-boot-starter</artifactId>
@@ -141,26 +158,36 @@ Import the BOM first, then choose the starters you need:
 </dependencies>
 ```
 
-### Gradle
+### 4. Spring Boot 3.3 / Java 17+: Gradle
 
 ```groovy
 dependencies {
+    // Use the BOM to keep Nexary modules on one version. After release, set nexaryVersion to Latest Version or a tag version.
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
+    // Starter mode: add the capabilities you need. Business code depends on Nexary APIs, not native middleware SDKs.
     implementation 'org.nexary:nexary-cache-spring-boot-starter'
     implementation 'org.nexary:nexary-messaging-spring-boot-starter'
     implementation 'org.nexary:nexary-job-spring-boot-starter'
+
+    // Optional: bridge Nexary observation events to Micrometer.
     implementation 'org.nexary:nexary-observation-micrometer-spring-boot-starter'
 }
 ```
+
+### 5. SPI/provider dependency mode
 
 If you do not want starters, use the SPI/provider dependency mode. Business code still depends only on Nexary APIs; the provider is selected through runtime dependencies and `nexary.*` configuration:
 
 ```groovy
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+
+    // Business code compiles against the Nexary API only.
     implementation 'org.nexary:nexary-messaging-api'
+
+    // Select one provider at runtime. Switch to RocketMQ by changing dependency/configuration, not business publisher/consumer code.
     runtimeOnly 'org.nexary:nexary-messaging-kafka'
-    // Switch to RocketMQ by changing dependency/configuration, not business publisher/consumer code.
     // runtimeOnly 'org.nexary:nexary-messaging-rocketmq'
 }
 ```
