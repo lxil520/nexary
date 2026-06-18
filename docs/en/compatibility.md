@@ -39,4 +39,4 @@ Nexary should reach more users like mature frameworks do, but each compatibility
 
 - Public APIs should change conservatively within `0.2.x`, but strict compatibility is not promised before `1.0.0`.
 - Provider adapters may gain behavior and configuration options as integration coverage increases.
-- Historical internal implementations are not compatibility targets.
+- Compatibility is defined by documented public APIs and verified release entries, not by implementation details.

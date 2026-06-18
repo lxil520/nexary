@@ -6,9 +6,11 @@
 
 Chinese documentation: [README.md](README.md)
 
-Nexary is a Java middleware framework with Spring Boot 3.3 / Java 17+ as the mainline. The current `0.2.x` line focuses on cache, messaging, job scheduling, SPI, observation bridging, and governance extension points for future resilience features.
+**Keep business code focused on business. Keep middleware replaceable.**
 
-Nexary is a new public-facing framework. It does not promise source or binary compatibility with any previous internal or historical implementation.
+Nexary decouples cache, messaging, job scheduling, and observation from business code through stable provider-neutral APIs. Teams can spend their time on product and business growth first; when Redis, Kafka, RocketMQ, XXL-JOB, or another infrastructure choice needs to be upgraded, replaced, or worked around, the migration cost is kept in the framework adapter layer instead of spreading through every business service.
+
+The current `0.2.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and focuses on cache, messaging, job scheduling, SPI, observation bridging, and governance extension points for future resilience features. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified capability.
 
 ## Status
 

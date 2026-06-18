@@ -8,7 +8,7 @@ Nexary follows a layered design: provider-neutral APIs at the center, provider-s
 - Keep Redis, Kafka, and RocketMQ native types out of public API modules.
 - Let starters assemble implementations without forcing applications to depend on every provider.
 - Normalize resilience signals early: deadline, traffic tag, retry, fault, and observation.
-- Avoid compatibility promises with any previous internal or historical implementation.
+- Define compatibility through documented public APIs; implementation modules may continue to evolve before 1.0.
 
 ## Module Topology
 
