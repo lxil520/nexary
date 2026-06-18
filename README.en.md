@@ -6,11 +6,40 @@
 
 Chinese documentation: [README.md](README.md)
 
+[![build](https://github.com/lxil520/nexary/actions/workflows/build.yml/badge.svg)](https://github.com/lxil520/nexary/actions/workflows/build.yml)
+[![License](https://img.shields.io/github/license/lxil520/nexary)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-17%2B%20%7C%2021-007396)](README.en.md)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3%20mainline-6DB33F)](README.en.md)
+
 **Keep business code focused on business. Keep middleware replaceable.**
 
 Nexary decouples cache, messaging, job scheduling, and observation from business code through stable provider-neutral APIs. Teams can spend their time on product and business growth first; when Redis, Kafka, RocketMQ, XXL-JOB, or another infrastructure choice needs to be upgraded, replaced, or worked around, the migration cost is kept in the framework adapter layer instead of spreading through every business service.
 
 The current `0.2.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and focuses on cache, messaging, job scheduling, SPI, observation bridging, and governance extension points for future resilience features. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified capability.
+
+## Use Cases
+
+- Teams maintaining multiple Spring Boot services that do not want cache, messaging, and jobs hard-wired to native middleware SDKs.
+- Developers who need room to move between Redis, Kafka, RocketMQ, XXL-JOB, and similar infrastructure without copying a heavy internal platform into every service.
+- Users looking for a small Java middleware facade: stable public APIs, provider adapters kept in the framework layer, and runnable samples for local validation.
+
+## 10-Minute Trial
+
+```bash
+git clone https://github.com/lxil520/nexary.git
+cd nexary
+./gradlew :nexary-samples:nexary-sample-cache:run
+./gradlew :nexary-samples:nexary-sample-messaging:run
+./gradlew :nexary-samples:nexary-sample-job:run
+```
+
+To validate against real middleware directly:
+
+```bash
+./scripts/middleware/up.sh
+./scripts/middleware/smoke.sh
+./scripts/middleware/run-integration-tests.sh
+```
 
 ## Status
 

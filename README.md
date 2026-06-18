@@ -6,11 +6,40 @@
 
 英文镜像文档：[README.en.md](README.en.md)
 
+[![build](https://github.com/lxil520/nexary/actions/workflows/build.yml/badge.svg)](https://github.com/lxil520/nexary/actions/workflows/build.yml)
+[![License](https://img.shields.io/github/license/lxil520/nexary)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-17%2B%20%7C%2021-007396)](README.md)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3%20mainline-6DB33F)](README.md)
+
 **让业务专注业务，让中间件保持可替换。**
 
 Nexary 用稳定的 provider-neutral API，把缓存、消息、任务调度和可观测性能力从业务代码中解耦出来。团队可以先把精力放在产品和业务增长上；当 Redis、Kafka、RocketMQ、XXL-JOB 等基础设施需要升级、替换或绕开瓶颈时，迁移成本尽量收敛在框架适配层，而不是散落到业务系统的每个角落。
 
 当前 `0.2.x` 以 Spring Boot 3.3 / Java 17+ 为主线，聚焦缓存、消息、任务调度、SPI、可观测性桥接，以及后续服务治理能力需要的基础扩展点；Spring Boot 2.7 / Java 8+ 与 Spring Boot 4.1 / Java 21 按能力提供已验证入口。
+
+## 适用场景
+
+- 正在维护多个 Spring Boot 服务，希望缓存、消息和任务调度不要把业务代码绑死在某个中间件 SDK 上的团队。
+- 需要在 Redis、Kafka、RocketMQ、XXL-JOB 等基础设施之间保留替换空间，但又不想在应用层复制一套复杂平台的开发者。
+- 想要一个小而清晰的 Java middleware facade：公共 API 稳定，provider 适配留在框架层，示例和本地验证可直接运行。
+
+## 10 分钟体验路径
+
+```bash
+git clone https://github.com/lxil520/nexary.git
+cd nexary
+./gradlew :nexary-samples:nexary-sample-cache:run
+./gradlew :nexary-samples:nexary-sample-messaging:run
+./gradlew :nexary-samples:nexary-sample-job:run
+```
+
+如果你只想看真实中间件联调，直接运行：
+
+```bash
+./scripts/middleware/up.sh
+./scripts/middleware/smoke.sh
+./scripts/middleware/run-integration-tests.sh
+```
 
 ## 当前状态
 
