@@ -1,6 +1,6 @@
 # Cache 指南
 
-Cache 是 Nexary 当前最独立的一项能力。
+这页只讲 Cache：业务代码怎么用 `CacheClient`，Redis provider 怎么接，哪些数据不适合走本地 L1。
 
 ## 你应该先看什么
 
@@ -11,7 +11,7 @@ Cache 是 Nexary 当前最独立的一项能力。
 
 ## 版本选择
 
-当前开发版本：`0.2.0-SNAPSHOT`。正式发布后，依赖中的 `${nexary.version}` 使用最新 release / tag 版本。
+现在开发版是 `0.2.0-SNAPSHOT`。正式发布后，依赖中的 `${nexary.version}` 换成最新 release 或 tag。
 
 | Spring Boot | JDK | Cache 状态 | Starter artifactId | SPI/provider 依赖 |
 | --- | --- | --- | --- | --- |
@@ -19,13 +19,13 @@ Cache 是 Nexary 当前最独立的一项能力。
 | Spring Boot 2.7.x | Java 8+ | Redis 单级缓存已验证；不包含 tiered local cache | `nexary-cache-spring-boot2-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
 | Spring Boot 4.1.x | Java 21 主验证运行时 | Cache Redis provider/starter 已验证；不是全仓库 Boot4 支持 | `nexary-cache-spring-boot4-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot4` |
 
-当前 `nexary-cache-spring-boot-starter` 代表已经验证的 Spring Boot 3.3 / Java 17+ 主线。`nexary-cache-spring-boot2-starter` 代表已经验证的 Spring Boot 2.7 / Java 8+ Redis 单级缓存入口。`nexary-cache-spring-boot4-starter` 代表已经验证的 Spring Boot 4.1 / Java21 主验证运行时下的 Cache Redis provider/starter 入口；这是 Nexary 的验证运行时说明，不是 Spring 官方 JDK 基线说明，也不代表 messaging、job 或整个仓库已经完成 Boot4 支持。
+`nexary-cache-spring-boot-starter` 用在 Spring Boot 3.3 / Java 17+。`nexary-cache-spring-boot2-starter` 用在 Spring Boot 2.7 / Java 8+，但只覆盖 Redis 单级缓存。`nexary-cache-spring-boot4-starter` 用在 Spring Boot 4.1 / Java21 验证线；这只说明 Cache Redis 跑过验证，不代表 messaging、job 或整个仓库都完成 Boot4 支持。
 
 ## 接入方式
 
 ### Starter 模式
 
-Starter 模式适合 Spring Boot 服务直接引入 cache 能力。starter 聚合 API 和当前 provider，业务代码只注入 Nexary 抽象，不引入 Redis、Caffeine 或 Spring Data Redis 原生类型。
+Spring Boot 服务通常直接用 starter。业务代码只注入 `CacheClient`、`CacheCounterClient`，不引入 Redis、Caffeine 或 Spring Data Redis 类型。
 
 Spring Boot 3.3.x / Java 17+：
 
@@ -66,7 +66,7 @@ nexary:
 
 ### SPI/provider 依赖模式
 
-SPI/provider 模式适合希望显式控制 provider 依赖的服务。业务代码编译期只依赖 `nexary-cache-api`，Redis provider 通过运行时依赖和 `nexary.cache.provider` 配置加载。
+如果你不想用 starter，也可以自己加 API 和 Redis provider。业务代码编译期只依赖 `nexary-cache-api`。
 
 Spring Boot 3.3.x / Java 17+：
 
@@ -101,7 +101,7 @@ dependencies {
 }
 ```
 
-## 当前范围
+## 这页覆盖什么
 
 - `nexary-cache-api`
 - `nexary-cache-redis`
@@ -112,7 +112,7 @@ dependencies {
 - atomic counter 抽象：独立于普通 `CacheClient#get/put`
 - owner-token lock 与可选 fencing token
 
-## 当前边界
+## 边界
 
 - Redis 是主实现
 - Caffeine 仅作为内部 L1，不是公开平级后端
@@ -130,12 +130,12 @@ dependencies {
 - Redis 实现会在成功获取锁时为同一 lock resource 发行单调递增的 fencing token
 - fencing token 只是调用方可携带的单调令牌。调用方必须把 token 传给被保护资源，由该资源保存已接受最大 token，并拒绝更低 token 的旧操作
 - fencing token 不是 Redlock，不是强一致或完整分布式协调，也不能替代 transactional / linearizable 的受保护资源
-- Cache 路径会通过 `NexaryObservationEvent` 发 provider-neutral 观测事件；默认 publisher 是 no-op，不配置 listener 时不改变业务行为
-- showcase 不是 cache 的主验证面，主要验证应围绕 cache 专项样例和独立测试
+- Cache 路径会通过 `NexaryObservationEvent` 发观测事件；默认 publisher 是 no-op，不配置 listener 时不改变业务行为
+- Cache 是否可用主要看 cache 样例和独立测试，不看一个综合演示接口
 
 ## 观测事件与指标
 
-Cache 当前提供事件面，不把 Micrometer 或 Actuator 类型放进 core/cache public API。Spring 服务可以引入 `nexary-observation-micrometer-spring-boot-starter` 自动桥接到 Micrometer，也可以注册自定义 `NexaryObservationListener` 把事件接入自己的指标系统。
+Cache 只发 Nexary 自己的事件，不把 Micrometer 或 Actuator 类型放进 core/cache public API。Spring 服务可以引入 `nexary-observation-micrometer-spring-boot-starter` 自动桥接到 Micrometer，也可以注册自定义 `NexaryObservationListener` 把事件接入自己的指标系统。
 
 推荐指标名：
 
@@ -174,6 +174,6 @@ Dashboard 建议：
 ## 推荐接入顺序
 
 1. 读模块入口和 API 边界
-2. 看 cache 专项样例
+2. 跑 cache 样例
 3. 看 cache 验收清单
 4. 需要真实中间件验证时，按 [本地验证指南](verification.md) 运行对应命令

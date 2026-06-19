@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-xxljob
 
-这是 Job 能力的 SPI/provider dependency 样例，且只展示 XXL-JOB bridge provider。
+这个样例不走 starter，只手动加入 Job API 和 XXL-JOB bridge provider。
 
 ## 引入方式
 
@@ -74,4 +74,4 @@ nexary:
 
 测试会启动 Spring Boot sample，并执行 `SampleBusinessJob`。
 
-当前只演示 Nexary job 与 XXL-JOB bridge 的触发映射，不声明真实 XXL-JOB Admin 调度、executor 注册、callback lifecycle 或平台触发执行。
+这里只演示把 XXL-JOB 触发映射到 Nexary job，不声明真实 XXL-JOB Admin 调度、executor 注册、callback lifecycle 或平台触发执行。

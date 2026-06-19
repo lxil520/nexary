@@ -1,12 +1,12 @@
 # nexary-sample-cache-spi-redis
 
-Cache SPI/provider dependency adoption sample. It shows business code compiling against `nexary-cache-api` while the concrete provider is introduced by a separate dependency.
+This sample skips the starter and adds the Cache API plus the Redis provider by hand.
 
-This module does not depend on `nexary-cache-spring-boot-starter`, does not contain provider wiring classes, and does not hand-write `RedisTemplate`.
+Business code compiles against `nexary-cache-api`; Redis is attached through a runtime dependency. This module does not depend on `nexary-cache-spring-boot-starter`, does not add provider wiring classes, and does not hand-write `RedisTemplate`.
 
 ## Dependency Mode
 
-This runnable sample uses the Spring Boot 3.3.x + Java 17+ line. It does not use the starter; it shows the API + Redis provider dependency mode. The table below lists the verified Cache provider coordinates.
+This runnable sample uses Spring Boot 3.3.x + Java 17+. If your project is on Boot2 or Boot4, business code still uses `CacheClient`; the main change is the provider coordinate.
 
 | Spring Boot | JDK | Status | API / Provider Dependencies |
 | --- | --- | --- | --- |

@@ -1,12 +1,12 @@
 # nexary-sample-cache-spi-redis
 
-Cache SPI/provider dependency 引入方式样例。它展示业务代码只编译依赖 `nexary-cache-api`，具体 provider 通过单独依赖引入。
+这个样例不走 starter，只手动加入 Cache API 和 Redis provider。
 
-这个模块不依赖 `nexary-cache-spring-boot-starter`，不包含 provider 接线类，不手写 RedisTemplate。
+业务代码编译期只依赖 `nexary-cache-api`，Redis 通过 runtime dependency 接上。这个模块不依赖 `nexary-cache-spring-boot-starter`，不写 provider 接线类，也不手写 RedisTemplate。
 
 ## 引入方式
 
-当前可运行样例使用 Spring Boot 3.3.x + Java 17+ 线。它不使用 starter，而是展示 API + Redis provider 依赖模式；下表给出 Cache 能力已经验证的 provider 坐标。
+当前可运行样例使用 Spring Boot 3.3.x + Java 17+。如果你的项目是 Boot2 或 Boot4，业务代码仍然写 `CacheClient`，主要区别是换一组 provider 坐标。
 
 | Spring Boot | JDK | 状态 | API / provider 依赖 |
 | --- | --- | --- | --- |

@@ -1,12 +1,12 @@
 # nexary-sample-job
 
-Starter selector sample for the Job capability.
+This sample shows how to write a Job with the starter mode.
 
-The goal is to show the Nexary adoption model: business code uses only Nexary job APIs and does not care whether the active provider is local scheduling or the XXL-JOB bridge. Switching providers changes `nexary.job.provider` and profile configuration, not business job handler code.
+The business job only implements `NexaryJob`. Local scheduler vs. XXL-JOB bridge is selected through `nexary.job.provider` and profile configuration, not by changing the job handler.
 
-## What User Code Looks Like
+## Business Job Code
 
-Users write an ordinary Spring component:
+You write an ordinary Spring component:
 
 ```java
 @Component
@@ -32,11 +32,11 @@ public class SampleBusinessJob implements NexaryJob {
 }
 ```
 
-`SampleBusinessService` is an ordinary business service. In a real project it can inject RPC, MQ, cache, repositories, or other collaborators as usual. Provider selection, configuration binding, local scheduling, and XXL-JOB bridge wiring do not belong in the business job class.
+`SampleBusinessService` is a normal business service. In a real project it can inject RPC, MQ, cache, repositories, or other collaborators as usual. Provider selection, configuration binding, local scheduling, and XXL-JOB wiring stay out of the business job class.
 
 ## Dependency Mode
 
-This module uses starter mode. The currently verified combination is Spring Boot 3.3.x + Java 17+:
+This module uses starter mode. Spring Boot 3.3.x + Java 17+ is verified:
 
 ```groovy
 // Verified: Spring Boot 3.3.x + Java 17+
@@ -65,7 +65,7 @@ def nexaryVersion = "0.2.0-SNAPSHOT"
 implementation "org.nexary:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
-The starter aggregates the current Job API, local provider, and XXL-JOB bridge provider. Users select the provider in configuration:
+The starter brings in the Job API, local scheduler, and XXL-JOB bridge. Select the runtime mode in configuration:
 
 ```yaml
 nexary:
@@ -88,7 +88,7 @@ nexary:
           shard-total: 1
 ```
 
-Switch to the XXL-JOB bridge-shaped mode:
+Switch to the XXL-JOB bridge:
 
 ```yaml
 nexary:
@@ -96,7 +96,7 @@ nexary:
     provider: xxljob
 ```
 
-Execution records use an in-memory store by default. Enable the Redis durable store when `JobExecutionRecord` lookup must survive process or store object recreation; business job handlers do not change:
+Execution records are kept in memory by default. Enable the Redis store when `JobExecutionRecord` lookup must survive process or store object recreation; business job handlers do not change:
 
 ```yaml
 nexary:
@@ -108,7 +108,7 @@ nexary:
           retention: 1d
 ```
 
-Observation is also kept out of business job handlers. When the application provides a `NexaryObservationListener` or `NexaryObservationPublisher`, the framework emits events such as `job.trigger`, `job.execution.end`, `job.retry.attempt`, `job.execution.skip`, `job.store.save`, `job.store.find`, `job.scheduler.run`, and `job.xxljob.bridge.trigger`. Tags use bounded dimensions such as `provider`, `trigger`, `status`, `skip_reason`, `shard_presence`, and `failure_category`; do not use execution id, parameters, payload, exception messages, or stack traces as metric tags.
+Observation also stays out of business job handlers. When the application provides a `NexaryObservationListener` or `NexaryObservationPublisher`, the framework emits events such as `job.trigger`, `job.execution.end`, `job.retry.attempt`, `job.execution.skip`, `job.store.save`, `job.store.find`, `job.scheduler.run`, and `job.xxljob.bridge.trigger`. Tags use bounded dimensions such as `provider`, `trigger`, `status`, `skip_reason`, `shard_presence`, and `failure_category`; do not use execution id, parameters, payload, exception messages, or stack traces as metric tags.
 
 ## Directory Guide
 
@@ -163,17 +163,17 @@ Processor-style remains a non-web job process skeleton:
 
 The processor sample only shows non-web startup and component-scanned jobs. The first-copy user reference is still `ProcessorBusinessJob`.
 
-## SPI Provider Samples
+## Without the Starter
 
-SPI/provider dependency mode is not mixed into this module. Each provider has its own sample module:
+This starter sample does not mix in the manual dependency path. If you want to choose the dependencies yourself, use one of these samples:
 
 - `nexary-sample-job-spi-scheduler`: `nexary-job-api` + `nexary-job-scheduler`
 - `nexary-sample-job-spi-xxljob`: `nexary-job-api` + `nexary-job-xxljob`
 
-This keeps the two adoption modes clear:
+This keeps the two paths separate:
 
-- starter selector: depend on the starter and select a provider through `nexary.job.provider`
-- SPI/provider: depend on the API and exactly one concrete provider module
+- starter: depend on the starter and select a provider through `nexary.job.provider`
+- manual dependencies: depend on the API and exactly one concrete provider module
 
 Version matrix:
 

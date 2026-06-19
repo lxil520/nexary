@@ -3,11 +3,11 @@
 - 中文入口：[../docs/zh/cache.md](../docs/zh/cache.md)
 - English entry: [../docs/en/cache.md](../docs/en/cache.md)
 
-本目录是 Nexary 的缓存能力入口，不是全仓库总览。
+这里只讲 Cache：怎么引入、业务代码写什么、Redis provider 有哪些边界。
 
 ## 版本与接入入口
 
-当前开发版本：`0.2.0-SNAPSHOT`。发布到 Maven Central 后，请把 `${nexary.version}` 替换为最新 release / tag 版本。
+现在开发版是 `0.2.0-SNAPSHOT`。发布到 Maven Central 后，把 `${nexary.version}` 换成最新 release 或 tag。
 
 | Spring Boot | JDK | Cache 状态 | Starter artifactId | SPI/provider 依赖 |
 | --- | --- | --- | --- | --- |
@@ -15,11 +15,11 @@
 | Spring Boot 2.7.x | Java 8+ | Redis 单级缓存已验证；不包含 tiered local cache | `nexary-cache-spring-boot2-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
 | Spring Boot 4.1.x | Java 21 主验证运行时 | Cache Redis provider/starter 已验证；不是全仓库 Boot4 支持 | `nexary-cache-spring-boot4-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot4` |
 
-当前 `nexary-cache-spring-boot-starter` 是 Boot3 / Java17+ 已验证入口。`nexary-cache-spring-boot2-starter` 是 Boot2 / Java8+ 已验证入口，但只覆盖 Redis 单级缓存。`nexary-cache-spring-boot4-starter` 是 Boot4.1 / Java21 主验证运行时下的 Cache Redis provider/starter 入口；这是 Nexary 的验证运行时说明，不是 Spring 官方 JDK 基线说明，也不代表 messaging、job 或整个仓库已经完成 Boot4 支持。
+`nexary-cache-spring-boot-starter` 用在 Boot3 / Java17+。`nexary-cache-spring-boot2-starter` 用在 Boot2 / Java8+，但只覆盖 Redis 单级缓存。`nexary-cache-spring-boot4-starter` 用在 Boot4.1 / Java21 验证线；这只说明 Cache Redis 跑过验证，不代表 messaging、job 或整个仓库都完成了 Boot4 支持。
 
 ### Starter 模式
 
-适合希望由 Nexary starter 聚合 cache API 与 provider，并通过配置选择底层实现的 Spring Boot 服务。业务代码只使用 `CacheClient`、`CacheCounterClient`、`CacheKey`、`CacheCounterKey` 等 Nexary 抽象。
+Spring Boot 服务通常直接用 starter。业务代码只注入 `CacheClient`、`CacheCounterClient`，底层 Redis 由 starter 和 `nexary.cache.*` 配置接上。
 
 Spring Boot 3.3.x / Java 17+：
 
@@ -59,7 +59,7 @@ nexary:
 
 ### SPI/provider 依赖模式
 
-适合希望显式控制 provider 依赖的服务。业务代码仍只依赖 Nexary cache API；底层 Redis provider 由运行时依赖和 `nexary.cache.provider` 选择。
+如果你不想用 starter，也可以自己加 API 和 Redis provider。业务代码仍只依赖 Nexary cache API。
 
 Spring Boot 3.3.x / Java 17+：
 
@@ -94,7 +94,7 @@ dependencies {
 }
 ```
 
-当前关注：
+本目录包括：
 
 - `nexary-cache-api`
 - `nexary-cache-redis`
@@ -114,7 +114,7 @@ Boot2 / Java8+ 路径只支持 Redis 单级缓存。显式设置 `nexary.cache.r
 
 lock 默认仍是 owner-token 语义：释放和续租只对当前 owner 生效，owner-token 不保护下游写入。Redis provider 成功获取锁时会为同一 lock resource 返回单调递增的 fencing token。调用方可以把 token 写入或传递给受保护资源，由该资源保存已接受最大 token，并拒绝更低 token 的旧操作。该能力不是 Redlock，不声明强一致或完整分布式协调，也不能替代 transactional / linearizable 的受保护资源。
 
-Cache 会通过 `NexaryObservationEvent` 发 provider-neutral 观测事件。默认 publisher 是 no-op，不配置 listener 时不会改变行为。推荐指标名包括：
+Cache 会通过 `NexaryObservationEvent` 发观测事件。默认 publisher 是 no-op，不配置 listener 时不会改变行为。推荐指标名包括：
 
 - `nexary.cache.operation.duration`
 - `nexary.cache.operation.count`

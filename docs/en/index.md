@@ -3,7 +3,7 @@
 - Chinese: [../zh/index.md](../zh/index.md)
 - Repository overview: [../../README.en.md](../../README.en.md)
 
-## Capability Guides
+## Pick What You Need
 
 - [Cache Guide](cache.md)
 - [Messaging Guide](messaging.md)

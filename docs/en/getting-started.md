@@ -1,6 +1,6 @@
 # Getting Started
 
-This page is intentionally short and task-oriented, similar to the best parts of Spring and MyBatis documentation.
+Start by adding the dependency, then run one sample. This page keeps the design details out and focuses on installation, configuration, and validation commands.
 
 ## Requirements
 
@@ -8,7 +8,7 @@ This page is intentionally short and task-oriented, similar to the best parts of
 - currently verified: Spring Boot 2.7 + Java 8+ for the Cache Redis single-tier entry
 - currently verified: Spring Boot 2.7 + Java 8+ for the Messaging Redis-only entry
 - currently verified: Spring Boot 2.7 + Java 8+ for the bounded Job entry
-- currently verified: Spring Boot 4.1 + Java 21 as Nexary's primary validation runtime for Cache, Messaging provider-by-provider, and bounded Job entries
+- currently verified: Spring Boot 4.1 + Java 21 as Nexary's primary validation runtime for Cache, Messaging per-provider entries, and bounded Job entries
 - Gradle 8.x or Maven with BOM support
 
 ## Installation
@@ -36,7 +36,7 @@ Do not use a `main` branch commit hash or an unpublished `0.2.0-SNAPSHOT` as a p
 | Spring Boot 2.7 | Java 8+ | Cache Redis single-tier is verified; Messaging Redis-only is verified; Job is verified with a bounded scope | current entries use direct versions; switch only when a dedicated BOM is released | verified: `nexary-cache-spring-boot2-starter`<br>verified: `nexary-messaging-spring-boot2-starter`<br>verified: `nexary-job-spring-boot2-starter` |
 | Spring Boot 4.1 | Java 21 primary validation runtime | Cache Redis is verified; Messaging is verified provider-by-provider; Job is verified with a bounded scope; this is not whole-repository Boot4 support | current entries use direct versions; switch only when a dedicated BOM is released | verified: `nexary-cache-spring-boot4-starter`<br>verified: `nexary-messaging-spring-boot4-starter` plus one Boot4 provider artifact<br>verified: `nexary-job-spring-boot4-starter` |
 
-The snippets below cover the currently verified Spring Boot 3.3 / Java 17+ full-capability entry, Spring Boot 2.7 / Java 8+ entries, and Spring Boot 4.1 / Java 21 primary-validation-runtime entries.
+The snippets below show only verified entry paths.
 
 ### 3. Gradle
 
@@ -156,7 +156,7 @@ nexary:
 
 ### 7. Spring Boot 2.7 / Java 8+ Job
 
-Boot2 Job currently verifies the provider-neutral Job API, local scheduler, XXL-JOB bridge entry, and optional Redis completed-record execution store. It does not claim real XXL-JOB Admin scheduling, executor registration lifecycle, callback lifecycle, platform-triggered execution, PowerJob, a distributed scheduler control plane, or exactly-once execution.
+Boot2 Job verifies the shared Job API, local scheduler, XXL-JOB bridge entry, and optional Redis storage for completed execution records. It does not claim real XXL-JOB Admin scheduling, executor registration lifecycle, callback lifecycle, platform-triggered execution, PowerJob, a distributed scheduler control plane, or exactly-once execution.
 
 ```groovy
 dependencies {
@@ -204,7 +204,7 @@ dependencies {
 
 ### 9. Spring Boot 4.1 / Java 21 Messaging
 
-The Boot4 Messaging starter provides provider-neutral core only. Choose exactly one Boot4 provider artifact. The Redis provider example below is copyable as-is.
+The Boot4 Messaging starter does not bring every provider onto the classpath. Choose exactly one Boot4 provider artifact. The Redis provider example below is copyable as-is.
 
 ```groovy
 dependencies {
@@ -233,7 +233,7 @@ Boot4 Messaging provider artifactIds are `nexary-messaging-disruptor-boot4`, `ne
 
 ### 10. Spring Boot 4.1 / Java 21 Job
 
-Boot4 Job verifies the local scheduler, bridge-shaped XXL-JOB entry, and optional Redis completed-record execution store. It does not claim the full XXL-JOB Admin lifecycle, PowerJob, a distributed scheduler control plane, or exactly-once execution.
+Boot4 Job verifies the local scheduler, XXL-JOB bridge trigger mapping, and optional Redis storage for completed execution records. It does not claim the full XXL-JOB Admin lifecycle, PowerJob, a distributed scheduler control plane, or exactly-once execution.
 
 ```groovy
 dependencies {
@@ -338,7 +338,7 @@ scheduler.schedule(job, JobSchedule.single("demo-job", "0 */5 * * * *"));
 
 ## Run Samples
 
-Choose the focused sample for the capability you need:
+Choose the sample for the module you need:
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache:run

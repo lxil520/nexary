@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-scheduler
 
-这是 Job 能力的 SPI/provider dependency 样例，且只展示 local scheduler provider。
+这个样例不使用 starter，只手动引入 Job API 和本地 scheduler provider。
 
 ## 引入方式
 
@@ -36,9 +36,9 @@ implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
 
-业务代码只使用 `org.nexary.job.*`，不依赖 provider 类型。
+业务代码只使用 `org.nexary.job.*`，不依赖本地 scheduler 类型。
 
-业务 job 代码仍然只是普通 Spring 组件：
+业务 job 仍然只是普通 Spring 组件：
 
 ```java
 @Component

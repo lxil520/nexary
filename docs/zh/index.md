@@ -3,7 +3,7 @@
 - English: [../en/index.md](../en/index.md)
 - 仓库总览: [../../README.md](../../README.md)
 
-## 能力入口
+## 先看你要接什么
 
 - [Cache 指南](cache.md)
 - [Messaging 指南](messaging.md)

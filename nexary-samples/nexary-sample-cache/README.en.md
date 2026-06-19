@@ -1,6 +1,6 @@
 # nexary-sample-cache
 
-Cache starter adoption sample. It shows how a business service uses only the Nexary cache API while the starter aggregates cache capabilities and `nexary.cache.*` selects the underlying provider.
+This sample shows how a Spring Boot service uses Nexary Cache. Business code uses `CacheClient` / `CacheCounterClient`; Redis is wired by the starter and `nexary.cache.*` configuration.
 
 This module does not implement a provider, does not hand-write `RedisTemplate`, and does not expose Redis, Spring Data Redis, or Caffeine native types to business code.
 
@@ -17,9 +17,9 @@ org.nexary.samples.cache.common
   Profile / LockResult DTOs
 ```
 
-## Dependency Mode
+## Dependencies
 
-This runnable sample uses the Spring Boot 3.3.x + Java 17+ line. The table below lists the verified Cache starter coordinates; the business code shape stays the same.
+This runnable sample uses Spring Boot 3.3.x + Java 17+. If you use Boot2 or Boot4, the business code stays the same and only the starter changes.
 
 | Spring Boot | JDK | Status | Cache Starter |
 | --- | --- | --- | --- |
@@ -63,7 +63,7 @@ dependencies {
 }
 ```
 
-The starter aggregates the cache API and optional providers. Business code injects Nexary abstractions such as `CacheClient` and `CacheCounterClient`; switching providers must not change controller/service code.
+The starter brings in the cache API and provider. Business code injects `CacheClient` and `CacheCounterClient`; switching providers should not change controller/service code.
 
 ## Configuration
 
@@ -155,9 +155,9 @@ Allowed tags are bounded fields only: `capability`, `operation`, `provider`, `ti
 - `POST /examples/cache/locks/{id}` demonstrates owner-token based release, renewal, and optional fencing token only. It is not a complete distributed coordination pattern.
 - Do not use tiered cache for counters, balances, inventory, permissions, order status, or other values that require strong cross-node freshness; keep those data paths Redis-only or use a dedicated consistency model.
 
-## SPI / Provider Dependency Mode
+## Without the Starter
 
-SPI/provider dependency adoption lives in a separate module:
+If you want to manage the dependencies yourself, use this separate sample:
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache-spi-redis:run

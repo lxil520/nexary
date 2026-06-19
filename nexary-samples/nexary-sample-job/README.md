@@ -1,12 +1,12 @@
 # nexary-sample-job
 
-这是 Job 能力的 starter selector 样例。
+这个样例演示 starter 模式下怎么写一个 Job。
 
-核心目标：业务代码只使用 Nexary job API，不关心底层是本地调度 provider 还是 XXL-JOB bridge provider。切换 provider 只改 `nexary.job.provider` 和对应 profile 配置，不改业务 job handler。
+业务 job 只实现 `NexaryJob`。用本地 scheduler 还是 XXL-JOB bridge，由 `nexary.job.provider` 和 profile 配置决定，不改 job handler。
 
 ## 用户代码长什么样
 
-用户真正需要写的是一个普通 Spring 组件：
+你真正需要写的是一个普通 Spring 组件：
 
 ```java
 @Component
@@ -32,11 +32,11 @@ public class SampleBusinessJob implements NexaryJob {
 }
 ```
 
-`SampleBusinessService` 是普通业务 service。真实项目里可以像平时一样注入 RPC、MQ、cache、repository 等协作者。provider 选择、配置绑定、本地调度或 XXL-JOB bridge wiring 都不写在 job 业务类里。
+`SampleBusinessService` 就是普通业务 service。真实项目里照常注入 RPC、MQ、cache、repository。provider 选择、配置绑定、本地调度和 XXL-JOB 接入都不写进业务 job 类。
 
 ## 引入方式
 
-本模块使用 starter 模式。当前已验证组合是 Spring Boot 3.3.x + Java 17+：
+本模块使用 starter 模式。Spring Boot 3.3.x + Java 17+ 已验证：
 
 ```groovy
 // 已验证：Spring Boot 3.3.x + Java 17+
@@ -65,7 +65,7 @@ def nexaryVersion = "0.2.0-SNAPSHOT"
 implementation "org.nexary:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
-starter 聚合当前 Job API、local provider 和 XXL-JOB bridge provider。使用者通过配置选择 provider：
+starter 带上 Job API、本地 scheduler 和 XXL-JOB bridge。运行时用配置选择：
 
 ```yaml
 nexary:
@@ -73,7 +73,7 @@ nexary:
     provider: local
 ```
 
-local scheduler 的 cron 写在 `nexary.job.scheduler.schedules`。`job-name` 必须等于 `NexaryJob.name()`：
+本地 scheduler 的 cron 写在 `nexary.job.scheduler.schedules`。`job-name` 必须等于 `NexaryJob.name()`：
 
 ```yaml
 nexary:
@@ -88,7 +88,7 @@ nexary:
           shard-total: 1
 ```
 
-切到 XXL-JOB bridge-shaped 模式：
+切到 XXL-JOB bridge：
 
 ```yaml
 nexary:
@@ -96,7 +96,7 @@ nexary:
     provider: xxljob
 ```
 
-执行记录默认保存在 in-memory store。需要跨进程或重启后查询 `JobExecutionRecord` 时，可以启用 Redis durable store；这仍然不需要修改业务 job handler：
+执行记录默认放在内存里。需要跨进程或重启后还能查 `JobExecutionRecord` 时，打开 Redis store；业务 job handler 仍然不用改：
 
 ```yaml
 nexary:
@@ -108,7 +108,7 @@ nexary:
           retention: 1d
 ```
 
-可观测性同样不写进业务 job handler。应用侧提供 `NexaryObservationListener` 或 `NexaryObservationPublisher` 后，框架会发出 `job.trigger`、`job.execution.end`、`job.retry.attempt`、`job.execution.skip`、`job.store.save`、`job.store.find`、`job.scheduler.run`、`job.xxljob.bridge.trigger` 等事件。标签只使用有限维度，例如 `provider`、`trigger`、`status`、`skip_reason`、`shard_presence`、`failure_category`；不要把 execution id、参数、payload、异常消息或堆栈作为指标标签。
+可观测性也不写进业务 job handler。应用侧提供 `NexaryObservationListener` 或 `NexaryObservationPublisher` 后，框架会发出 `job.trigger`、`job.execution.end`、`job.retry.attempt`、`job.execution.skip`、`job.store.save`、`job.store.find`、`job.scheduler.run`、`job.xxljob.bridge.trigger` 等事件。标签只用有限维度，例如 `provider`、`trigger`、`status`、`skip_reason`、`shard_presence`、`failure_category`；不要把 execution id、参数、payload、异常消息或堆栈作为指标标签。
 
 ## 目录说明
 
@@ -163,17 +163,17 @@ processor-style 保留为非 Web 任务进程骨架：
 
 processor 样例只展示非 Web 启动和组件扫描 job。用户参考重点仍然是 `ProcessorBusinessJob`。
 
-## SPI Provider 样例
+## 不用 starter 的样例
 
-SPI/provider dependency 模式不放在本模块里。每个 provider 一个独立样例模块：
+这个 starter 样例不混入手动依赖接法。需要自己选择依赖时，看下面两个独立样例：
 
 - `nexary-sample-job-spi-scheduler`：`nexary-job-api` + `nexary-job-scheduler`
 - `nexary-sample-job-spi-xxljob`：`nexary-job-api` + `nexary-job-xxljob`
 
-这样用户可以清楚看到两种引入方式：
+这样两种接入方式不会混在一起：
 
-- starter selector：引入 starter，通过 `nexary.job.provider` 选择 provider
-- SPI/provider：引入 API 和一个具体 provider 模块
+- starter：引入 starter，通过 `nexary.job.provider` 选择 provider
+- 手动依赖：引入 API 和一个具体 provider 模块
 
 版本矩阵：
 

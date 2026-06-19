@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-scheduler
 
-SPI/provider dependency sample for the Job capability. This module shows only the local scheduler provider.
+This sample skips the starter and adds the Job API plus the local scheduler provider by hand.
 
 ## Dependency Mode
 
@@ -36,7 +36,7 @@ implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
 
-Business code uses only `org.nexary.job.*` and does not depend on provider types.
+Business code uses only `org.nexary.job.*` and does not depend on local scheduler types.
 
 The business job is still an ordinary Spring component:
 

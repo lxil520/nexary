@@ -33,7 +33,7 @@ Key classes:
 
 `nexary-sample-job` now has two clear paths:
 
-- starter selector focused sample: switches between local scheduling and the XXL-JOB bridge-shaped provider through `nexary.job.provider`
+- starter selector sample: switches between local scheduling and the XXL-JOB bridge through `nexary.job.provider`
 - `processor`: non-web production-style job process skeleton
 
 Both share the `NexaryJob` abstraction, but they serve different usage modes. Do not treat the starter selector sample as the processor production shape, and do not treat the processor skeleton as complete external platform integration evidence.

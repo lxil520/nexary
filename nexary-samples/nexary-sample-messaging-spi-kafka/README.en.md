@@ -1,12 +1,12 @@
 # nexary-sample-messaging-spi-kafka
 
-Messaging SPI/provider dependency sample for Kafka. It depends only on `nexary-messaging-api` and `nexary-messaging-kafka`.
+This sample skips the starter and adds the Messaging API plus the Kafka provider by hand.
 
-Business code still uses only `org.nexary.messaging.*` and does not create KafkaProducer or KafkaConsumer directly. To switch providers, use the corresponding provider SPI sample module and change dependencies, not facade/controller/consumer code.
+Business code uses only `org.nexary.messaging.*` and does not create KafkaProducer or KafkaConsumer directly. If you later move to Redis, RocketMQ, or Disruptor, you usually change dependencies and configuration, not controllers, sending code, or consumers.
 
-Sample business package: `org.nexary.samples.messaging.spi.kafka.*`. The consumer only implements Nexary `NexaryMessageHandler` and uses `@NexaryMessageListener`; provider loading, and subscription registration are supplied by the Nexary Kafka provider auto-configuration.
+Sample business package: `org.nexary.samples.messaging.spi.kafka.*`. The consumer implements `NexaryMessageHandler` and uses `@NexaryMessageListener`; provider loading, subscription registration, and duplicate protection are handled by the Nexary Kafka provider.
 
-Failure handling is also provided by Nexary: `MessageRetryPolicy` controls bounded retries, and exhausted messages are recorded as `MessageDeadLetterRecord`. Business consumers do not handle Kafka native objects and this is not an exactly-once claim.
+Failure handling stays out of the consumer: `MessageRetryPolicy` controls retries, and exhausted messages are recorded as `MessageDeadLetterRecord`. This sample does not handle Kafka native objects and does not claim exactly-once delivery.
 
 Core sending usage:
 

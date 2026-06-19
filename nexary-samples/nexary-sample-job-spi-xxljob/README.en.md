@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-xxljob
 
-SPI/provider dependency sample for the Job capability. This module shows only the XXL-JOB bridge provider.
+This sample skips the starter and adds the Job API plus the XXL-JOB bridge provider by hand.
 
 ## Dependency Mode
 
@@ -74,4 +74,4 @@ nexary:
 
 The test starts the Spring Boot sample and executes `SampleBusinessJob`.
 
-This validates only bridge-shaped trigger mapping. It does not claim real XXL-JOB Admin scheduling, executor registration, callback lifecycle, or platform-triggered execution.
+This validates only mapping XXL-JOB triggers into Nexary jobs. It does not claim real XXL-JOB Admin scheduling, executor registration, callback lifecycle, or platform-triggered execution.

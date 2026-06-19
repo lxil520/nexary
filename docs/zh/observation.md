@@ -1,6 +1,6 @@
 # Observation 与 Micrometer
 
-Nexary 的业务能力通过 `NexaryObservationEvent` 发 provider-neutral 事件。Spring Boot Micrometer bridge 只负责把这些事件映射成 Micrometer 指标，不改变 cache、messaging、job 的 public API。
+Nexary 的 cache、messaging、job 会发 `NexaryObservationEvent`。Spring Boot Micrometer bridge 只负责把这些事件转成 Micrometer 指标，不改变 cache、messaging、job 的 public API。
 
 ## 引入方式
 

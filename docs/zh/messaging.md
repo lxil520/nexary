@@ -1,6 +1,6 @@
 # Messaging 指南
 
-Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以必须单独看。
+Messaging 这里先把边界说清楚：业务代码只发/收 Nexary message，Redis、Kafka、RocketMQ、Disruptor 放在 provider 里。
 
 ## 你应该先看什么
 
@@ -9,7 +9,7 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 - 验收清单：[messaging-acceptance.md](messaging-acceptance.md)
 - 样例说明：[samples.md](samples.md)
 
-## 当前范围
+## 这页覆盖什么
 
 - `nexary-messaging-api`
 - Kafka / RocketMQ / Redis queue / Disruptor
@@ -19,11 +19,11 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 
 先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.2.0-SNAPSHOT`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
 
-| Spring Boot | JDK | Messaging 状态 | Starter 模式 | SPI/provider 模式 |
+| Spring Boot | JDK | Messaging 状态 | Starter 接法 | 手动依赖接法 |
 | --- | --- | --- | --- | --- |
-| Spring Boot 3.3 | Java 17+ | 当前已验证主线 | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` + 一个 provider runtime 依赖 |
+| Spring Boot 3.3 | Java 17+ | 当前已验证 | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` + 一个 provider runtime 依赖 |
 | Spring Boot 2.7 | Java 8+ | Redis-only provider / starter 当前已验证；Disruptor/Kafka/RocketMQ 待独立验证 | `nexary-messaging-spring-boot2-starter` | `nexary-messaging-api` + `nexary-messaging-redis-spring-boot2` |
-| Spring Boot 4.1 | Java 21 作为 Nexary 主要验证运行时 | provider-by-provider 已验证；starter 仅 provider-neutral core | `nexary-messaging-spring-boot4-starter` + 恰好一个 Boot4 provider | `nexary-messaging-api` + 一个 Boot4 provider runtime 依赖 |
+| Spring Boot 4.1 | Java 21 作为 Nexary 主要验证运行时 | 按 provider 验证；starter 不会自动带上所有 provider | `nexary-messaging-spring-boot4-starter` + 恰好一个 Boot4 provider | `nexary-messaging-api` + 一个 Boot4 provider runtime 依赖 |
 
 Spring Boot 3.3 / Java 17+ starter 模式：
 
@@ -35,7 +35,7 @@ dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 
     // 当前已验证组合：Spring Boot 3.3 + Java 17+。
-    // 这个 starter 聚合 Messaging API 和当前 provider 自动配置。
+    // 这个 starter 带上 Messaging API 和当前 provider 自动配置。
     // 用 nexary.messaging.provider 选择 disruptor / redis / kafka / rocketmq。
     implementation 'org.nexary:nexary-messaging-spring-boot-starter'
 }
@@ -63,7 +63,7 @@ nexary:
       enabled: true
 ```
 
-Spring Boot 4.1 的 Messaging starter 只提供 provider-neutral core 自动配置。使用时必须显式增加一个 provider artifact；不要把四个 provider 都放进同一个 Boot4 starter classpath：
+Spring Boot 4.1 的 Messaging starter 不会把所有 provider 都放进 classpath。使用时必须显式增加一个 provider artifact：
 
 ```gradle
 def nexaryVersion = "0.2.0-SNAPSHOT"
@@ -78,9 +78,9 @@ dependencies {
 
 可选择的 Boot4 provider artifactId：`nexary-messaging-disruptor-boot4`、`nexary-messaging-redis-boot4`、`nexary-messaging-kafka-boot4`、`nexary-messaging-rocketmq-boot4`。
 
-Spring Boot 4 官方最低 JDK 以 Spring 官方文档为准；这里的 Java 21 是 Nexary 对 Boot4 线的主要验证运行时。Boot4 Messaging 不声明 all-provider aggregate starter readiness。
+Spring Boot 4 官方最低 JDK 以 Spring 官方文档为准；这里的 Java 21 只是 Nexary 验证 Boot4 的运行时。Boot4 Messaging 不提供“全 provider 聚合包”。
 
-SPI/provider 模式适合不想引入聚合 starter、只想引入一个具体 provider 的服务。业务代码仍只依赖 Nexary messaging API，不直接 import Kafka、RocketMQ、Redis 或 Disruptor 原生类型。
+如果你不想用 starter，也可以自己选择一个 provider。业务代码仍只依赖 Nexary messaging API，不直接 import Kafka、RocketMQ、Redis 或 Disruptor 类型。
 
 Spring Boot 3.3 / Java 17+ SPI/provider 模式四选一。每个代码块都是可直接复制的完整依赖入口。
 
@@ -173,21 +173,21 @@ Provider 运行时选择：
 | Redis queue for Boot4 / Java21 validation runtime | `nexary-messaging-redis-boot4` | `nexary.messaging.provider=redis` | Redis + Spring Data Redis 4.1 连接工厂 | Boot4 线按 provider 独立引入 |
 | Kafka for Boot4 / Java21 validation runtime | `nexary-messaging-kafka-boot4` | `nexary.messaging.provider=kafka` | Kafka broker | Boot4 线按 provider 独立引入 |
 | RocketMQ for Boot4 / Java21 validation runtime | `nexary-messaging-rocketmq-boot4` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Boot4 线按 provider 独立引入 |
-| Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary 负责 provider-neutral publish/consume/retry/dedup 映射 |
-| RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary 负责 provider-neutral publish/consume/retry/dedup 映射 |
+| Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary 负责把发送、消费、重试和去重映射到 Kafka |
+| RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary 负责把发送、消费、重试和去重映射到 RocketMQ |
 
 ## 当前边界
 
 - 每个服务在 `0.1.x` 建议只启用一个出站 provider
-- starter selector sample 是主要参考方向，showcase 只负责展示 API 手感
+- starter 样例是主要参考，综合演示只用来快速感受 API
 - 重复消费保护是 messaging 的主验收项之一，不是可选点缀
 
 ## 失败语义
 
 Messaging 的失败处理由 Nexary consume path 统一收口，不要求业务代码接触 Kafka、RocketMQ、Redis queue 或 Disruptor 的原生重试对象。
 
-- `MessageRetryPolicy`：provider-neutral 有界重试策略，包含最大尝试次数、初始延迟、backoff 策略、backoff 上限。
-- `MessageDeadLetterPublisher`：provider-neutral 终态失败发布接口。
+- `MessageRetryPolicy`：统一的有界重试策略，包含最大尝试次数、初始延迟、backoff 策略、backoff 上限。
+- `MessageDeadLetterPublisher`：终态失败发布接口。
 - `MessageDeadLetterRecord`：重试耗尽后的终态失败记录，包含 message id、topic、key、consumer group、attempts、错误类型和错误信息。
 - `MessageConsumeExecutor`：只在 handler 成功或 terminal record 写入成功后完成 dedup；handler 失败、DLQ 写入失败不会产生 false success dedup。
 
@@ -211,7 +211,7 @@ Redis queue 仍是轻量队列，不等同 Kafka / RocketMQ。它提供 ready / 
 
 ## 观测事件与指标
 
-Messaging 复用 `nexary-core` 的 provider-neutral observation foundation：能力代码只发布 `NexaryObservationEvent`，不在 public API 或业务样例里暴露 Micrometer、Actuator、Kafka、RocketMQ、Redis 或 Disruptor 原生类型。需要接入 Micrometer 时，引入 `nexary-observation-micrometer-spring-boot-starter`；bridge 只在 Spring Boot 集成层把 provider-neutral event 映射成指标。
+Messaging 会发布 `NexaryObservationEvent`。这些事件不把 Micrometer、Actuator、Kafka、RocketMQ、Redis 或 Disruptor 原生类型带进 public API 或业务样例。需要接入 Micrometer 时，引入 `nexary-observation-micrometer-spring-boot-starter`；指标转换只发生在 Spring Boot 集成层。
 
 推荐指标名：
 
@@ -286,9 +286,9 @@ Dashboard 示例：
 - HTTP/测试触发：`org.nexary.samples.messaging.api`
 - 公共 inbox、诊断：`org.nexary.samples.messaging.domain`
 - 业务消费入口：`org.nexary.samples.messaging.consumer`
-- Provider 接线：由 `nexary-messaging-spring-boot-starter` 或具体 provider dependency / auto-configuration 提供，不复制到业务代码
+- Provider 接线：由 `nexary-messaging-spring-boot-starter` 或具体 provider 的自动配置提供，不复制到业务代码
 
-SPI/provider dependency 样例按 provider 拆分：
+不用 starter 的样例按 provider 拆分：
 
 - `nexary-sample-messaging-spi-disruptor`
 - `nexary-sample-messaging-spi-redis`

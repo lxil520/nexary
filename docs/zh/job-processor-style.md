@@ -33,7 +33,7 @@ nexary-samples/nexary-sample-job/src/main/java/org/nexary/samples/job/processor/
 
 `nexary-sample-job` 现在有两条清晰路径：
 
-- starter selector focused sample：通过 `nexary.job.provider` 在本地调度和 XXL-JOB bridge-shaped provider 间切换
+- starter selector sample：通过 `nexary.job.provider` 在本地调度和 XXL-JOB bridge 间切换
 - `processor`：非 Web 生产式任务进程 skeleton
 
 两者共享 `NexaryJob` 抽象，但使用场景不同。不要把 starter selector sample 当成 processor 生产形态，也不要把 processor skeleton 当成完整外部平台集成证明。

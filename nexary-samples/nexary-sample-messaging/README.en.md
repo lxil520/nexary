@@ -1,6 +1,6 @@
 # nexary-sample-messaging
 
-Starter selector adoption sample for Nexary messaging, focused on simple business usage.
+This sample shows how a Spring Boot service uses Nexary Messaging. Business code writes the sending entry and consumer; Kafka/Redis/RocketMQ/Disruptor are selected by configuration.
 
 ## Runnable profiles
 
@@ -11,17 +11,17 @@ Starter selector adoption sample for Nexary messaging, focused on simple busines
 
 ## Version Selection
 
-The sample business code uses only the Nexary messaging API, so Boot3, Boot2 Redis-only, and Boot4 provider-by-provider differences are dependency and configuration entry choices. Examples use the current development version `0.2.0-SNAPSHOT`; after Maven Central publication, replace it with the latest release.
+The sample business code uses only the Nexary messaging API. Boot3, Boot2 Redis-only, and Boot4 differ in dependencies and configuration. Examples use `0.2.0-SNAPSHOT`; after Maven Central publication, replace it with the latest release.
 
 | Spring Boot | JDK | Sample dependency entry | Provider boundary |
 | --- | --- | --- | --- |
 | Spring Boot 3.3 | Java 17+ | `nexary-messaging-spring-boot-starter` | starter selector chooses `disruptor` / `redis` / `kafka` / `rocketmq` |
 | Spring Boot 2.7 | Java 8+ | `nexary-messaging-spring-boot2-starter` | Redis-only verified |
-| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | `nexary-messaging-spring-boot4-starter` + exactly one `*-spring-boot4` provider | provider-by-provider; no all-provider aggregate starter |
+| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | `nexary-messaging-spring-boot4-starter` + exactly one `*-spring-boot4` provider | verified provider by provider; no all-provider starter |
 
-## Main Adoption Mode: Starter Selector
+## Common Path: Starter
 
-Business code depends only on the Nexary messaging API. Switching providers means changing `nexary.messaging.provider`, provider settings, and dependency entry, not facade, controller, or consumer code.
+Business code depends only on the Nexary messaging API. Switching providers means changing `nexary.messaging.provider`, provider settings, and dependencies, not controllers, sending code, or consumers.
 
 Spring Boot 3.3 / Java 17+ main dependency:
 
@@ -63,11 +63,11 @@ dependencies {
 
 Available Boot4 provider artifactIds: `nexary-messaging-disruptor-spring-boot4`, `nexary-messaging-redis-spring-boot4`, `nexary-messaging-kafka-spring-boot4`, and `nexary-messaging-rocketmq-spring-boot4`.
 
-The Boot4 starter provides provider-neutral core auto-configuration only and does not aggregate all providers. The official minimum JDK for Spring Boot 4 is defined by Spring's documentation; Java 21 here is Nexary's primary validation runtime for the Boot4 line.
+The Boot4 starter does not put every provider on the classpath. The official minimum JDK for Spring Boot 4 is defined by Spring's documentation; Java 21 here is Nexary's Boot4 validation runtime.
 
 The Redis profile needs a Spring Redis connection factory. Kafka and RocketMQ profiles need their brokers.
 
-The sending side stays as a simple business facade call:
+The sending side is a normal business call:
 
 ```java
 messageProducer.sendMessage(MessagingSampleTopics.APP_ERROR_LOG, message);
@@ -76,8 +76,8 @@ messageProducer.sendMessage(MessagingSampleTopics.APP_ERROR_LOG, message);
 ## Structure
 
 - `org.nexary.samples.messaging.app`: application entry
-- `org.nexary.samples.messaging.api`: HTTP/test trigger edge, depending only on the sample facade
-- `org.nexary.samples.messaging.facade`: copyable facade/use-case code, depending only on Nexary messaging API
+- `org.nexary.samples.messaging.api`: HTTP/test trigger edge, depending only on the sample sending entry
+- `org.nexary.samples.messaging.facade`: copyable sending code, depending only on Nexary messaging API
 - `org.nexary.samples.messaging.domain`: business message, topic constants, and a local business inbox
 - `org.nexary.samples.messaging.consumer`: business consumer entry, implementing Nexary `NexaryMessageHandler` and annotated with `@NexaryMessageListener`
 
@@ -94,7 +94,7 @@ The sample does not contain Kafka, RocketMQ, Redis queue, or Disruptor factory, 
 
 ## Failure Semantics
 
-When a business consumer throws, sample code does not handle provider-native retry objects. Nexary messaging uses `MessageRetryPolicy` to control `retry-max-attempts`, `retry-initial-delay`, `retry-backoff-strategy`, and `retry-max-backoff`. After retry exhaustion, Nexary writes a provider-neutral `MessageDeadLetterRecord`, recorded by the default in-memory `MessageDeadLetterPublisher`.
+When a business consumer throws, sample code does not handle provider-native retry objects. Nexary messaging uses `MessageRetryPolicy` to control `retry-max-attempts`, `retry-initial-delay`, `retry-backoff-strategy`, and `retry-max-backoff`. After retry exhaustion, Nexary writes a `MessageDeadLetterRecord`, recorded by the default in-memory `MessageDeadLetterPublisher`.
 
 Provider mappings:
 
@@ -116,7 +116,7 @@ If you do not want the starter selector, use the provider-split SPI samples:
 - `nexary-sample-messaging-spi-kafka`
 - `nexary-sample-messaging-spi-rocketmq`
 
-Those modules depend on `nexary-messaging-api` plus exactly one provider module. Business code still uses only the Nexary messaging API; switching providers means changing the provider dependency and configuration, not facade/controller/consumer code. SPI sample packages are provider-scoped, for example `org.nexary.samples.messaging.spi.kafka.*`.
+Those modules depend on `nexary-messaging-api` plus exactly one provider module. Business code still uses only the Nexary messaging API; switching providers means changing the provider dependency and configuration, not controllers, sending code, or consumers. SPI sample packages are provider-scoped, for example `org.nexary.samples.messaging.spi.kafka.*`.
 
 After publication, SPI/provider dependencies look like:
 

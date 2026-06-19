@@ -1,10 +1,10 @@
 # Configuration
 
-This page answers where configuration goes. Business code implements Nexary APIs; provider selection, cron schedules, retry policy, and execution record retention live in `application.yml`.
+This page keeps copyable `application.yml` snippets in one place. Business classes keep using `NexaryJob`, `CacheClient`, and `MessagePublisher`; provider choice, cron schedules, retry policy, and execution record retention are configured here.
 
 ## Where to Configure Job Cron
 
-The local scheduler provider registers cron schedules from `nexary.job.scheduler.schedules`. `job-name` must match the value returned by `NexaryJob.name()`.
+With the local scheduler, cron schedules go under `nexary.job.scheduler.schedules`. `job-name` must match the value returned by `NexaryJob.name()`.
 
 ```yaml
 nexary:
@@ -19,7 +19,7 @@ nexary:
           shard-total: 1
 ```
 
-This configuration is equivalent to registering the schedule at startup:
+If code registration is a better fit, this call is equivalent to the YAML above:
 
 ```java
 jobs.schedule(JobSchedule.single("sample-business-job", "0 */10 * * * *"));
@@ -29,11 +29,11 @@ jobs.schedule(JobSchedule.single("sample-business-job", "0 */10 * * * *"));
 
 | Property | Default | Meaning |
 | --- | --- | --- |
-| `nexary.job.provider` | `local` | Selects the Job provider. The current starter supports `local` and bridge-shaped `xxljob`. |
+| `nexary.job.provider` | `local` | Selects the Job runtime mode. The starter supports `local` and `xxljob`. |
 | `nexary.job.scheduler.schedules[].job-name` | none | The target `NexaryJob.name()`. A wrong name fails when the schedule is registered at startup. |
 | `nexary.job.scheduler.schedules[].cron` | none | Spring cron expression used by the local scheduler through `CronTrigger`. |
 | `nexary.job.scheduler.schedules[].enabled` | `true` | Whether this schedule is registered. |
-| `nexary.job.scheduler.schedules[].single-instance` | `true` | Whether this schedule runs as a single-instance job. When a CacheClient is present, it can use the distributed lock path. |
+| `nexary.job.scheduler.schedules[].single-instance` | `true` | Whether this schedule runs as a single-instance job. With a `CacheClient`, it can use the distributed lock path. |
 | `nexary.job.scheduler.schedules[].shard-total` | `1` | Total shard count. Keep `1` when the job is not sharded. |
 | `nexary.job.scheduler.schedules[].load-balance` | global `load-balance` | Shard assignment strategy: `round_robin`, `random`, `consistent_hash`, `least_active`, `first_available`. |
 | `nexary.job.scheduler.schedules[].worker-id` | global `worker-id` | Target worker for this schedule. Usually not needed. |
@@ -46,7 +46,7 @@ jobs.schedule(JobSchedule.single("sample-business-job", "0 */10 * * * *"));
 | `nexary.job.scheduler.misfire-threshold` | `1m` | Delay threshold before a run is treated as a misfire. |
 | `nexary.job.scheduler.lock-lease-time` | `5m` | Single-instance lock lease. |
 | `nexary.job.scheduler.execution-record-retention` | `1d` | In-memory execution record retention when no durable store is configured. |
-| `nexary.job.execution.store.redis.enabled` | `false` | Enables the Redis completed-record store. |
+| `nexary.job.execution.store.redis.enabled` | `false` | Saves completed execution records to Redis. |
 | `nexary.job.execution.store.redis.key-prefix` | `nexary:job:execution:` | Redis execution record key prefix. |
 | `nexary.job.execution.store.redis.retention` | `1d` | Redis execution record TTL. |
 
@@ -68,7 +68,7 @@ nexary:
           shard-total: 4
 ```
 
-## Boundaries
+## Watchouts
 
 - `schedules` belongs to the local scheduler only. XXL-JOB bridge timing is still owned by XXL-JOB Admin.
 - Business job classes do not read these properties; they receive shard metadata through `JobContext`.

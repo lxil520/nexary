@@ -1,6 +1,6 @@
 # Observation and Micrometer
 
-Nexary capabilities emit provider-neutral `NexaryObservationEvent` events. The Spring Boot Micrometer bridge only maps those events to Micrometer meters and does not change cache, messaging, or job public APIs.
+Nexary cache, messaging, and job modules emit `NexaryObservationEvent` events. The Spring Boot Micrometer bridge only maps those events to Micrometer meters and does not change cache, messaging, or job public APIs.
 
 ## Dependency
 

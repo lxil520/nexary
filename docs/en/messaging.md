@@ -1,6 +1,6 @@
 # Messaging Guide
 
-Messaging has the most provider variation and the highest risk of blurred boundaries, so it should be treated as its own standalone capability.
+Messaging keeps application code on Nexary message APIs while Redis, Kafka, RocketMQ, and Disruptor stay in provider modules.
 
 ## What to Read First
 
@@ -9,7 +9,7 @@ Messaging has the most provider variation and the highest risk of blurred bounda
 - acceptance checklist: [messaging-acceptance.md](messaging-acceptance.md)
 - sample guide: [samples.md](samples.md)
 
-## Current Scope
+## What's Covered
 
 - `nexary-messaging-api`
 - Kafka / RocketMQ / Redis queue / Disruptor
@@ -19,11 +19,11 @@ Messaging has the most provider variation and the highest risk of blurred bounda
 
 Choose the entry point from your Spring Boot and JDK line first. Examples use the current development version `0.2.0-SNAPSHOT`; after Maven Central publication, replace it with the latest release.
 
-| Spring Boot | JDK | Messaging Status | Starter Mode | SPI/provider Mode |
+| Spring Boot | JDK | Messaging Status | Starter Path | Manual Dependency Path |
 | --- | --- | --- | --- | --- |
-| Spring Boot 3.3 | Java 17+ | currently verified mainline | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` plus one provider runtime dependency |
+| Spring Boot 3.3 | Java 17+ | currently verified | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` plus one provider runtime dependency |
 | Spring Boot 2.7 | Java 8+ | Redis-only provider / starter is currently verified; Disruptor/Kafka/RocketMQ still require independent verification | `nexary-messaging-spring-boot2-starter` | `nexary-messaging-api` + `nexary-messaging-redis-spring-boot2` |
-| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | provider-by-provider verified; starter is provider-neutral core only | `nexary-messaging-spring-boot4-starter` + exactly one Boot4 provider | `nexary-messaging-api` + one Boot4 provider runtime dependency |
+| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | verified provider by provider; starter does not bring every provider | `nexary-messaging-spring-boot4-starter` + exactly one Boot4 provider | `nexary-messaging-api` + one Boot4 provider runtime dependency |
 
 Spring Boot 3.3 / Java 17+ starter mode:
 
@@ -35,7 +35,7 @@ dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 
     // Currently verified combination: Spring Boot 3.3 + Java 17+.
-    // This starter aggregates the Messaging API and current provider auto-configuration.
+    // This starter brings in Messaging API and provider auto-configuration.
     // Select disruptor / redis / kafka / rocketmq with nexary.messaging.provider.
     implementation 'org.nexary:nexary-messaging-spring-boot-starter'
 }
@@ -63,7 +63,7 @@ nexary:
       enabled: true
 ```
 
-The Spring Boot 4.1 Messaging starter provides provider-neutral core auto-configuration only. Add exactly one provider artifact explicitly; do not put all four providers into the same Boot4 starter classpath:
+The Spring Boot 4.1 Messaging starter does not put every provider on the classpath. Add exactly one provider artifact explicitly:
 
 ```gradle
 def nexaryVersion = "0.2.0-SNAPSHOT"
@@ -78,9 +78,9 @@ dependencies {
 
 Available Boot4 provider artifactIds: `nexary-messaging-disruptor-boot4`, `nexary-messaging-redis-boot4`, `nexary-messaging-kafka-boot4`, and `nexary-messaging-rocketmq-boot4`.
 
-The official minimum JDK for Spring Boot 4 is defined by Spring's own documentation. Java 21 here is Nexary's primary validation runtime for the Boot4 line. Messaging Boot4 does not claim all-provider aggregate starter readiness.
+The official minimum JDK for Spring Boot 4 is defined by Spring's own documentation. Java 21 here is Nexary's Boot4 validation runtime. Messaging Boot4 requires one explicit provider dependency; the starter does not bring every provider automatically.
 
-SPI/provider mode is for services that do not want the starter selector and want to bring exactly one concrete provider. Business code still depends only on the Nexary messaging API and must not import Kafka, RocketMQ, Redis, or Disruptor native types.
+If you do not want the starter, choose one provider yourself. Business code still depends only on the Nexary messaging API and must not import Kafka, RocketMQ, Redis, or Disruptor types.
 
 Spring Boot 3.3 / Java 17+ SPI/provider mode has four one-provider choices. Every block below is copyable as-is.
 
@@ -173,21 +173,21 @@ Provider runtime selection:
 | Redis queue for Boot4 / Java21 validation runtime | `nexary-messaging-redis-boot4` | `nexary.messaging.provider=redis` | Redis plus a Spring Data Redis 4.1 connection factory | Boot4 line is provider-by-provider |
 | Kafka for Boot4 / Java21 validation runtime | `nexary-messaging-kafka-boot4` | `nexary.messaging.provider=kafka` | Kafka broker | Boot4 line is provider-by-provider |
 | RocketMQ for Boot4 / Java21 validation runtime | `nexary-messaging-rocketmq-boot4` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Boot4 line is provider-by-provider |
-| Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary maps provider-neutral publish/consume/retry/dedup behavior |
-| RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary maps provider-neutral publish/consume/retry/dedup behavior |
+| Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary maps publish, consume, retry, and dedup behavior to Kafka |
+| RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary maps publish, consume, retry, and dedup behavior to RocketMQ |
 
 ## Current Boundaries
 
 - in `0.1.x`, one outbound provider per service is the recommended default
-- starter selector samples are the main reference direction; the showcase is only for API feel
+- starter samples are the main reference; the combined demo is only for a quick API feel
 - duplicate-consumption protection is a core messaging acceptance item, not optional decoration
 
 ## Failure Semantics
 
 Messaging failures are handled by the shared Nexary consume path. Business code does not receive Kafka, RocketMQ, Redis queue, or Disruptor native retry objects.
 
-- `MessageRetryPolicy`: provider-neutral bounded retry policy with max attempts, initial delay, backoff strategy, and max backoff.
-- `MessageDeadLetterPublisher`: provider-neutral terminal failure publisher.
+- `MessageRetryPolicy`: shared bounded retry policy with max attempts, initial delay, backoff strategy, and max backoff.
+- `MessageDeadLetterPublisher`: terminal failure publisher.
 - `MessageDeadLetterRecord`: terminal failure record after retry exhaustion, including message id, topic, key, consumer group, attempts, error type, and error message.
 - `MessageConsumeExecutor`: completes dedup only after handler success or successful terminal record publication; handler failure or DLQ publication failure does not create false success dedup.
 
@@ -211,7 +211,7 @@ Redis queue is still a lightweight queue, not a Kafka or RocketMQ equivalent. It
 
 ## Observation Events And Metrics
 
-Messaging reuses the provider-neutral observation foundation from `nexary-core`: capability code publishes `NexaryObservationEvent` and does not expose Micrometer, Actuator, Kafka, RocketMQ, Redis, or Disruptor native types from public APIs or business samples. To connect Micrometer, add `nexary-observation-micrometer-spring-boot-starter`; the bridge maps provider-neutral events to meters only in the Spring Boot integration layer.
+Messaging publishes `NexaryObservationEvent` events without exposing Micrometer, Actuator, Kafka, RocketMQ, Redis, or Disruptor native types from public APIs or business samples. To connect Micrometer, add `nexary-observation-micrometer-spring-boot-starter`; metric mapping happens only in the Spring Boot integration layer.
 
 Recommended metric names:
 
@@ -286,9 +286,9 @@ Key copy paths:
 - HTTP/test trigger edge: `org.nexary.samples.messaging.api`
 - business messages, topic constants, and local business inbox: `org.nexary.samples.messaging.domain`
 - business consumer entry: `org.nexary.samples.messaging.consumer`
-- provider wiring: supplied by `nexary-messaging-spring-boot-starter` or a concrete provider dependency / auto-configuration, not copied into business code
+- provider wiring: supplied by `nexary-messaging-spring-boot-starter` or a concrete provider auto-configuration, not copied into business code
 
-SPI/provider dependency samples are split by provider:
+Samples without the starter are split by provider:
 
 - `nexary-sample-messaging-spi-disruptor`
 - `nexary-sample-messaging-spi-redis`

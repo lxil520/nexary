@@ -1,6 +1,6 @@
 # Cache Guide
 
-Cache is one of Nexary's clearest standalone capabilities.
+This page covers Cache: how business code uses `CacheClient`, how the Redis provider is wired, and which data should not use local L1 cache.
 
 ## What to Read First
 
@@ -11,7 +11,7 @@ Cache is one of Nexary's clearest standalone capabilities.
 
 ## Version Selection
 
-Current development version: `0.2.0-SNAPSHOT`. After publication, replace `${nexary.version}` with the latest release / tag version.
+The development version is `0.2.0-SNAPSHOT`. After publication, replace `${nexary.version}` with the latest release or tag.
 
 | Spring Boot | JDK | Cache Status | Starter artifactId | SPI/provider Dependencies |
 | --- | --- | --- | --- | --- |
@@ -19,13 +19,13 @@ Current development version: `0.2.0-SNAPSHOT`. After publication, replace `${nex
 | Spring Boot 2.7.x | Java 8+ | Redis single-tier is verified; tiered local cache is not included | `nexary-cache-spring-boot2-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
 | Spring Boot 4.1.x | Java 21 primary validation runtime | Cache Redis provider/starter verified; not whole-repository Boot4 support | `nexary-cache-spring-boot4-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot4` |
 
-`nexary-cache-spring-boot-starter` represents the verified Spring Boot 3.3 / Java 17+ mainline. `nexary-cache-spring-boot2-starter` represents the verified Spring Boot 2.7 / Java 8+ Redis single-tier entry. `nexary-cache-spring-boot4-starter` represents the verified Cache Redis provider/starter entry for Spring Boot 4.1 with Java 21 as Nexary's primary validation runtime; this is a Nexary validation runtime statement, not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+Use `nexary-cache-spring-boot-starter` for Spring Boot 3.3 / Java 17+. Use `nexary-cache-spring-boot2-starter` for Spring Boot 2.7 / Java 8+, but only for Redis single-tier cache. Use `nexary-cache-spring-boot4-starter` for the Spring Boot 4.1 / Java 21 validation line. That only means Cache Redis has passed verification; it does not imply Boot4 support for messaging, job, or the whole repository.
 
 ## Dependency Modes
 
 ### Starter Mode
 
-Starter mode is for Spring Boot services that want the cache capability aggregated by the Nexary starter. Business code injects only Nexary abstractions and does not import Redis, Caffeine, or Spring Data Redis native types.
+Most Spring Boot services should start with the starter. Business code injects `CacheClient` and `CacheCounterClient`; Redis is wired by the starter and `nexary.cache.*` configuration.
 
 Spring Boot 3.3.x / Java 17+:
 
@@ -66,7 +66,7 @@ nexary:
 
 ### SPI/provider Dependency Mode
 
-SPI/provider mode is for services that want explicit provider dependency control. Business code compiles against `nexary-cache-api`; the Redis provider is loaded by the runtime dependency and `nexary.cache.provider` configuration.
+If you do not want the starter, add the API and Redis provider yourself. Business code still compiles against `nexary-cache-api`.
 
 Spring Boot 3.3.x / Java 17+:
 
@@ -130,8 +130,8 @@ dependencies {
 - the Redis implementation issues a monotonic fencing token per lock resource when acquisition succeeds
 - a fencing token is only a monotonic token the caller can carry. The caller must pass it to the protected resource, and that resource must store the highest accepted token and reject older operations with lower tokens
 - fencing tokens are not Redlock, not strong consistency or complete distributed coordination, and not a replacement for a transactional / linearizable protected resource
-- Cache paths emit provider-neutral `NexaryObservationEvent` events; the default publisher is no-op, so behavior is unchanged when no listener is configured
-- the showcase is not the primary cache validation surface; cache-focused samples and tests are
+- Cache paths emit `NexaryObservationEvent` events; the default publisher is no-op, so behavior is unchanged when no listener is configured
+- cache support is verified through cache samples and tests, not through a catch-all demo endpoint
 
 ## Observation Events and Metrics
 
@@ -174,6 +174,6 @@ Non-goals: Nexary does not ship a built-in governance dashboard here, does not e
 ## Recommended Adoption Order
 
 1. read the module entry and API boundaries
-2. inspect the cache-focused sample
+2. run the cache sample
 3. review the cache acceptance checklist
 4. use the [local validation guide](verification.md) when you need real middleware evidence
