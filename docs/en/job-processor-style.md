@@ -1,8 +1,8 @@
 # Processor-Style Job Integration
 
-Processor-style integration targets production job executor processes. It is different from the focused adoption sample:
+Processor-style integration targets production job executor processes. It is different from the focused integration sample:
 
-- the focused sample explains local scheduling and bridge triggers
+- the dedicated sample explains local scheduling and bridge triggers
 - processor-style runs as a non-web process closer to a real job executor
 
 ## Target Shape
@@ -33,12 +33,12 @@ Key classes:
 
 `nexary-sample-job` now has two clear paths:
 
-- starter selector sample: switches between local scheduling and the XXL-JOB bridge through `nexary.job.provider`
+- starter selector dedicated sample: switches between local scheduling and the XXL-JOB trigger-mapping provider through `nexary.job.provider`
 - `processor`: non-web production-style job process skeleton
 
 Both share the `NexaryJob` abstraction, but they serve different usage modes. Do not treat the starter selector sample as the processor production shape, and do not treat the processor skeleton as complete external platform integration evidence.
 
-The focused sample's `business/SampleBusinessJob` shows the cleaner adoption shape: the business handler implements only `NexaryJob`, and switching between local scheduling and the XXL-JOB bridge does not change business code.
+The dedicated sample's `business/SampleBusinessJob` shows the cleaner integration shape: the business handler implements only `NexaryJob`, and switching between local scheduling and the XXL-JOB bridge does not change business code.
 
 ## How to Run
 
@@ -73,5 +73,5 @@ The design maps to:
 
 - do not add a second public job handler API
 - do not make RPC, MQ, or cache collaborators part of the job API
-- do not implement the PowerJob bridge in the current version
+- do not present the PowerJob bridge as full PowerJob platform lifecycle ownership
 - do not present the processor skeleton as complete external platform integration evidence

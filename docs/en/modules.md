@@ -23,6 +23,7 @@
 - `nexary-job/nexary-job-api`: job, schedule, execution context, result, listener, execution id, execution record, and execution policy APIs.
 - `nexary-job/nexary-job-scheduler`: local Spring `TaskScheduler` implementation with optional cache-backed single-instance locks, worker heartbeat, shard load-balancing, and unified execution lifecycle.
 - `nexary-job/nexary-job-xxljob`: XXL-JOB bridge that maps external triggers and shard metadata to `NexaryJob` and reuses the unified execution lifecycle.
+- `nexary-job/nexary-job-powerjob`: PowerJob trigger provider that maps external triggers and shard metadata to `NexaryJob` and reuses the unified execution lifecycle.
 - `nexary-job/nexary-job-execution-store-redis`: optional Redis durable execution store for completed execution records with TTL retention.
 
 ## Boot

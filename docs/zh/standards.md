@@ -33,20 +33,11 @@
 - 新增或明显改写用户文档时，`docs/zh` 和 `docs/en` 要一起更新。
 - 用户文档只讲能力、接入方式、限制、验证方式和版本边界。
 - 用户文档不包含聊天记录、临时工作记录、私有路径或未发布计划。
-- README、快速开始、样例说明和各模块 README 是新用户入口。第一屏先讲这个模块解决什么问题、该选哪个版本、复制哪段依赖、跑哪个命令；不要先讲内部设计。
-- 版本矩阵必须明确 Spring Boot、JDK、支持状态、artifactId 和限制。不能只写“计划支持”“主线”“入口”，却不告诉用户该用哪个依赖。
-- 用户文档里的术语要贴近使用动作。优先写“业务 API”“不用 starter 的接法”“发送入口”“综合演示”“模块”“接入”“样例”；不要把 `provider-neutral`、`SPI/provider dependency`、`facade`、`showcase`、`capability`、`adoption`、`focused sample`、`bridge-shaped` 直接放在用户入口里。
-- 避免空泛词：赋能、打造、闭环、体系、聚焦、智能化、降本增效、适用场景、当前范围、能力入口。需要说明范围时，写具体限制、已验证组合和验证命令。
-- 每一段用户文档都要能落到一个动作：加依赖、写配置、复制业务代码、运行样例、理解限制或查看验证命令。只描述愿景、不服务接入的段落应删除，或移动到 roadmap / architecture。
-- 读者要分清楚：README / getting-started 面向第一次接入的人；capability README 面向已经选定 cache、messaging、job 的接入者；acceptance / roadmap / release 面向维护者。维护者术语不要前移到新用户入口。
-- 代码片段必须可复制。注释要解释为什么选这个 artifactId、provider 或配置值，不要重复代码字面意思。
-- 中英文文档保持语义一致，但英文不要求逐字翻译；优先保证自然、清晰、可复制。
-- 公开文档提交前必须跑文档 hygiene 和内部词扫描，确认没有内部工作说明、会话记录、错误身份、旧目录名或模板词残留。
 
 ## 样例规则
 
 - 样例保持 Spring Boot 工程形态，不做单文件 demo。
-- 不再保留聚合 showcase；每个 capability 的独立 starter / SPI 样例就是用户入口。
+- 不再保留聚合 综合演示；每个 capability 的独立 starter / SPI 样例就是用户入口。
 - capability sample 要明确说明“应该复制什么”。
 - capability sample 必须先展示业务代码如何使用 Nexary 抽象，再展示引入方式；不能让用户先阅读 provider 接线代码。
 - 样例必须体现 Nexary 的本质：业务代码不关心 Redis、Kafka、RocketMQ、XXL-JOB 等底层实现。切换底层实现时，业务 controller/facade/job handler/consumer 代码不应修改。
@@ -65,7 +56,7 @@
   - `app`：启动类和启动边界。
   - `api` 或 `web`：HTTP、CLI、测试触发入口。
   - `application` 或 `facade`：用户应该复制的业务用例入口。
-  - `common` 或 `support`：样例 DTO、状态仓库、诊断对象等 provider-neutral 支撑代码。
+  - `common` 或 `support`：样例 DTO、状态仓库、诊断对象等 Nexary 层 支撑代码。
 - provider/mode 包只能在 SPI 样例或 provider 验证样例中出现，用于展示 SPI 引入或验证边界；starter selector 样例不应包含 provider 接线包。
 - 每个 provider/mode 都要有独立 profile、运行命令和验收说明；用户应该能在不修改业务代码的前提下切换 provider/mode。
 - 禁止新增“万能配置类”或把所有 provider 选项塞进一个 controller/facade/configuration 文件。
@@ -76,7 +67,7 @@
 
 - 基础门：`./gradlew check`
 - 真实中间件验证通过 `scripts/middleware/*` 收口
-- 每个能力都要有独立验收面，不靠全量 showcase 代替
+- 每个能力都要有独立验收面，不靠全量 综合演示 代替
 - 验收记录应列明命令、环境、结果和已知限制
 
 ## 禁止项

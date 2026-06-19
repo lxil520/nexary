@@ -5,6 +5,7 @@ import java.time.Instant;
 import org.nexary.cache.invalidation.CacheInvalidationEvent;
 import org.nexary.cache.invalidation.CacheInvalidationListener;
 import org.nexary.cache.redis.RedisCacheObservation;
+import org.nexary.cache.redis.RedisProtocolCacheProviderCondition;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.data.redis.connection.Message;
@@ -20,6 +21,7 @@ public class RedisCacheInvalidationSubscriber implements MessageListener, SmartL
     private final String originId;
     private final boolean autoStartup;
     private final NexaryObservationPublisher observationPublisher;
+    private final String providerName;
     private volatile boolean running;
 
     public RedisCacheInvalidationSubscriber(
@@ -38,12 +40,24 @@ public class RedisCacheInvalidationSubscriber implements MessageListener, SmartL
             String originId,
             boolean autoStartup,
             NexaryObservationPublisher observationPublisher) {
+        this(container, listener, channel, originId, autoStartup, observationPublisher, RedisProtocolCacheProviderCondition.REDIS);
+    }
+
+    public RedisCacheInvalidationSubscriber(
+            RedisMessageListenerContainer container,
+            CacheInvalidationListener listener,
+            String channel,
+            String originId,
+            boolean autoStartup,
+            NexaryObservationPublisher observationPublisher,
+            String providerName) {
         this.container = container;
         this.listener = listener;
         this.channel = channel;
         this.originId = originId;
         this.autoStartup = autoStartup;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.providerName = RedisProtocolCacheProviderCondition.normalize(providerName);
     }
 
     @Override
@@ -54,15 +68,16 @@ public class RedisCacheInvalidationSubscriber implements MessageListener, SmartL
             CacheInvalidationEvent event = RedisCacheInvalidationCodec.decode(payload);
             if (!originId.equals(event.originId())) {
                 listener.onInvalidation(event);
-                RedisCacheObservation.publish(
-                        observationPublisher, "cache.invalidation_receive", "none", "received", startedAt);
+                RedisCacheObservation.publishForProvider(
+                        observationPublisher, providerName, "cache.invalidation_receive", "none", "received", startedAt);
                 return;
             }
-            RedisCacheObservation.publish(
-                    observationPublisher, "cache.invalidation_receive", "none", "ignored", startedAt);
+            RedisCacheObservation.publishForProvider(
+                    observationPublisher, providerName, "cache.invalidation_receive", "none", "ignored", startedAt);
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
+            RedisCacheObservation.publishForProvider(
                     observationPublisher,
+                    providerName,
                     "cache.invalidation_receive",
                     "none",
                     "failure",

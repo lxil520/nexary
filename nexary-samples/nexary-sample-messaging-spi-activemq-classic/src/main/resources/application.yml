@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: nexary-sample-messaging-spi-activemq-classic
+
+server:
+  port: 8098
+
+nexary:
+  messaging:
+    # SPI/provider dependency mode:
+    # this module depends on nexary-messaging-api + nexary-messaging-activemq-classic only.
+    # Business code does not change when you create another SPI module for another provider.
+    provider: activemq-classic
+    activemq-classic:
+      enabled: true
+      # Local ActiveMQ Classic broker. Nexary maps sample topics to JMS queue names.
+      broker-url: tcp://127.0.0.1:61616
+      # Duplicate-consumption protection window for the Nexary consume path.
+      deduplication-ttl: 1h
+      # ActiveMQ Classic/JMS types stay inside the provider; business code uses Nexary APIs.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

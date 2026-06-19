@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationListener;
 
-/** Bridges provider-neutral Nexary observation events to Micrometer meters. */
+/** Maps Nexary observation events to Micrometer meters. */
 public class NexaryMicrometerObservationListener implements NexaryObservationListener {
     private static final Set<String> TAG_WHITELIST = immutableSet(
             "category",
@@ -24,17 +24,29 @@ public class NexaryMicrometerObservationListener implements NexaryObservationLis
             "tier",
             "status",
             "failure_category",
+            "resource_kind",
+            "governance_action",
+            "traffic_channel",
+            "traffic_priority",
             "boundary",
             "trigger",
             "skip_reason",
             "shard_presence",
             "store",
             "retry_attempt_bucket",
+            "retry_decision",
             "terminal_status",
             "retry_phase");
     private static final Set<String> FORBIDDEN_TAGS = immutableSet(
             "cache_key",
             "key",
+            "resource",
+            "resource_name",
+            "resource_id",
+            "tenant",
+            "biz_key",
+            "user_id",
+            "order_id",
             "namespace",
             "raw_namespace",
             "message_id",

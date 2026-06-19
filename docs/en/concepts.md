@@ -21,7 +21,7 @@ Nexary is not trying to replace Redis, Kafka, RocketMQ, or Spring. It provides a
 ## Messaging
 
 - `MessageEnvelope`: topic, key, payload, headers, deadline, traffic tag
-- `MessagePublisher`: provider-neutral publish contract
+- `MessagePublisher`: Nexary-level publish contract
 - `MessagePublishResult`: normalized publish result
 - `MessageInterceptor`: hook point before and after publish/consume flows
 

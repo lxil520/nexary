@@ -1,53 +1,33 @@
 # Job Guide
 
-Job has two entry points. The local scheduler fires cron schedules itself; the XXL-JOB bridge receives triggers from an external platform. Business code implements `NexaryJob` in both cases.
+Read the job capability independently because local scheduling and external platform bridging are different concerns.
 
-## Read This First
+## What to Read First
 
-- configuration: [configuration.md](configuration.md)
 - module entry: [../../nexary-job/README.md](../../nexary-job/README.md)
 - acceptance checklist: [job-acceptance.md](job-acceptance.md)
 - focused job sample: [../../nexary-samples/nexary-sample-job/README.en.md](../../nexary-samples/nexary-sample-job/README.en.md)
 - processor-style integration: [job-processor-style.md](job-processor-style.md)
 - module guide: [modules.md](modules.md)
 
-## Where Cron Goes
-
-With the local scheduler, cron goes in `application.yml`:
-
-```yaml
-nexary:
-  job:
-    provider: local
-    scheduler:
-      schedules:
-        - job-name: sample-business-job
-          cron: "0 */10 * * * *"
-          enabled: true
-          single-instance: true
-          shard-total: 1
-```
-
-`job-name` must match the value returned by `NexaryJob.name()`. You can also inject `NexaryJobOperations` and call `schedule(new JobSchedule(...))` in code. Both paths use the same local scheduler execution logic.
-
-## What's Included
+## Current Scope
 
 - `nexary-job-api`: shared job API
 - `nexary-job-scheduler`: local scheduler implementation
 - `nexary-job-xxljob`: XXL-JOB bridge
+- `nexary-job-powerjob`: PowerJob trigger mapping
 - `nexary-job-execution-store-redis`: optional Redis durable execution store
-- PowerJob: a possible future bridge, not implemented here
 
-## Boundaries
+## Core Boundaries
 
 - `NexaryJob` is the shared job abstraction.
-- Local scheduling is run by Nexary from cron.
-- XXL-JOB maps external platform triggers back into `NexaryJob`; it is not a second public job API.
-- Future PowerJob support should follow the same rule: bridge platform triggers without changing business job code.
+- Local scheduling is the framework-native execution mode.
+- XXL-JOB is a bridge from external platform triggers back into `NexaryJob`, not a second public job API.
+- PowerJob also maps external platform triggers into `NexaryJob` without changing the public API.
 
 ## Version Entry and Dependency Choice
 
-The development version is `0.2.0-SNAPSHOT`. After Maven Central publication, replace `nexaryVersion` with the latest release.
+The current development version is `0.3.0`. After Maven Central publication, replace `nexaryVersion` with the latest release.
 
 | Spring Boot | JDK | Status | Recommended Entry |
 | --- | --- | --- | --- |
@@ -55,7 +35,7 @@ The development version is `0.2.0-SNAPSHOT`. After Maven Central publication, re
 | Spring Boot 2.7.x | Java 8+ | verified bounded scope | `org.nexary:nexary-job-spring-boot2-starter` |
 | Spring Boot 4.1.x | Java 21 is Nexary's primary validation runtime; official minimum JDK follows Spring documentation | verified Boot4 provider/starter | `org.nexary:nexary-job-spring-boot4-starter` |
 
-The Boot3 starter is named `nexary-job-spring-boot-starter`. Boot2 and Boot4 use explicit names: `nexary-job-spring-boot2-starter` and `nexary-job-spring-boot4-starter`. Changing the starter or provider should not change business job code.
+The Boot3 mainline starter is still named `nexary-job-spring-boot-starter`. Boot2 and Boot4 use explicit version-line artifacts: `nexary-job-spring-boot2-starter` and `nexary-job-spring-boot4-starter`. Business job code does not change when the starter or provider line changes.
 
 Spring Boot 3.3 / Java 17+ Maven starter mode:
 
@@ -101,9 +81,9 @@ Spring Boot 4.1 / Java 21 primary validation runtime starter mode:
 Spring Boot 3.3 / Java 17+ Gradle starter mode:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-// The starter aggregates Nexary job API, local scheduler, XXL-JOB bridge,
+// The starter aggregates Nexary job API, local scheduler, XXL-JOB, PowerJob,
 // and the Redis execution store provider. Select the runtime provider with
 // nexary.job.provider.
 implementation 'org.nexary:nexary-job-spring-boot-starter'
@@ -112,14 +92,14 @@ implementation 'org.nexary:nexary-job-spring-boot-starter'
 Spring Boot 2.7 / Java 8+ Gradle:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime Gradle:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
@@ -128,7 +108,7 @@ SPI/provider mode is for applications that want exactly one concrete provider de
 Spring Boot 3.3 / Java 17+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 // Business code needs only the Nexary job API at compile time.
 implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-api'
@@ -138,16 +118,25 @@ runtimeOnly 'org.nexary:nexary-job-scheduler'
 Spring Boot 3.3 / Java 17+ XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-api'
 runtimeOnly 'org.nexary:nexary-job-xxljob'
 ```
 
+Spring Boot 3.3 / Java 17+ PowerJob trigger provider:
+
+```groovy
+def nexaryVersion = "0.3.0"
+implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+implementation 'org.nexary:nexary-job-api'
+runtimeOnly 'org.nexary:nexary-job-powerjob'
+```
+
 Spring Boot 3.3 / Java 17+ Redis completed-record store:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 implementation 'org.nexary:nexary-job-api'
 runtimeOnly 'org.nexary:nexary-job-execution-store-redis'
@@ -156,7 +145,7 @@ runtimeOnly 'org.nexary:nexary-job-execution-store-redis'
 Spring Boot 2.7 / Java 8+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 ```
@@ -164,15 +153,23 @@ runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
+```
+
+Spring Boot 2.7 / Java 8+ PowerJob trigger provider:
+
+```groovy
+def nexaryVersion = "0.3.0"
+implementation "org.nexary:nexary-job-api:${nexaryVersion}"
+runtimeOnly "org.nexary:nexary-job-powerjob-spring-boot2:${nexaryVersion}"
 ```
 
 Spring Boot 2.7 / Java 8+ Redis completed-record store:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-execution-store-redis-spring-boot2:${nexaryVersion}"
 ```
@@ -180,7 +177,7 @@ runtimeOnly "org.nexary:nexary-job-execution-store-redis-spring-boot2:${nexaryVe
 Spring Boot 4.1 / Java 21 primary validation runtime local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
@@ -188,15 +185,23 @@ runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
+```
+
+Spring Boot 4.1 / Java 21 primary validation runtime PowerJob trigger provider:
+
+```groovy
+def nexaryVersion = "0.3.0"
+implementation "org.nexary:nexary-job-api:${nexaryVersion}"
+runtimeOnly "org.nexary:nexary-job-powerjob-spring-boot4:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime Redis completed-record store:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-execution-store-redis-spring-boot4:${nexaryVersion}"
 ```
@@ -209,10 +214,12 @@ Verified artifact names:
 | Boot2 API | `nexary-job-api` | verified Java 8 bytecode |
 | Boot2 local scheduler | `nexary-job-scheduler-spring-boot2` | verified |
 | Boot2 XXL-JOB bridge | `nexary-job-xxljob-spring-boot2` | verified trigger-mapping entry |
+| Boot2 PowerJob trigger | `nexary-job-powerjob-spring-boot2` | verified trigger-mapping entry |
 | Boot2 Redis execution store | `nexary-job-execution-store-redis-spring-boot2` | verified completed-record store |
 | Boot4 starter | `nexary-job-spring-boot4-starter` | verified Boot4 entry |
 | Boot4 local scheduler | `nexary-job-scheduler-spring-boot4` | verified |
 | Boot4 XXL-JOB bridge | `nexary-job-xxljob-spring-boot4` | verified trigger-mapping entry |
+| Boot4 PowerJob trigger | `nexary-job-powerjob-spring-boot4` | verified trigger-mapping entry |
 | Boot4 Redis execution store | `nexary-job-execution-store-redis-spring-boot4` | verified completed-record store |
 
 ## Adoption Modes
@@ -225,26 +232,27 @@ Business code should implement or call only Nexary job API:
 - execution receipts use `JobExecutionListener`
 - callers that need one execution trace use `NexaryJobOperations.triggerExecution(...)` and read `JobExecutionRecord`
 
-Local scheduler, XXL-JOB bridge, and processor startup belong to starter/provider infrastructure. Applications can start with `nexary-job-spring-boot-starter`, which aggregates the current providers, or depend on `nexary-job-api` and add exactly one concrete provider for the selected runtime mode.
+Local scheduler, XXL-JOB, PowerJob, and processor startup belong to framework wiring. Applications can start with `nexary-job-spring-boot-starter`, which aggregates the current providers, or depend on `nexary-job-api` and add exactly one concrete provider for the selected runtime mode.
 
-Switching between local scheduler and the XXL-JOB bridge should not change business job handlers. Starter mode changes `nexary.job.provider` and related settings; SPI/provider mode changes the provider dependency and related settings.
+Switching between local scheduler, XXL-JOB, and PowerJob should not change business job handlers. Starter mode changes `nexary.job.provider` and related settings; without the starter, change the provider dependency and related settings.
 
 Current samples:
 
 - starter selector: `nexary-samples/nexary-sample-job`
 - SPI local provider: `nexary-samples/nexary-sample-job-spi-scheduler`
 - SPI XXL-JOB bridge provider: `nexary-samples/nexary-sample-job-spi-xxljob`
+- SPI PowerJob trigger provider: `nexary-samples/nexary-sample-job-spi-powerjob`
 
 ## Execution Lifecycle
 
-Nexary v0.1 sends direct triggers, local schedules, and XXL-JOB bridge triggers through the same execution record model:
+The Nexary v0.1 job execution lifecycle is Nexary-level:
 
 - `JobExecutionId`: unique id for one execution
 - `JobExecutionRecord`: trigger source, context, status, attempts, start/end timestamps, duration, message, and error
 - `JobExecutionStatus`: shared `SUCCESS`, `FAILED`, `SKIPPED`, `TIMEOUT`, and `CANCELLED` states
 - `JobExecutionPolicy`: timeout, retry attempts/backoff, concurrency behavior, misfire behavior, and single-instance lock lease
 
-`triggerExecution(...)` returns the full execution record. The older `trigger(...)` method remains available for simple callers that only need `JobResult`. Direct triggers, local cron schedules, and XXL-JOB bridge triggers enter the same execution pipeline, so listener, retry, timeout, result mapping, and execution record semantics stay consistent.
+`triggerExecution(...)` returns the full execution record. The older `trigger(...)` method remains available for simple callers that only need `JobResult`. Direct triggers, local cron schedules, XXL-JOB triggers, and PowerJob triggers enter the same execution pipeline, so listener, retry, timeout, result mapping, and execution record semantics stay consistent.
 
 Execution records use an in-memory store by default, which fits local development and lightweight tests. Enable the Redis durable store when records must be looked up across process or store object recreation:
 
@@ -284,12 +292,13 @@ Current job event names can be used as metric bridge names:
 - `job.store.retention_expiry`
 - `job.scheduler.run`
 - `job.xxljob.bridge.trigger`
+- `job.powerjob.bridge.trigger`
 
 Tags must stay bounded:
 
 - `capability`: fixed `job`
 - `operation`: event name
-- `provider`: `local`, `xxljob`, `memory`, `redis`, or `unknown`
+- `provider`: `local`, `xxljob`, `powerjob`, `memory`, `redis`, or `unknown`
 - `trigger`: `direct`, `scheduled`, `bridge`, or `unknown`
 - `status`: bounded values such as `success`, `failed`, `skipped`, `timeout`, `accepted`, `running`, and `expired`
 - `skip_reason`: `none`, `misfire`, `concurrency`, `single_instance`, `shard_assignment`, `unknown`
@@ -309,8 +318,9 @@ Dashboard examples:
 - skip reasons: aggregate `job.execution.skip` by `skip_reason`
 - store health: aggregate `job.store.save`, `job.store.find`, and `job.store.retention_expiry` by `store` and `status`
 - XXL-JOB bridge ingress: aggregate `job.xxljob.bridge.trigger`; this is bridge ingress only, not proof of the Admin scheduling lifecycle
+- PowerJob trigger ingress: aggregate `job.powerjob.bridge.trigger`; this proves Nexary received the trigger, not the PowerJob Server scheduling lifecycle
 
-To connect Prometheus or another Micrometer backend, add `nexary-observation-micrometer-spring-boot-starter`. The starter turns Nexary events into Micrometer meters without changing the public APIs of `NexaryJob`, the scheduler, or the XXL-JOB bridge. Custom company metrics platforms can still provide a `NexaryObservationListener`, but the tag whitelist above must be preserved.
+To connect Prometheus or another Micrometer backend, add `nexary-observation-micrometer-spring-boot-starter`. The bridge consumes Nexary-level events and creates Micrometer meters without changing the public APIs of `NexaryJob`, the scheduler, or the XXL-JOB bridge. Custom company metrics platforms can still provide a `NexaryObservationListener`, but the tag whitelist above must be preserved.
 
 ## When to Use Local Scheduling
 
@@ -321,7 +331,7 @@ The current sample covers:
 - Spring scanning of `NexaryJob` beans
 - job-name mapping through `NexaryJob.name()`
 - direct business-job execution
-- cron schedule registration through `nexary.job.scheduler.schedules` or `NexaryJobOperations.schedule(...)`
+- cron schedule registration
 - single-instance execution: when a Nexary cache provider is available, a distributed lock avoids duplicate execution
 - local distributed sharding: worker metadata can come from `JobSchedule` or `nexary.job.scheduler.*`
 - built-in load-balancing strategies: `round_robin`, `random`, `consistent_hash`, `least_active`, `first_available`
@@ -345,11 +355,24 @@ The XXL-JOB bridge fits teams that already run XXL-JOB and want platform trigger
 The current sample covers:
 
 - the `xxljob` profile
-- XXL-JOB trigger mapping
+- trigger-mapping trigger mapping
 - shard parameter mapping
 - the same execution lifecycle used by direct/local schedule execution: listener, retry, timeout, record, and result mapping
 
 XXL-JOB itself owns Admin scheduling, routing strategies, sharding broadcast, and executor lifecycle. Nexary `nexary-job-xxljob` currently acts only as a bridge: it maps platform triggers and shard metadata into `NexaryJob` / `JobContext`. The current sample does not claim complete executor registration, Admin scheduling, or callback lifecycle validation.
+
+## When to Use the PowerJob Trigger Provider
+
+The PowerJob trigger provider fits teams that already run PowerJob and want platform triggers plus shard metadata mapped back into the shared `NexaryJob` abstraction.
+
+The current sample covers:
+
+- `nexary.job.provider=powerjob`
+- PowerJob trigger metadata mapping
+- shard parameter mapping
+- the same execution lifecycle used by direct/local schedule execution: listener, retry, timeout, record, and result mapping
+
+PowerJob Server, console, worker registration, platform scheduling, and complete callback lifecycle remain owned by the PowerJob platform. Nexary `nexary-job-powerjob` currently maps platform triggers and shard metadata into `NexaryJob` / `JobContext`. The current sample does not claim PowerJob Server scheduling, fully managed worker registration, console lifecycle, complete callback flow, exactly-once execution, or running cancellation.
 
 ## When to Use Processor-Style Integration
 
@@ -361,8 +384,8 @@ The current reference skeleton lives in the `processor` subpackage of `nexary-sa
 
 1. understand `NexaryJob`, `JobContext`, `JobResult`, and `JobSchedule`
 2. run starter selector mode in `nexary-sample-job`
-3. inspect `nexary-sample-job-spi-scheduler` for API + local provider setup
-4. inspect `nexary-sample-job-spi-xxljob` for API + bridge provider setup
+3. inspect `nexary-sample-job-spi-scheduler` for API + local provider integration
+4. inspect `nexary-sample-job-spi-xxljob` for API + bridge provider integration
 5. inspect the processor-style skeleton if your production shape is a standalone job process
 6. validate against [job-acceptance.md](job-acceptance.md)
 7. run Docker middleware and integration validation when external platform validation is needed

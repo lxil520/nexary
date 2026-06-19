@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-scheduler
 
-This sample skips the starter and adds the Job API plus the local scheduler provider by hand.
+non-starter dependency sample for the Job capability. This module shows only the local scheduler provider.
 
 ## Dependency Mode
 
@@ -15,7 +15,7 @@ After Maven Central publication, replace `nexaryVersion` with the latest release
 Spring Boot 3.3 / Java 17+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "org.nexary:nexary-job-scheduler:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 ```
@@ -31,12 +31,12 @@ runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
 
-Business code uses only `org.nexary.job.*` and does not depend on local scheduler types.
+Business code uses only `org.nexary.job.*` and does not depend on provider types.
 
 The business job is still an ordinary Spring component:
 
@@ -64,16 +64,7 @@ public class SampleBusinessJob implements NexaryJob {
 nexary:
   job:
     provider: local
-    scheduler:
-      schedules:
-        - job-name: sample-business-job
-          cron: "0 */10 * * * *"
-          enabled: true
-          single-instance: true
-          shard-total: 1
 ```
-
-`job-name` must match `NexaryJob.name()`.
 
 ## Run
 

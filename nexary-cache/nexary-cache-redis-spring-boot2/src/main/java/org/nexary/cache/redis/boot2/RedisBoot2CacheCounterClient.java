@@ -39,6 +39,13 @@ public class RedisBoot2CacheCounterClient implements CacheCounterClient {
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
     }
 
+    public RedisBoot2CacheCounterClient(
+            StringRedisTemplate stringRedisTemplate,
+            NexaryObservationPublisher observationPublisher,
+            String providerName) {
+        this(stringRedisTemplate, observationPublisher);
+    }
+
     @Override
     public CacheCounterMutation increment(CacheCounterKey key, long delta, Duration ttlOnCreate) {
         Instant startedAt = Instant.now();

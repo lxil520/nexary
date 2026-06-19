@@ -12,7 +12,7 @@ This document is the engineering standards guide for Nexary maintainers and cont
 
 ## API Rules
 
-- Keep public APIs small and provider-neutral.
+- Keep public APIs small and Nexary-level.
 - Use `Duration` or `Instant` for public time values.
 - Use `enum` for states.
 - Use `@ConfigurationProperties` for configuration.
@@ -25,23 +25,14 @@ This document is the engineering standards guide for Nexary maintainers and cont
 - API modules hold shared abstractions only.
 - Provider modules adapt middleware without redefining public semantics.
 - Starters aggregate dependencies and auto-configuration only.
-- Samples are adoption references, not a platform console.
+- Samples are integration references, not a platform console.
 
 ## Documentation Rules
 
 - Chinese documentation is the primary narrative.
 - English documentation mirrors user-facing changes.
-- User-facing documentation covers capabilities, adoption paths, limits, verification steps, and version boundaries.
+- User-facing documentation covers capabilities, integration paths, limits, verification steps, and version boundaries.
 - User-facing documentation must not include chat transcripts, temporary work records, private paths, or unreleased plans.
-- README, Getting Started, sample guides, and module READMEs are new-user entry points. The first screen should explain what problem the module solves, which version line to choose, which dependency snippet to copy, and which command to run before describing internal design.
-- Version matrices must state Spring Boot, JDK, support status, artifactIds, and limits. Do not write vague entries such as "planned", "mainline", or "entry" without telling users which dependency to use.
-- Use terms that match user actions. Prefer "business API", "without the starter", "sending entry", "combined demo", "module", "setup", and "sample". Avoid exposing terms such as `provider-neutral`, `SPI/provider dependency`, `facade`, `showcase`, `capability`, `adoption`, `focused sample`, or `bridge-shaped` in entry-level user docs.
-- Avoid generic marketing or template words. If a paragraph says the project "empowers", "builds an ecosystem", "closes the loop", or "focuses on capabilities" without giving the user an action, rewrite it with concrete limits, verified combinations, or commands.
-- Every user-facing paragraph should support one action: add a dependency, write configuration, copy business code, run a sample, understand a limit, or find a validation command. Move vision-only text to roadmap / architecture, or delete it.
-- Keep the reader clear: README / Getting Started is for first-time users; capability READMEs are for users who already chose cache, messaging, or job; acceptance / roadmap / release docs are for maintainers. Maintainer terminology should not leak into new-user entry points.
-- Code snippets must be copyable. Comments should explain why an artifactId, provider, or setting is chosen instead of restating the code.
-- Chinese and English docs must keep the same meaning, but English does not need to be line-by-line translation. Natural, clear, copyable English is preferred.
-- Before committing public docs, run the public docs hygiene gate and scans for internal notes, conversation records, incorrect commit identities, old directory names, and template-like terms.
 
 ## Sample Rules
 
@@ -50,22 +41,22 @@ This document is the engineering standards guide for Nexary maintainers and cont
 - Capability samples must make copyable structure clear.
 - Capability samples must first show how business code uses Nexary abstractions, then show how the capability is introduced. Users should not have to read provider wiring before understanding the business usage.
 - Samples must express Nexary's core value: business code does not care whether the underlying implementation is Redis, Kafka, RocketMQ, XXL-JOB, or another provider. Switching providers must not require changes to business controllers, facades, job handlers, or consumers.
-- Each capability must provide two adoption paths:
+- Each capability must provide two integration paths:
   - starter selector mode: depend on the capability starter, let the starter bring optional providers, and select the provider or mode through `nexary.*` configuration.
   - SPI provider mode: business code depends on the API, while provider modules are introduced separately through `ServiceLoader` / Spring bridge.
 - Starter selector samples must not declare provider-specific `@Configuration`, producer factories, consumer factories, Redis clients, Kafka/RocketMQ templates, XXL-JOB executors, or similar framework wiring beans in sample code. Nexary starters and provider modules own that wiring.
 - SPI provider samples may show provider dependencies and SPI discovery, but business code must still depend only on Nexary APIs and must not call native middleware SDKs directly.
-- `build.gradle` files must include comments explaining the adoption mode:
+- `build.gradle` files must include comments explaining the integration mode:
   - starter selector samples explain what the starter aggregates and how provider selection is configured.
   - SPI provider samples explain what the API dependency and provider dependency each do.
 - `application*.yml` files must comment key `nexary.*` options, default meanings, when to change them, and which values are local integration settings.
-- Capability samples must separate provider-neutral entry points from provider or mode-specific wiring. Do not place multiple provider configurations and neutral application code in one flat package.
+- Capability samples must separate Nexary-level entry points from provider or mode-specific wiring. Do not place multiple provider configurations and neutral application code in one flat package.
 - Recommended package structure:
   - `app`: application bootstrap and startup boundary.
   - `api` or `web`: HTTP, CLI, or test trigger entry points.
   - `application` or `facade`: copyable user-facing use case entry points.
-  - `common` or `support`: provider-neutral sample DTOs, state repositories, and diagnostics.
-- Provider or mode packages may exist only in SPI samples or provider-specific validation samples to demonstrate SPI adoption or provider boundaries. Starter selector samples should not contain provider wiring packages.
+  - `common` or `support`: Nexary-level sample DTOs, state repositories, and diagnostics.
+- Provider or mode packages may exist only in SPI samples or provider-specific validation samples to demonstrate SPI integration or provider boundaries. Starter selector samples should not contain provider wiring packages.
 - Each provider or mode must have its own profile, run command, and acceptance notes. Users should be able to switch provider or mode without modifying business code.
 - Do not add catch-all configuration classes or pack all provider options into one controller, facade, or configuration file.
 - Do not import Kafka, RocketMQ, Redis, XXL-JOB, or Disruptor native types from business sample code. Native types are allowed only in provider modules, starter auto-configuration, isolated SPI provider samples, or test verification code.

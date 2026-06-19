@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.nexary.core.observation.NexaryObservationListener;
+import org.nexary.core.observation.NexaryObservationPublisher;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -20,6 +21,7 @@ class NexaryObservationMicrometerAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(NexaryObservationMicrometerProperties.class);
                     assertThat(context).hasSingleBean(NexaryMicrometerObservationListener.class);
+                    assertThat(context).hasSingleBean(NexaryObservationPublisher.class);
                     assertThat(context).hasBean("nexaryMicrometerObservationListener");
                     assertThat(context.getBean(NexaryObservationListener.class))
                             .isInstanceOf(NexaryMicrometerObservationListener.class);
@@ -35,6 +37,7 @@ class NexaryObservationMicrometerAutoConfigurationTest {
                     assertThat(context).hasSingleBean(NexaryObservationMicrometerProperties.class);
                     assertThat(context).doesNotHaveBean(NexaryMicrometerObservationListener.class);
                     assertThat(context).doesNotHaveBean(NexaryObservationListener.class);
+                    assertThat(context).doesNotHaveBean(NexaryObservationPublisher.class);
                 });
     }
 
@@ -44,6 +47,7 @@ class NexaryObservationMicrometerAutoConfigurationTest {
             assertThat(context).hasSingleBean(NexaryObservationMicrometerProperties.class);
             assertThat(context).doesNotHaveBean(NexaryMicrometerObservationListener.class);
             assertThat(context).doesNotHaveBean(NexaryObservationListener.class);
+            assertThat(context).hasSingleBean(NexaryObservationPublisher.class);
         });
     }
 }

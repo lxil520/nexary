@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-xxljob
 
-这个样例不走 starter，只手动加入 Job API 和 XXL-JOB bridge provider。
+这是 Job 能力的 不用 starter 的依赖方式 样例，且只展示 XXL-JOB bridge provider。
 
 ## 引入方式
 
@@ -15,7 +15,7 @@ runtimeOnly project(':nexary-job:nexary-job-xxljob')
 Spring Boot 3.3 / Java 17+ XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "org.nexary:nexary-job-xxljob:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 ```
@@ -31,7 +31,7 @@ runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 主验证运行时 XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
 ```
@@ -74,4 +74,4 @@ nexary:
 
 测试会启动 Spring Boot sample，并执行 `SampleBusinessJob`。
 
-这里只演示把 XXL-JOB 触发映射到 Nexary job，不声明真实 XXL-JOB Admin 调度、executor 注册、callback lifecycle 或平台触发执行。
+当前只演示 Nexary job 与 XXL-JOB bridge 的触发映射，不声明真实 XXL-JOB Admin 调度、executor 注册、callback lifecycle 或平台触发执行。

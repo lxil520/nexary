@@ -11,6 +11,18 @@ services:
       timeout: 3s
       retries: 20
 
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: nexary-valkey
+    ports:
+      - "${VALKEY_PORT:-16380}:6379"
+    command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   kafka:
     image: apache/kafka:3.7.1
     container_name: nexary-kafka
@@ -98,6 +110,75 @@ services:
       - "${XXL_JOB_ADMIN_PORT:-18080}:8080"
     healthcheck:
       test: ["CMD-SHELL", "bash -ec '</dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  powerjob-mysql:
+    image: powerjob/powerjob-mysql:latest
+    container_name: nexary-powerjob-mysql
+    environment:
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_ROOT_PASSWORD: "${POWERJOB_MYSQL_ROOT_PASSWORD:-No1Bug2Please3!}"
+    ports:
+      - "${POWERJOB_MYSQL_PORT:-13307}:3306"
+    volumes:
+      - ./powerjob/mysql:/var/lib/mysql
+    command: ["--lower_case_table_names=1"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p${POWERJOB_MYSQL_ROOT_PASSWORD:-local-demo-powerjob-root} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  powerjob-server:
+    image: powerjob/powerjob-server:latest
+    container_name: nexary-powerjob-server
+    depends_on:
+      powerjob-mysql:
+        condition: service_healthy
+    environment:
+      JVMOPTIONS: "-Xmx512m"
+      PARAMS: >-
+        --oms.mongodb.enable=false
+        --spring.datasource.core.jdbc-url=jdbc:mysql://powerjob-mysql:3306/powerjob-daily?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+        --spring.datasource.core.username=root
+        --spring.datasource.core.password=${POWERJOB_MYSQL_ROOT_PASSWORD:-No1Bug2Please3!}
+    ports:
+      - "${POWERJOB_SERVER_HTTP_PORT:-17700}:7700"
+      - "${POWERJOB_SERVER_AKKA_PORT:-10086}:10086"
+      - "${POWERJOB_SERVER_REMOTE_PORT:-10010}:10010"
+      - "${POWERJOB_SERVER_EXTRA_PORT:-10077}:10077"
+    volumes:
+      - ./powerjob/server:/root/powerjob/server
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec '</dev/tcp/127.0.0.1/7700'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  powerjob-worker-samples:
+    image: powerjob/powerjob-worker-samples:latest
+    container_name: nexary-powerjob-worker-samples
+    depends_on:
+      powerjob-server:
+        condition: service_healthy
+    environment:
+      PARAMS: "--powerjob.worker.server-address=powerjob-server:7700"
+    ports:
+      - "${POWERJOB_WORKER_HTTP_PORT:-18081}:8081"
+      - "${POWERJOB_WORKER_PORT:-27777}:27777"
+    volumes:
+      - ./powerjob/worker-samples:/root/powerjob/worker
+
+  activemq-classic:
+    image: apache/activemq-classic:6.1.7
+    container_name: nexary-activemq-classic
+    ports:
+      - "${ACTIVEMQ_CLASSIC_PORT:-61616}:61616"
+      - "${ACTIVEMQ_CLASSIC_WEB_PORT:-18161}:8161"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec '</dev/tcp/127.0.0.1/61616'"]
       interval: 10s
       timeout: 5s
       retries: 20

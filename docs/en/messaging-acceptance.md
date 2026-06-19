@@ -1,11 +1,11 @@
 # Messaging Acceptance Checklist
 
-Messaging acceptance is based on the focused messaging sample, provider adapter tests, and real middleware integration. The showcase is not the acceptance surface.
+Messaging acceptance is based on the focused messaging sample, provider adapter tests, and real middleware integration. The demo is not the acceptance surface.
 
 ## Public API
 
 - the API does not expose Kafka, RocketMQ, Redis queue, or Disruptor native types
-- send, consume, serialization, interceptor, provider-neutral retry policy, and terminal failure record abstractions are clearly covered
+- send, consume, serialization, interceptor, Nexary-level retry policy, and terminal failure record abstractions are clearly covered
 - message id, headers, topic, key, and payload boundaries are clear
 - in `0.1.x`, one outbound provider per service is the default recommendation; the framework does not provide hidden multi-provider routing
 
@@ -30,7 +30,7 @@ Disruptor is an in-process provider, not a distributed broker replacement. Redis
 
 ## Failure Handling
 
-- the API must provide provider-neutral `MessageRetryPolicy` with max attempts, initial delay, backoff strategy, and max backoff
+- the API must provide Nexary-level `MessageRetryPolicy` with max attempts, initial delay, backoff strategy, and max backoff
 - the API must provide a terminal failure path such as `MessageDeadLetterPublisher` and `MessageDeadLetterRecord`
 - `MessageConsumeExecutor` returns `RETRY` while policy allows it and writes a terminal record after exhaustion
 - dedup is completed only after handler success; handler failure or terminal record publication failure must not create false success dedup
@@ -59,7 +59,7 @@ Disruptor is an in-process provider, not a distributed broker replacement. Redis
 
 ## Sample
 
-- provider-backed sample structure is clear and not replaced by the showcase
+- provider-backed sample structure is clear and not replaced by the demo
 - `nexary-sample-messaging` must remain a Spring Boot project
 - the sending entry uses a facade structure, with the controller acting only as the sample HTTP edge
 - the consuming entry uses a business `NexaryMessageHandler` annotated with `@NexaryMessageListener`; Nexary framework code creates provider listeners and registers subscriptions
@@ -70,7 +70,7 @@ Disruptor is an in-process provider, not a distributed broker replacement. Redis
   - `org.nexary.samples.messaging.domain`: business message, topic constants, and sample inbox
   - `org.nexary.samples.messaging.consumer`: business consumer entry
 - the starter selector sample must not contain sample-owned provider factories, listener containers, subscriber configuration, or configuration loading classes
-- SPI/provider dependency samples must be split into provider-specific modules, for example `nexary-sample-messaging-spi-kafka`, with packages named `org.nexary.samples.messaging.spi.<provider>.*`
+- non-starter dependency samples must be split into provider-specific modules, for example `nexary-sample-messaging-spi-kafka`, with packages named `org.nexary.samples.messaging.spi.<provider>.*`
 - provider configuration, adapters, subscribers, diagnostics, and provider-only fixtures must live in Nexary provider modules or provider-specific SPI sample boundaries, not in the starter business sample
 - Chinese docs are primary and English docs mirror them
 

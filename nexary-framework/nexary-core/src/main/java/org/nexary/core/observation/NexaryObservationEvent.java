@@ -122,5 +122,5 @@ public final class NexaryObservationEvent {
     }
 
     /** Event category. */
-    public enum EventCategory { CORE, CACHE, MESSAGING, JOB, SPI }
+    public enum EventCategory { CORE, CACHE, MESSAGING, JOB, SPI, GOVERNANCE }
 }

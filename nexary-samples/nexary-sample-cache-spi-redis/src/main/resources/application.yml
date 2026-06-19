@@ -1,8 +1,8 @@
 spring:
   data:
     redis:
-      # Local Redis from scripts/middleware/docker-compose.yml.
-      # Override when the provider dependency points to a different Redis endpoint.
+      # Redis-protocol connection used for Redis or Valkey.
+      # For local Valkey, set NEXARY_SAMPLE_CACHE_PROVIDER=valkey and NEXARY_SAMPLE_REDIS_PORT=16380.
       host: ${NEXARY_SAMPLE_REDIS_HOST:127.0.0.1}
       port: ${NEXARY_SAMPLE_REDIS_PORT:16379}
 
@@ -12,9 +12,9 @@ server:
 nexary:
   cache:
     # SPI/provider dependency mode:
-    # business code depends on nexary-cache-api, while Redis is selected by provider dependency.
+    # business code depends on nexary-cache-api, while Redis/Valkey is selected by provider dependency.
     # Change this value and the provider dependency to switch implementations.
-    provider: redis
+    provider: ${NEXARY_SAMPLE_CACHE_PROVIDER:redis}
     redis:
       # Cache values without an explicit TTL use this fallback.
       default-ttl: 10m

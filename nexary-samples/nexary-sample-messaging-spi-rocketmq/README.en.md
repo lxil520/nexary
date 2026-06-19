@@ -1,12 +1,12 @@
 # nexary-sample-messaging-spi-rocketmq
 
-This sample skips the starter and adds the Messaging API plus the RocketMQ provider by hand.
+Messaging non-starter dependency sample for RocketMQ. It depends only on `nexary-messaging-api` and `nexary-messaging-rocketmq`.
 
-Business code uses only `org.nexary.messaging.*` and does not create RocketMQ Producer or Consumer directly. If you later move to Kafka, Redis, or Disruptor, you usually change dependencies and configuration, not controllers, sending code, or consumers.
+Business code still uses only `org.nexary.messaging.*` and does not create RocketMQ Producer or Consumer directly. To switch providers, use the corresponding provider SPI sample module and change dependencies, not facade/controller/consumer code.
 
-Sample business package: `org.nexary.samples.messaging.spi.rocketmq.*`. The consumer implements `NexaryMessageHandler` and uses `@NexaryMessageListener`; provider loading, subscription registration, and duplicate protection are handled by the Nexary RocketMQ provider.
+Sample business package: `org.nexary.samples.messaging.spi.rocketmq.*`. The consumer only implements Nexary `NexaryMessageHandler` and uses `@NexaryMessageListener`; provider loading, and subscription registration are supplied by the Nexary RocketMQ provider auto-configuration.
 
-Failure handling stays out of the consumer: `MessageRetryPolicy` controls retries, and exhausted messages are recorded as `MessageDeadLetterRecord`. This sample does not handle RocketMQ native objects and does not claim exactly-once delivery.
+Failure handling is also provided by Nexary: `MessageRetryPolicy` controls bounded retries, and exhausted messages are recorded as `MessageDeadLetterRecord`. Business consumers do not handle RocketMQ native objects and this is not an exactly-once claim.
 
 Core sending usage:
 

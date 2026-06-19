@@ -1,10 +1,10 @@
 # Architecture
 
-Nexary keeps the layers simple: business code calls Nexary APIs, Redis/Kafka/RocketMQ/XXL-JOB live in adapters, and Spring Boot starters assemble the pieces.
+Nexary follows a layered design: Nexary-level APIs at the center, provider-specific adapters around them, and Spring Boot starters on the outside.
 
 ## Design Principles
 
-- Keep public APIs small.
+- Keep public APIs small and stable.
 - Keep Redis, Kafka, and RocketMQ native types out of public API modules.
 - Let starters assemble implementations without forcing applications to depend on every provider.
 - Normalize resilience signals early: deadline, traffic tag, retry, fault, and observation.
@@ -95,7 +95,7 @@ sequenceDiagram
 
     App->>API: invoke cache/message/job API
     API->>API: attach deadline / traffic tag / retry / fault semantics
-    API->>Adapter: delegate through provider-neutral contract
+    API->>Adapter: delegate through Nexary-level contract
     Adapter->>Provider: execute provider-specific operation
     Provider-->>Adapter: return result or failure
     Adapter-->>API: map provider output

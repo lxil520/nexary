@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import org.junit.jupiter.api.Test;
 import org.nexary.job.NexaryJobOperations;
+import org.nexary.job.powerjob.boot2.PowerJobAutoConfiguration;
 import org.nexary.job.scheduler.boot2.LocalJobSchedulerAutoConfiguration;
 import org.nexary.job.store.redis.boot2.RedisJobExecutionStoreAutoConfiguration;
 import org.nexary.job.xxljob.boot2.XxlJobAutoConfiguration;
@@ -20,6 +21,8 @@ class JobBoot2StarterDependencyTest {
                 .isEqualTo("org.nexary.job.scheduler.boot2.LocalJobSchedulerAutoConfiguration");
         assertThat(XxlJobAutoConfiguration.class.getName())
                 .isEqualTo("org.nexary.job.xxljob.boot2.XxlJobAutoConfiguration");
+        assertThat(PowerJobAutoConfiguration.class.getName())
+                .isEqualTo("org.nexary.job.powerjob.boot2.PowerJobAutoConfiguration");
         assertThat(RedisJobExecutionStoreAutoConfiguration.class.getName())
                 .isEqualTo("org.nexary.job.store.redis.boot2.RedisJobExecutionStoreAutoConfiguration");
 
@@ -29,6 +32,7 @@ class JobBoot2StarterDependencyTest {
             assertThat(factories).contains(EnableAutoConfiguration.class.getName());
             assertThat(factories).contains("org.nexary.job.scheduler.boot2.LocalJobSchedulerAutoConfiguration");
             assertThat(factories).contains("org.nexary.job.xxljob.boot2.XxlJobAutoConfiguration");
+            assertThat(factories).contains("org.nexary.job.powerjob.boot2.PowerJobAutoConfiguration");
             assertThat(factories).contains("org.nexary.job.store.redis.boot2.RedisJobExecutionStoreAutoConfiguration");
         }
     }

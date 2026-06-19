@@ -57,6 +57,7 @@ class CacheSampleApplicationTest {
         CacheCounterClient cacheCounterClient() {
             return new InMemoryTestCounterClient();
         }
+
     }
 
     private static final class InMemoryTestCacheClient implements CacheClient {

@@ -28,11 +28,3 @@ nexary:
       misfire-policy: fire_once
       misfire-threshold: 1m
       lock-lease-time: 5m
-      # Cron schedules can be registered from configuration. The job-name must
-      # match NexaryJob.name().
-      schedules:
-        - job-name: sample-business-job
-          cron: "0 */10 * * * *"
-          enabled: true
-          single-instance: true
-          shard-total: 1

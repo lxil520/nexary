@@ -95,7 +95,8 @@ public class JobExecutionRunner {
                 now,
                 Duration.ZERO,
                 message,
-                "");
+                "",
+                request.providerMetadata());
         JobObservationSupport.publish(
                 observationPublisher,
                 JobObservationSupport.OPERATION_SKIP,
@@ -186,7 +187,8 @@ public class JobExecutionRunner {
                 endedAt,
                 Duration.between(startedAt, endedAt),
                 result == null ? "" : result.message(),
-                error == null ? "" : error.getMessage());
+                error == null ? "" : error.getMessage(),
+                request.providerMetadata());
         JobObservationSupport.publish(
                 observationPublisher,
                 JobObservationSupport.OPERATION_EXECUTION_END,

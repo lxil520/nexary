@@ -1,5 +1,6 @@
 dependencies {
     api project(':nexary-messaging:nexary-messaging-api')
+    api project(':nexary-messaging:nexary-messaging-activemq-classic')
     api project(':nexary-messaging:nexary-messaging-disruptor')
     api project(':nexary-messaging:nexary-messaging-kafka')
     api project(':nexary-messaging:nexary-messaging-redis')

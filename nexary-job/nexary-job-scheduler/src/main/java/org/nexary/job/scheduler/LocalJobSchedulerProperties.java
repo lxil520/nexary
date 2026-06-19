@@ -3,7 +3,6 @@ package org.nexary.job.scheduler;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import org.nexary.job.JobSchedule;
 import org.nexary.job.execution.JobConcurrencyPolicy;
 import org.nexary.job.execution.JobExecutionPolicy;
 import org.nexary.job.execution.JobMisfirePolicy;
@@ -63,9 +62,6 @@ public class LocalJobSchedulerProperties {
 
     /** Retention for in-memory execution records when no durable store is configured. */
     private Duration executionRecordRetention = Duration.ofDays(1);
-
-    /** Cron schedules registered from application configuration at startup. */
-    private List<Schedule> schedules = new ArrayList<>();
 
     public String getWorkerId() {
         return workerId;
@@ -187,14 +183,6 @@ public class LocalJobSchedulerProperties {
         this.executionRecordRetention = executionRecordRetention == null ? Duration.ofDays(1) : executionRecordRetention;
     }
 
-    public List<Schedule> getSchedules() {
-        return schedules;
-    }
-
-    public void setSchedules(List<Schedule> schedules) {
-        this.schedules = schedules == null ? new ArrayList<>() : new ArrayList<>(schedules);
-    }
-
     /** Builds the default execution policy for local scheduler executions. */
     public JobExecutionPolicy toExecutionPolicy() {
         return new JobExecutionPolicy(
@@ -205,96 +193,5 @@ public class LocalJobSchedulerProperties {
                 misfirePolicy,
                 misfireThreshold,
                 lockLeaseTime);
-    }
-
-    /** Builds enabled cron schedules declared under nexary.job.scheduler.schedules. */
-    public List<JobSchedule> toSchedules() {
-        ArrayList<JobSchedule> result = new ArrayList<>();
-        for (Schedule schedule : schedules) {
-            if (schedule != null && schedule.isEnabled()) {
-                result.add(schedule.toJobSchedule());
-            }
-        }
-        return result;
-    }
-
-    /** One cron schedule declared in application configuration. */
-    public static class Schedule {
-        private boolean enabled = true;
-        private String jobName;
-        private String cron;
-        private boolean singleInstance = true;
-        private int shardTotal = 1;
-        private JobLoadBalanceStrategy loadBalance;
-        private String workerId;
-        private List<String> workerIds = new ArrayList<>();
-
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-
-        public String getJobName() {
-            return jobName;
-        }
-
-        public void setJobName(String jobName) {
-            this.jobName = jobName;
-        }
-
-        public String getCron() {
-            return cron;
-        }
-
-        public void setCron(String cron) {
-            this.cron = cron;
-        }
-
-        public boolean isSingleInstance() {
-            return singleInstance;
-        }
-
-        public void setSingleInstance(boolean singleInstance) {
-            this.singleInstance = singleInstance;
-        }
-
-        public int getShardTotal() {
-            return shardTotal;
-        }
-
-        public void setShardTotal(int shardTotal) {
-            this.shardTotal = Math.max(1, shardTotal);
-        }
-
-        public JobLoadBalanceStrategy getLoadBalance() {
-            return loadBalance;
-        }
-
-        public void setLoadBalance(JobLoadBalanceStrategy loadBalance) {
-            this.loadBalance = loadBalance;
-        }
-
-        public String getWorkerId() {
-            return workerId;
-        }
-
-        public void setWorkerId(String workerId) {
-            this.workerId = workerId;
-        }
-
-        public List<String> getWorkerIds() {
-            return workerIds;
-        }
-
-        public void setWorkerIds(List<String> workerIds) {
-            this.workerIds = workerIds == null ? new ArrayList<>() : new ArrayList<>(workerIds);
-        }
-
-        JobSchedule toJobSchedule() {
-            return new JobSchedule(jobName, cron, singleInstance, shardTotal, loadBalance, workerId, workerIds, null);
-        }
     }
 }

@@ -15,10 +15,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
+import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -27,7 +27,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 /** Spring Boot 4 auto-configuration for Redis cache support. */
 @AutoConfiguration(afterName = "org.springframework.boot.data.redis.autoconfigure.RedisAutoConfiguration")
 @ConditionalOnClass(RedisTemplate.class)
-@ConditionalOnProperty(prefix = "nexary.cache", name = "provider", havingValue = "redis", matchIfMissing = true)
+@Conditional(RedisBoot4ProtocolCacheProviderCondition.class)
 @EnableConfigurationProperties(RedisBoot4CacheProperties.class)
 public class RedisBoot4CacheAutoConfiguration {
     @Bean
@@ -44,7 +44,9 @@ public class RedisBoot4CacheAutoConfiguration {
             RedisTemplate redisTemplate,
             StringRedisTemplate stringRedisTemplate,
             RedisBoot4CacheProperties properties,
+            Environment environment,
             NexaryObservationPublisher observationPublisher) {
+        configureProvider(properties, environment);
         return new RedisBoot4CacheClient(redisTemplate, stringRedisTemplate, properties, observationPublisher);
     }
 
@@ -53,8 +55,11 @@ public class RedisBoot4CacheAutoConfiguration {
     @ConditionalOnMissingBean(CacheCounterClient.class)
     public CacheCounterClient cacheCounterClient(
             StringRedisTemplate stringRedisTemplate,
+            RedisBoot4CacheProperties properties,
+            Environment environment,
             NexaryObservationPublisher observationPublisher) {
-        return new RedisBoot4CacheCounterClient(stringRedisTemplate, observationPublisher);
+        configureProvider(properties, environment);
+        return new RedisBoot4CacheCounterClient(stringRedisTemplate, observationPublisher, properties.getProviderName());
     }
 
     @Bean
@@ -65,14 +70,19 @@ public class RedisBoot4CacheAutoConfiguration {
             RedisTemplate redisTemplate,
             StringRedisTemplate stringRedisTemplate,
             RedisBoot4CacheProperties properties,
+            Environment environment,
             NexaryObservationPublisher observationPublisher) {
+        configureProvider(properties, environment);
         RedisBoot4CacheClient redisCacheClient =
                 new RedisBoot4CacheClient(redisTemplate, stringRedisTemplate, properties, observationPublisher);
         if (properties.isTieredEnabled()) {
             LocalCacheClient local = new LocalCacheClient(properties.getLocalTtl());
             CacheInvalidationPublisher publisher = properties.isInvalidationEnabled()
                     ? new RedisBoot4CacheInvalidationPublisher(
-                            stringRedisTemplate, properties.getInvalidationChannel(), observationPublisher)
+                            stringRedisTemplate,
+                            properties.getInvalidationChannel(),
+                            observationPublisher,
+                            properties.getProviderName())
                     : CacheInvalidationPublisher.NOOP;
             return new TieredCacheClient(
                     local,
@@ -117,6 +127,11 @@ public class RedisBoot4CacheAutoConfiguration {
                 properties.getInvalidationChannel(),
                 properties.getInvalidationOriginId(),
                 properties.isInvalidationListenerAutoStart(),
-                observationPublisher);
+                observationPublisher,
+                properties.getProviderName());
+    }
+
+    private void configureProvider(RedisBoot4CacheProperties properties, Environment environment) {
+        properties.setProviderName(environment.getProperty("nexary.cache.provider", RedisBoot4ProtocolCacheProviderCondition.REDIS));
     }
 }

@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: nexary-sample-governance
+
+nexary:
+  governance:
+    runtime:
+      enabled: true
+  observation:
+    micrometer:
+      enabled: true
+      counter-name: nexary.observation.events.total
+      timer-name: nexary.observation.events.duration

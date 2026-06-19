@@ -1,6 +1,6 @@
 # Observation and Micrometer
 
-Nexary cache, messaging, and job modules emit `NexaryObservationEvent` events. The Spring Boot Micrometer bridge only maps those events to Micrometer meters and does not change cache, messaging, or job public APIs.
+Nexary cache, messaging, job, and governance modules emit `NexaryObservationEvent` events. The Spring Boot Micrometer integration maps those events to Micrometer meters and does not change application APIs.
 
 ## Dependency
 
@@ -21,7 +21,7 @@ nexary:
       timer-name: nexary.observation.events.duration
 ```
 
-`enabled=true` is the default. If the application has no `MeterRegistry`, the bridge creates no listener and behaves as a no-op.
+`enabled=true` is the default. If the application has no `MeterRegistry`, the Micrometer listener is not created; applications can still provide their own `NexaryObservationPublisher` when needed.
 
 ## Metric Names
 
@@ -41,12 +41,17 @@ The bridge keeps only these tags:
 - `tier`
 - `status`
 - `failure_category`
+- `resource_kind`
+- `governance_action`
+- `traffic_channel`
+- `traffic_priority`
 - `boundary`
 - `trigger`
 - `skip_reason`
 - `shard_presence`
 - `store`
 - `retry_attempt_bucket`
+- `retry_decision`
 - `terminal_status`
 - `retry_phase`
 
@@ -57,6 +62,7 @@ Never use these values as metric tags:
 - cache keys, raw namespaces, business ids, payloads
 - message ids, raw topics, raw consumer groups
 - execution ids, job parameters
+- governance resource names, tenants, biz keys, user ids, order ids
 - lock tokens, owner tokens, fencing tokens
 - exception messages, stack traces
 - arbitrary unsanitized user input
@@ -64,13 +70,13 @@ Never use these values as metric tags:
 ## Dashboard Suggestions
 
 - Global: chart event volume and p95/p99 duration by `category`, `operation`, and `outcome`.
-- Cache: chart Redis-only and tiered L1/L2 behavior by `provider`, `tier`, and `outcome`.
+- Cache: chart single-layer and L1/L2 behavior by `provider`, `tier`, and `outcome`.
 - Messaging: chart publish, consume, retry, and dead-letter paths by `provider`, `boundary`, `retry_attempt_bucket`, and `terminal_status`.
 - Job: chart scheduling, execution, and skip behavior by `provider`, `trigger`, `status`, `skip_reason`, and `shard_presence`.
+- Governance: chart rate limit, bulkhead, deadline, degradation, and retry-stop events by `resource_kind`, `governance_action`, `traffic_channel`, `traffic_priority`, and `retry_decision`.
 
 ## Non-Goals
 
-- No built-in governance console.
 - No tracing, audit log, or security audit implementation.
 - No exactly-once event claim.
 - No Micrometer types in core/cache/messaging/job public APIs.

@@ -10,7 +10,7 @@ server:
 nexary:
   messaging:
     # Starter selector. Supported values:
-    # disruptor, redis, kafka, rocketmq.
+    # disruptor, redis, kafka, rocketmq, activemq-classic.
     # Business facade/controller/consumer code does not change when this value changes.
     # Retry and terminal failure handling are loaded by Nexary messaging,
     # not by sample business code.

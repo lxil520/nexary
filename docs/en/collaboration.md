@@ -17,7 +17,7 @@ This page is for public contributors and maintainers. It explains how Nexary acc
 | Bug fix | Open an issue or PR with reproduction steps and test results |
 | Provider integration | Open an issue first describing the scenario, provider semantics, and test plan |
 | Public API change | Discuss the design before opening a PR |
-| Docs / sample | Explain the target reader, adoption path, and validation commands |
+| Docs / sample | Explain the target reader, integration path, and validation commands |
 | Governance capability | Define the boundary before mixing it into cache, messaging, or job |
 
 ## Change Requirements

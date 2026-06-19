@@ -1,11 +1,11 @@
 # Messaging 验收清单
 
-Messaging 的验收不以 showcase 为准，而以独立 messaging sample、provider adapter 测试和真实中间件联调为准。
+Messaging 的验收不以 综合演示 为准，而以独立 messaging sample、provider adapter 测试和真实中间件联调为准。
 
 ## 公共 API
 
 - API 不暴露 Kafka、RocketMQ、Redis queue、Disruptor 原生类型。
-- 发送、消费、序列化、拦截器、provider-neutral retry policy、terminal failure record 抽象可说明。
+- 发送、消费、序列化、拦截器、Nexary 层 retry policy、terminal failure record 抽象可说明。
 - message id、headers、topic、key、payload 的边界清楚。
 - 每个服务在 `0.1.x` 默认只选择一个出站 provider；框架不做隐式多 provider 路由。
 
@@ -30,7 +30,7 @@ Disruptor 是进程内 provider，不是分布式 broker 替代品。Redis queue
 
 ## 失败处理
 
-- API 必须提供 provider-neutral `MessageRetryPolicy`，包含最大尝试次数、初始延迟、backoff 策略和 backoff 上限。
+- API 必须提供 Nexary 层 `MessageRetryPolicy`，包含最大尝试次数、初始延迟、backoff 策略和 backoff 上限。
 - API 必须提供 terminal failure path，例如 `MessageDeadLetterPublisher` 和 `MessageDeadLetterRecord`。
 - `MessageConsumeExecutor` 负责按策略返回 `RETRY`，耗尽后写 terminal record。
 - handler 成功后才完成 dedup；handler 失败或 terminal record 写入失败不能产生 false success dedup。
@@ -59,7 +59,7 @@ Disruptor 是进程内 provider，不是分布式 broker 替代品。Redis queue
 
 ## 样例
 
-- provider-backed 样例结构清楚，不靠 showcase 代替。
+- provider-backed 样例结构清楚，不靠 综合演示 代替。
 - `nexary-sample-messaging` 必须是 Spring Boot 工程。
 - 发送入口使用 facade 结构，controller 只作为样例 HTTP 入口。
 - 消费入口通过业务 `NexaryMessageHandler` + `@NexaryMessageListener` 进入 sample inbox；订阅注册和 provider listener 创建由 Nexary 框架完成。
@@ -70,7 +70,7 @@ Disruptor 是进程内 provider，不是分布式 broker 替代品。Redis queue
   - `org.nexary.samples.messaging.domain`：业务消息、topic 常量和 sample inbox。
   - `org.nexary.samples.messaging.consumer`：业务消费入口。
 - starter selector 样例不得包含 sample-owned provider factory、listener container、subscriber configuration 或配置加载类。
-- SPI/provider dependency 样例必须按 provider 拆成独立模块，例如 `nexary-sample-messaging-spi-kafka`，包名使用 `org.nexary.samples.messaging.spi.<provider>.*`。
+- 不用 starter 的依赖方式 样例必须按 provider 拆成独立模块，例如 `nexary-sample-messaging-spi-kafka`，包名使用 `org.nexary.samples.messaging.spi.<provider>.*`。
 - provider 的 configuration、adapter、subscriber、diagnostics、provider-only fixture 必须属于 Nexary provider 模块或 provider-specific SPI 样例边界，不能放回 starter 业务样例。
 - 中文说明优先，英文说明保持镜像。
 

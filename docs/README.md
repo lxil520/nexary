@@ -22,15 +22,15 @@
 
 按能力入口：
 
-- 中文配置手册：[zh/configuration.md](zh/configuration.md)
 - 中文 Cache：[zh/cache.md](zh/cache.md)
 - 中文 Messaging：[zh/messaging.md](zh/messaging.md)
 - 中文 Job：[zh/job.md](zh/job.md)
+- 中文 Governance：[zh/governance.md](zh/governance.md)
 - 中文 Observation：[zh/observation.md](zh/observation.md)
 - 中文本地验证：[zh/verification.md](zh/verification.md)
-- English Configuration: [en/configuration.md](en/configuration.md)
 - English Cache: [en/cache.md](en/cache.md)
 - English Messaging: [en/messaging.md](en/messaging.md)
 - English Job: [en/job.md](en/job.md)
+- English Governance: [en/governance.md](en/governance.md)
 - English Observation: [en/observation.md](en/observation.md)
 - English Local Validation: [en/verification.md](en/verification.md)

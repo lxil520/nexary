@@ -65,19 +65,13 @@ public class RedisCacheClient implements CacheClient {
         try {
             Object value = redisTemplate.opsForValue().get(key.qualified());
             if (value == null) {
-                RedisCacheObservation.publish(observationPublisher, "cache.get", "l2", "miss", startedAt);
+                publish("cache.get", "l2", "miss", startedAt);
                 return Optional.empty();
             }
-            RedisCacheObservation.publish(observationPublisher, "cache.get", "l2", "hit", startedAt);
+            publish("cache.get", "l2", "hit", startedAt);
             return Optional.of(type.cast(value));
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.get",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.get", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -87,15 +81,9 @@ public class RedisCacheClient implements CacheClient {
         Instant startedAt = Instant.now();
         try {
             redisTemplate.opsForValue().set(key.qualified(), value, normalizeTtl(ttl));
-            RedisCacheObservation.publish(observationPublisher, "cache.put", "l2", "success", startedAt);
+            publish("cache.put", "l2", "success", startedAt);
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.put",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.put", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -106,17 +94,10 @@ public class RedisCacheClient implements CacheClient {
         try {
             Boolean result = redisTemplate.opsForValue().setIfAbsent(key.qualified(), value, normalizeTtl(ttl));
             boolean written = Boolean.TRUE.equals(result);
-            RedisCacheObservation.publish(
-                    observationPublisher, "cache.put_if_absent", "l2", written ? "success" : "not_stored", startedAt);
+            publish("cache.put_if_absent", "l2", written ? "success" : "not_stored", startedAt);
             return written;
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.put_if_absent",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.put_if_absent", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -136,17 +117,10 @@ public class RedisCacheClient implements CacheClient {
                 }
                 index++;
             }
-            RedisCacheObservation.publish(
-                    observationPublisher, "cache.batch_get", "l2", result.isEmpty() ? "miss" : "hit", startedAt);
+            publish("cache.batch_get", "l2", result.isEmpty() ? "miss" : "hit", startedAt);
             return result;
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.batch_get",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.batch_get", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -156,15 +130,9 @@ public class RedisCacheClient implements CacheClient {
         Instant startedAt = Instant.now();
         try {
             values.forEach((key, value) -> redisTemplate.opsForValue().set(key.qualified(), value, normalizeTtl(ttl)));
-            RedisCacheObservation.publish(observationPublisher, "cache.batch_put", "l2", "success", startedAt);
+            publish("cache.batch_put", "l2", "success", startedAt);
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.batch_put",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.batch_put", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -175,17 +143,10 @@ public class RedisCacheClient implements CacheClient {
         try {
             Boolean result = redisTemplate.delete(key.qualified());
             boolean deleted = Boolean.TRUE.equals(result);
-            RedisCacheObservation.publish(
-                    observationPublisher, "cache.delete", "l2", deleted ? "success" : "miss", startedAt);
+            publish("cache.delete", "l2", deleted ? "success" : "miss", startedAt);
             return deleted;
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.delete",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.delete", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -196,17 +157,10 @@ public class RedisCacheClient implements CacheClient {
         try {
             Boolean result = redisTemplate.expire(key.qualified(), normalizeTtl(ttl));
             boolean expired = Boolean.TRUE.equals(result);
-            RedisCacheObservation.publish(
-                    observationPublisher, "cache.expire", "l2", expired ? "success" : "miss", startedAt);
+            publish("cache.expire", "l2", expired ? "success" : "miss", startedAt);
             return expired;
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.expire",
-                    "l2",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.expire", "l2", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -226,21 +180,15 @@ public class RedisCacheClient implements CacheClient {
                         token,
                         String.valueOf(normalizeTtl(leaseTime).toMillis()));
                 if (fencingToken != null && fencingToken > 0) {
-                    RedisCacheObservation.publish(observationPublisher, "cache.lock_acquire", "none", "acquired", startedAt);
+                    publish("cache.lock_acquire", "none", "acquired", startedAt);
                     return Optional.of(new RedisLockHandle(key, lockKey, token, fencingToken));
                 }
                 sleep(properties.getLockRetryInterval());
             } while (System.nanoTime() < deadline);
-            RedisCacheObservation.publish(observationPublisher, "cache.lock_acquire", "none", "not_acquired", startedAt);
+            publish("cache.lock_acquire", "none", "not_acquired", startedAt);
             return Optional.empty();
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.lock_acquire",
-                    "none",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.lock_acquire", "none", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -259,6 +207,16 @@ public class RedisCacheClient implements CacheClient {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private void publish(String operation, String tier, String outcome, Instant startedAt) {
+        RedisCacheObservation.publishForProvider(
+                observationPublisher, properties.getProviderName(), operation, tier, outcome, startedAt);
+    }
+
+    private void publish(String operation, String tier, String outcome, String failure, Instant startedAt) {
+        RedisCacheObservation.publishForProvider(
+                observationPublisher, properties.getProviderName(), operation, tier, outcome, failure, startedAt);
     }
 
     private final class RedisLockHandle implements LockHandle {
@@ -299,17 +257,10 @@ public class RedisCacheClient implements CacheClient {
                         ownerToken,
                         String.valueOf(normalizeTtl(leaseTime).toMillis()));
                 boolean renewed = result != null && result > 0;
-                RedisCacheObservation.publish(
-                        observationPublisher, "cache.lock_renew", "none", renewed ? "success" : "not_owner", startedAt);
+                publish("cache.lock_renew", "none", renewed ? "success" : "not_owner", startedAt);
                 return renewed;
             } catch (RuntimeException ex) {
-                RedisCacheObservation.publish(
-                        observationPublisher,
-                        "cache.lock_renew",
-                        "none",
-                        "failure",
-                        RedisCacheObservation.failureCategory(ex),
-                        startedAt);
+                publish("cache.lock_renew", "none", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
                 throw ex;
             }
         }
@@ -319,20 +270,13 @@ public class RedisCacheClient implements CacheClient {
             Instant startedAt = Instant.now();
             try {
                 Long result = stringRedisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(redisKey), ownerToken);
-                RedisCacheObservation.publish(
-                        observationPublisher,
+                publish(
                         "cache.lock_release",
                         "none",
                         result != null && result > 0 ? "success" : "not_owner",
                         startedAt);
             } catch (RuntimeException ex) {
-                RedisCacheObservation.publish(
-                        observationPublisher,
-                        "cache.lock_release",
-                        "none",
-                        "failure",
-                        RedisCacheObservation.failureCategory(ex),
-                        startedAt);
+                publish("cache.lock_release", "none", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
                 throw ex;
             }
         }

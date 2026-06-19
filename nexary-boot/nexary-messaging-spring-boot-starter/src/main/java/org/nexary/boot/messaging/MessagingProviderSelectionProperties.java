@@ -18,6 +18,7 @@ public class MessagingProviderSelectionProperties {
     /** Supported single-provider starter modes. */
     public enum Provider {
         DISRUPTOR,
+        ACTIVEMQ_CLASSIC,
         REDIS,
         KAFKA,
         ROCKETMQ

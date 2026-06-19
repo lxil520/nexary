@@ -1,12 +1,12 @@
 # nexary-sample-cache-spi-redis
 
-这个样例不走 starter，只手动加入 Cache API 和 Redis provider。
+Cache 不用 starter 的依赖方式 引入方式样例。它展示业务代码只编译依赖 `nexary-cache-api`，具体 provider 通过单独依赖引入。
 
-业务代码编译期只依赖 `nexary-cache-api`，Redis 通过 runtime dependency 接上。这个模块不依赖 `nexary-cache-spring-boot-starter`，不写 provider 接线类，也不手写 RedisTemplate。
+这个模块不依赖 `nexary-cache-spring-boot-starter`，不包含 provider 接线类，不手写 RedisTemplate。
 
 ## 引入方式
 
-当前可运行样例使用 Spring Boot 3.3.x + Java 17+。如果你的项目是 Boot2 或 Boot4，业务代码仍然写 `CacheClient`，主要区别是换一组 provider 坐标。
+当前可运行样例使用 Spring Boot 3.3.x + Java 17+ 线。它不使用 starter，而是展示 API + Redis provider 依赖模式；下表给出 Cache 能力已经验证的 provider 坐标。
 
 | Spring Boot | JDK | 状态 | API / provider 依赖 |
 | --- | --- | --- | --- |
@@ -14,7 +14,9 @@
 | Spring Boot 2.7.x | Java 8+ | Redis 单级缓存已验证；不包含 tiered local cache | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
 | Spring Boot 4.1.x | Java 21 主验证运行时 | Cache Redis provider 已验证；不是全仓库 Boot4 支持 | `nexary-cache-api` + `nexary-cache-redis-spring-boot4` |
 
-当前开发版本使用 `0.2.0-SNAPSHOT`。发布到 Maven Central 后，把版本替换为最新 release / tag。这里的 Boot4/JDK21 表述只代表 Nexary Cache 的主验证运行时，不是 Spring 官方 JDK 基线说明，也不代表 messaging、job 或整个仓库已经完成 Boot4 支持。
+当前开发版本使用 `0.3.0`。发布到 Maven Central 后，把版本替换为最新 release / tag。这里的 Boot4/JDK21 表述只代表 Nexary Cache 的主验证运行时，不是 Spring 官方 JDK 基线说明，也不代表 messaging、job 或整个仓库已经完成 Boot4 支持。
+
+Valkey 是 v0.3 的 Redis 协议兼容部署目标。这个样例不新增 Valkey 专属业务代码；仍使用 `nexary-cache-api` + `nexary-cache-redis`，通过 `NEXARY_SAMPLE_CACHE_PROVIDER=valkey` 与 Valkey 端口切换。
 
 `build.gradle`：
 
@@ -27,7 +29,7 @@ runtimeOnly project(':nexary-cache:nexary-cache-redis')
 外部 Spring Boot 3.3.x / Java 17+ 服务复制：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -40,8 +42,8 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.2.0-SNAPSHOT"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-api:0.3.0"
+    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.3.0"
 }
 ```
 
@@ -49,8 +51,8 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.2.0-SNAPSHOT"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-api:0.3.0"
+    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.3.0"
 }
 ```
 
@@ -63,7 +65,7 @@ dependencies {
 ```yaml
 nexary:
   cache:
-    provider: redis
+    provider: ${NEXARY_SAMPLE_CACHE_PROVIDER:redis}
     redis:
       default-ttl: 10m
       local-ttl: 30s
@@ -77,6 +79,16 @@ nexary:
 ```
 
 本地 Redis 默认连接 `127.0.0.1:16379`，可用 `NEXARY_SAMPLE_REDIS_HOST` 和 `NEXARY_SAMPLE_REDIS_PORT` 覆盖。
+
+本地 Valkey 来自同一个 middleware stack，默认端口是 `16380`。业务代码不变，按下面方式切换：
+
+```bash
+NEXARY_SAMPLE_CACHE_PROVIDER=valkey \
+NEXARY_SAMPLE_REDIS_PORT=16380 \
+./gradlew :nexary-samples:nexary-sample-cache-spi-redis:run
+```
+
+这里仍使用 Redis 协议 provider dependency 和连接配置；它不要求业务代码导入 Redis、Valkey、Lettuce 或 Spring Data Redis 原生类型。
 
 ## 运行
 

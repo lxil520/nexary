@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-xxljob
 
-This sample skips the starter and adds the Job API plus the XXL-JOB bridge provider by hand.
+non-starter dependency sample for the Job capability. This module shows only the XXL-JOB bridge provider.
 
 ## Dependency Mode
 
@@ -15,7 +15,7 @@ After Maven Central publication, replace `nexaryVersion` with the latest release
 Spring Boot 3.3 / Java 17+ XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "org.nexary:nexary-job-xxljob:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 ```
@@ -31,7 +31,7 @@ runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
 ```
@@ -74,4 +74,4 @@ nexary:
 
 The test starts the Spring Boot sample and executes `SampleBusinessJob`.
 
-This validates only mapping XXL-JOB triggers into Nexary jobs. It does not claim real XXL-JOB Admin scheduling, executor registration, callback lifecycle, or platform-triggered execution.
+This validates only trigger-mapping trigger mapping. It does not claim real XXL-JOB Admin scheduling, executor registration, callback lifecycle, or platform-triggered execution.

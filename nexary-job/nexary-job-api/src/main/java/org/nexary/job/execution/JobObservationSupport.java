@@ -24,6 +24,7 @@ public final class JobObservationSupport {
     public static final String OPERATION_STORE_RETENTION_EXPIRY = "job.store.retention_expiry";
     public static final String OPERATION_SCHEDULER_RUN = "job.scheduler.run";
     public static final String OPERATION_XXLJOB_BRIDGE_TRIGGER = "job.xxljob.bridge.trigger";
+    public static final String OPERATION_POWERJOB_BRIDGE_TRIGGER = "job.powerjob.bridge.trigger";
 
     private JobObservationSupport() {
     }

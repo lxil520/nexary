@@ -2,5 +2,6 @@ dependencies {
     api project(':nexary-job:nexary-job-api')
     api project(':nexary-job:nexary-job-scheduler')
     api project(':nexary-job:nexary-job-xxljob')
+    api project(':nexary-job:nexary-job-powerjob')
     api project(':nexary-job:nexary-job-execution-store-redis')
 }

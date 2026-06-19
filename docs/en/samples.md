@@ -1,33 +1,35 @@
 # Sample Guide
 
-The samples are meant to show where code goes in a real service, not just prove that an endpoint returns something.
+The sample suite is meant to be copied from, not merely executed.
 
-The samples are split by cache, messaging, and job. Each one is a small Spring Boot project rather than a single-file demo.
+Nexary currently ships focused starter selector and SPI provider reference applications by capability. They are intentionally kept as real project shapes instead of single-file demos.
 
 ## Sample Matrix
 
 | Module | Port | Scenario | What You Should Reuse |
 | --- | --- | --- | --- |
 | `nexary-sample-cache` | `8081` | profile reads and cache warmup | cache-aside, batch fetch, invalidation patterns |
-| `nexary-sample-cache-spi-redis` | `8091` | manual Cache Redis setup | API + Redis provider only |
-| `nexary-sample-messaging` | `8082` | business event publishing | sending/consumer shape; provider switching through `nexary.messaging.provider` |
-| `nexary-sample-messaging-spi-disruptor` | `8092` | manual Messaging Disruptor setup | API + Disruptor provider only |
-| `nexary-sample-messaging-spi-redis` | `8093` | manual Messaging Redis queue setup | API + Redis provider only |
-| `nexary-sample-messaging-spi-kafka` | `8094` | manual Messaging Kafka setup | API + Kafka provider only |
-| `nexary-sample-messaging-spi-rocketmq` | `8095` | manual Messaging RocketMQ setup | API + RocketMQ provider only |
+| `nexary-sample-cache-spi-redis` | `8091` | Cache SPI Redis integration | API + Redis provider only |
+| `nexary-sample-messaging` | `8082` | business event publishing edge | facade/consumer shape; provider switching through `nexary.messaging.provider` |
+| `nexary-sample-messaging-spi-disruptor` | `8092` | Messaging SPI Disruptor integration | API + Disruptor provider only |
+| `nexary-sample-messaging-spi-redis` | `8093` | Messaging SPI Redis queue integration | API + Redis provider only |
+| `nexary-sample-messaging-spi-kafka` | `8094` | Messaging SPI Kafka integration | API + Kafka provider only |
+| `nexary-sample-messaging-spi-rocketmq` | `8095` | Messaging SPI RocketMQ integration | API + RocketMQ provider only |
+| `nexary-sample-messaging-spi-activemq-classic` | `8098` | Messaging SPI ActiveMQ Classic integration | API + ActiveMQ Classic provider only |
 | `nexary-sample-job` | `8083` | reconciliation and compensation jobs | `NexaryJob`, schedule registration, execution-state tracking |
-| `nexary-sample-job-spi-scheduler` | `8096` | manual Job local scheduler setup | API + local scheduler provider only |
-| `nexary-sample-job-spi-xxljob` | `8097` | manual Job XXL-JOB bridge setup | API + XXL-JOB bridge provider only |
+| `nexary-sample-job-spi-scheduler` | `8096` | Job SPI local scheduler integration | API + local scheduler provider only |
+| `nexary-sample-job-spi-xxljob` | `8097` | Job SPI XXL-JOB bridge integration | API + XXL-JOB bridge provider only |
+| `nexary-sample-job-spi-powerjob` | `8098` | Job PowerJob trigger integration | API + PowerJob provider only |
 
 Full details live in [../../nexary-samples/README.md](../../nexary-samples/README.md).
 
 ## Recommended Reading Order
 
-1. choose the cache, messaging, or job starter sample you need
-2. move to the matching provider sample when you want to manage dependencies yourself
+1. choose the cache, messaging, or job starter selector sample for the capability you need
+2. move to the matching SPI provider sample when you need tighter provider dependency control
 3. use [integration.md](integration.md) to run the real middleware stack locally
 
-## Main Samples
+## Focused Samples
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache:run
@@ -35,7 +37,7 @@ Full details live in [../../nexary-samples/README.md](../../nexary-samples/READM
 ./gradlew :nexary-samples:nexary-sample-job:run
 ```
 
-They answer a practical question: if I only add cache, messaging, or jobs, what should my service look like?
+These answer the question: how should a service be structured if I only adopt one capability?
 
 ## Endpoints
 
@@ -61,7 +63,7 @@ Job sample:
 
 ## Current Sample Boundaries
 
-- the main samples are closer to copyable service structure
+- the dedicated samples are closer to copyable service structure
 - the messaging sample's main path is starter selector based; business code does not directly use Kafka/RocketMQ/Redis/Disruptor native SDKs
 - real middleware validation comes from `scripts/middleware/*` plus integration tests, not from controller output alone
 

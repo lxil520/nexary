@@ -3,7 +3,6 @@ package org.nexary.job.scheduler.boot4;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -21,34 +20,6 @@ import org.nexary.job.execution.JobExecutionStore;
 import org.nexary.job.execution.JobExecutionTrigger;
 
 class LocalNexaryJobOperationsTest {
-    @Test
-    void propertiesBuildEnabledSchedulesFromConfigurationShape() {
-        LocalJobSchedulerProperties properties = new LocalJobSchedulerProperties();
-        LocalJobSchedulerProperties.Schedule enabled = new LocalJobSchedulerProperties.Schedule();
-        enabled.setJobName("sample-job");
-        enabled.setCron("0 */10 * * * *");
-        enabled.setSingleInstance(false);
-        enabled.setShardTotal(3);
-        enabled.setWorkerIds(Arrays.asList("node-a", "node-b"));
-
-        LocalJobSchedulerProperties.Schedule disabled = new LocalJobSchedulerProperties.Schedule();
-        disabled.setEnabled(false);
-        disabled.setJobName("disabled-job");
-        disabled.setCron("0 */5 * * * *");
-
-        properties.setSchedules(Arrays.asList(enabled, disabled));
-
-        assertThat(properties.toSchedules())
-                .singleElement()
-                .satisfies(schedule -> {
-                    assertThat(schedule.jobName()).isEqualTo("sample-job");
-                    assertThat(schedule.cron()).isEqualTo("0 */10 * * * *");
-                    assertThat(schedule.singleInstance()).isFalse();
-                    assertThat(schedule.shardTotal()).isEqualTo(3);
-                    assertThat(schedule.workerIds()).containsExactly("node-a", "node-b");
-                });
-    }
-
     @Test
     void directTriggerStoresExecutionRecordThroughExecutionStore() {
         RecordingJobExecutionStore store = new RecordingJobExecutionStore();

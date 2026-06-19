@@ -8,7 +8,7 @@ import org.nexary.job.NexaryJobOperations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest(classes = JobProcessorSampleApplication.class, properties = "spring.profiles.active=processor")
+@SpringBootTest(classes = JobProcessorSampleApplication.class)
 class JobProcessorSampleApplicationTest {
     @Autowired
     private NexaryJobOperations jobs;

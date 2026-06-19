@@ -6,11 +6,11 @@
 - `JobContext` represents job name, scheduled time, shard metadata, and optional parameters.
 - `JobResult` uses enum status values for success or failure instead of magic strings.
 - `JobSchedule` represents cron, single-instance execution, shard total, worker metadata, and load-balancing strategy.
-- `JobExecutionId`, `JobExecutionRecord`, and `JobExecutionStatus` represent provider-neutral execution identity and state.
+- `JobExecutionId`, `JobExecutionRecord`, and `JobExecutionStatus` represent Nexary-level execution identity and state.
 - `JobExecutionPolicy` represents timeout, retry attempts/backoff, concurrency behavior, misfire behavior, and single-instance lock lease.
-- `JobExecutionStore` is the provider-neutral execution record storage abstraction, with in-memory default and durable provider replacement.
+- `JobExecutionStore` is the Nexary-level execution record storage abstraction, with in-memory default and durable provider replacement.
 - the load-balancing abstraction covers at least `round_robin`, `random`, `consistent_hash`, `least_active`, and `first_available`.
-- Public API does not expose XXL-JOB or future PowerJob native types.
+- Public API does not expose XXL-JOB or PowerJob native types.
 
 ## Local Scheduler
 
@@ -46,8 +46,9 @@
 - switching from local scheduler to the XXL-JOB bridge does not change business job code.
 - starter selector mode chooses the provider through `nexary.job.provider` and profile configuration.
 - SPI/provider samples are split into one module per provider instead of mixing multiple providers into one SPI module.
-- `nexary-sample-job-spi-scheduler` shows only API + local provider adoption.
-- `nexary-sample-job-spi-xxljob` shows only API + XXL-JOB bridge provider adoption.
+- `nexary-sample-job-spi-scheduler` shows only API + local provider integration.
+- `nexary-sample-job-spi-xxljob` shows only API + XXL-JOB bridge provider integration.
+- `nexary-sample-job-spi-powerjob` shows only API + PowerJob trigger provider integration.
 - the `local` profile demonstrates job-name mapping, direct execution, and local schedule registration through tests.
 - the `xxljob` profile demonstrates bridge trigger shape and shard mapping through tests.
 - sample docs clearly distinguish local scheduling from bridge-triggered execution.
@@ -70,9 +71,12 @@
 
 ## PowerJob Boundary
 
-- PowerJob is a future bridge direction, not a current implemented capability.
-- a future PowerJob bridge should reuse `NexaryJob`, `JobContext`, `JobResult`, and `JobExecutionListener`.
-- PowerJob native types should not enter the current public API.
+- PowerJob trigger mapping reuses `NexaryJob` and does not create a second public job API.
+- PowerJob trigger mapping maps external platform shard metadata into `JobContext`.
+- PowerJob triggers enter the same execution lifecycle pipeline, including listener, retry, timeout, result mapping, and execution record.
+- PowerJob triggers must save records through the same `JobExecutionStore` and retain trigger plus shard metadata.
+- PowerJob Server scheduling, fully managed worker registration, console lifecycle, and complete callback lifecycle belong to the PowerJob platform and are not reimplemented inside the Nexary local scheduler.
+- documentation must not describe PowerJob trigger mapping as complete platform lifecycle validation.
 
 ## Integration Validation
 

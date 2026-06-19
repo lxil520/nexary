@@ -1,0 +1,11 @@
+dependencies {
+    api project(':nexary-messaging:nexary-messaging-api')
+    implementation project(':nexary-framework:nexary-core')
+    implementation platform("org.apache.activemq:activemq-bom:${rootProject.ext.activeMqClassicVersion}")
+    implementation 'org.apache.activemq:activemq-client'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation platform("org.apache.activemq:activemq-bom:${rootProject.ext.activeMqClassicVersion}")
+    testImplementation 'org.apache.activemq:activemq-broker'
+}

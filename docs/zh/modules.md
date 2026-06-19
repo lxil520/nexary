@@ -23,6 +23,7 @@
 - `nexary-job/nexary-job-api`：任务、调度、执行上下文、结果、监听器、执行 ID、执行记录和执行策略 API。
 - `nexary-job/nexary-job-scheduler`：本地 `TaskScheduler` 调度器，可选接入 cache 单实例锁、worker heartbeat、分片负载算法和统一执行生命周期。
 - `nexary-job/nexary-job-xxljob`：XXL-JOB bridge，把外部触发和分片元数据映射到 `NexaryJob`，并复用统一执行生命周期。
+- `nexary-job/nexary-job-powerjob`：PowerJob 触发映射，把外部触发和分片元数据映射到 `NexaryJob`，并复用统一执行生命周期。
 - `nexary-job/nexary-job-execution-store-redis`：可选 Redis durable execution store，按 TTL 保存已完成 execution record。
 
 ## Boot

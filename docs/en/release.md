@@ -13,7 +13,7 @@ Before cutting a release:
 - confirm `group`, artifact names, license, SCM, and developer metadata
 - confirm sources and Javadoc jars are generated
 - confirm no real credentials, private endpoints, or private registry settings exist
-- create a SemVer tag such as `v0.2.0`
+- create a SemVer tag such as `v0.3.0`
 
 ## Minimum Maven Central Requirements
 
@@ -34,11 +34,11 @@ Official references:
 
 The pragmatic path is:
 
-1. make the GitHub repository public and stabilize `0.2.x`
+1. make the GitHub repository public and stabilize `0.3.x`
 2. complete namespace verification
 3. add GPG signing and credential handling
 4. lock down one Gradle release pipeline
-5. publish one modern-baseline `0.2.0` first while keeping Boot2 / Boot4 compatibility gates visible
+5. publish `0.3.0` while keeping Boot2 / Boot4 compatibility gates visible
 
 ## Gradle Release Commands
 
@@ -54,7 +54,7 @@ Before publishing to Maven Central, provide real repository metadata and signing
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.2.0 \
+  -PnexaryVersion=0.3.0 \
   -PprojectWebsite=https://github.com/<owner>/nexary \
   -PprojectScmUrl=https://github.com/<owner>/nexary.git \
   -PprojectScmConnection=scm:git:https://github.com/<owner>/nexary.git \
@@ -91,14 +91,14 @@ Nexary should plan multi-version support to reach more users, but unverified com
 
 Release policy:
 
-- The current `0.2.x` release claims only combinations that have passed gates. Verified combinations currently include the Spring Boot 3.3 / Java 17+ mainline, the Spring Boot 2.7 / Java 8+ Cache Redis single-tier entry, the Spring Boot 2.7 / Java 8+ Messaging Redis-only entry, and the Spring Boot 2.7 / Java 8+ bounded Job entry.
-- Spring Boot 2.7 / JDK 8+ is the priority `0.2.x` compatibility target and enters independent gap audits, API compatibility migrations, and verification gates by capability: Cache, Messaging, and Job.
-- Spring Boot 4.x / Java 21+ is the later `0.2.x` validation target after the verified Boot2 entries are closed out.
+- The current `0.3.x` release claims only combinations that have passed gates. Verified combinations currently include the Spring Boot 3.3 / Java 17+ mainline, the Spring Boot 2.7 / Java 8+ Cache Redis/Valkey single-tier entry, the Spring Boot 2.7 / Java 8+ Messaging Redis-only entry, and the Spring Boot 2.7 / Java 8+ Job local/XXL-JOB/PowerJob bridge entry.
+- Spring Boot 2.7 / JDK 8+ now has independent gates by capability. Providers that have not passed those gates are not documented as supported.
+- Spring Boot 4.1 / Java 21 now has independent gates by capability. This is not a claim that every repository module has full Boot4 support.
 - The README dependency matrix is expanded only after those gates pass.
 - Multi-version support should prefer independent BOMs, starters, or compatibility branches instead of polluting the mainline API.
 
 Recommended sequence:
 
-- `0.2.x`: Java 17 / Spring Boot 3.3 mainline release plus Boot2/JDK8 capability gates.
-- Later `0.2.x`: continue Boot2/JDK8 Messaging Disruptor/Kafka/RocketMQ providers, close out the verified Boot2 entries for release, then progress the Boot4/JDK21 gate.
+- `0.3.x`: Java 17 / Spring Boot 3.3 mainline release plus Boot2/JDK8 and Boot4/JDK21 capability gates.
+- Later `0.3.x`: continue Boot2/JDK8 Messaging Disruptor/Kafka/RocketMQ/ActiveMQ Classic providers and expand support claims only after samples and integration tests pass.
 - Before `1.0.0`: lock the final compatibility policy and maintenance boundary.

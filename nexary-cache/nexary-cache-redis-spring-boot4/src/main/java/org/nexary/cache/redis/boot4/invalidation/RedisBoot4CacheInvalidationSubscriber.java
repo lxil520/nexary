@@ -46,6 +46,17 @@ public class RedisBoot4CacheInvalidationSubscriber implements MessageListener, S
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
     }
 
+    public RedisBoot4CacheInvalidationSubscriber(
+            RedisMessageListenerContainer container,
+            CacheInvalidationListener listener,
+            String channel,
+            String originId,
+            boolean autoStartup,
+            NexaryObservationPublisher observationPublisher,
+            String providerName) {
+        this(container, listener, channel, originId, autoStartup, observationPublisher);
+    }
+
     @Override
     public void onMessage(Message message, byte[] pattern) {
         Instant startedAt = Instant.now();

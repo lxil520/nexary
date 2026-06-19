@@ -22,7 +22,7 @@ Included scope:
 - Duplicate-consumption protection, bounded retry, and terminal failure / dead-letter abstractions.
 - Local scheduler, sharding, worker topology, and job execution lifecycle.
 - XXL-JOB bridge that maps external triggers and shard metadata to `NexaryJob`.
-- Starter selector and SPI provider adoption modes.
+- Starter selector and SPI provider integration modes.
 - Local Docker middleware, smoke checks, and integration tests.
 - Bilingual docs, samples, and release checklist.
 
@@ -41,7 +41,7 @@ Release exit criteria:
 - stable `./gradlew check`.
 - stable local Redis / Kafka / RocketMQ / MySQL / XXL-JOB Admin smoke and key integration tests.
 - `publishToMavenLocal` covers primary modules.
-- README, samples, configuration comments, and bilingual docs support a first adoption decision.
+- README, samples, configuration comments, and bilingual docs support a first integration decision.
 - license, SCM metadata, open-source metadata, GitHub Actions, secret scanning, and release checklist are ready.
 
 ## `0.2.x` Hardening Line
@@ -69,7 +69,7 @@ This batch does not include:
 
 The second batch keeps hardening existing capabilities with production observability. It does not add new providers and does not move governance modules forward prematurely.
 
-- Core: add a provider-neutral observation publishing entry point that reuses `NexaryObservationEvent`; public APIs must not expose Micrometer, Actuator, or native middleware types.
+- Core: add a Nexary-level observation publishing entry point that reuses `NexaryObservationEvent`; public APIs must not expose Micrometer, Actuator, or native middleware types.
 - Cache: emit events and metrics for get/put/delete/expire, batch operations, tiered L1/L2 hit/miss, invalidation, locks, and counters.
 - Messaging: emit events and metrics for publish, consume, retry, dead-letter, deduplication, provider ack/requeue/recovery paths.
 - Job: emit events and metrics for trigger, execution status, duration, retry, timeout, skip reason, shard metadata, and durable store write/read paths.
@@ -84,12 +84,12 @@ This batch does not include:
 
 ### `0.2.0-alpha.3`
 
-The third batch adds Spring Boot metrics bridging so the provider-neutral observation events from `alpha.2` can feed common metrics systems directly.
+The third batch adds Spring Boot metrics bridging so the Nexary-level observation events from `alpha.2` can feed common metrics systems directly.
 
 - Boot: add an independent Micrometer bridge starter that translates `NexaryObservationEvent` into Micrometer counters and timers.
 - Core / capability APIs: keep Micrometer, Actuator, and concrete monitoring backends out of public capability APIs.
 - Tags: allow only a fixed whitelist and continue rejecting high-cardinality fields such as cache key, message id, execution id, payload, tokens, exception text, and stack traces.
-- Docs: document Spring Boot adoption, common Prometheus export paths, metric names, tag boundaries, dashboard examples, and non-goals.
+- Docs: document Spring Boot integration, common Prometheus export paths, metric names, tag boundaries, dashboard examples, and non-goals.
 
 This batch does not include:
 
@@ -174,22 +174,28 @@ It starts in parallel:
 ### Release
 
 - Stabilize Maven Central publication.
-- Evolve samples and docs from runnable references into adoption templates.
+- Evolve samples and docs from runnable references into integration templates.
 - Stabilize GitHub issue / PR templates, contribution guide, and changelog flow.
 
-## `0.3.x` Governance Line
+## `0.3.x` Governance and New Providers
 
-`0.3.x` is the right place to let governance capabilities become independent modules.
+`0.3.0` moves governance into its own module and adds three common replacement paths: Valkey as a cache deployment target, ActiveMQ Classic for messaging, and PowerJob for job triggers.
 
-Priority candidates:
+Included in `0.3.0`:
 
-- unified telemetry export: metrics, traces, audit events.
-- governance policies such as timeout, retry, bulkhead, rate limit, degradation, and fallback.
-- first service-governance module prototype.
-- shared configuration model and observation tags across capabilities.
-- optional providers such as PowerJob and ActiveMQ only after the existing abstractions are stable; they should not outrank the governance mainline.
+- Governance: deadline, traffic, rate limit, bulkhead, degradation, and retry-stop primitives.
+- Cache: Valkey as a Redis-protocol-compatible deployment target with unchanged business APIs.
+- Messaging: ActiveMQ Classic queue provider without exposing JMS types to business code.
+- Job: PowerJob bridge that reuses the shared execution lifecycle.
+- Samples: runnable governance, ActiveMQ Classic, and PowerJob examples.
+- Docs: Chinese and English setup docs, boundaries, and local validation commands.
 
 Governance must keep a clear boundary: it may consume events and policy extension points from cache, messaging, and job, but it should not make their primary APIs heavy.
+
+Later `0.3.x` work should do two things:
+
+- turn more governance primitives into directly usable runtime policies.
+- expand Boot2 / Boot4 provider support only after samples and real middleware tests pass.
 
 ## `1.0.0` Stability Target
 

@@ -21,6 +21,13 @@ public class MessagingStarterCommonAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(MessageDeduplicationStore.class)
+    @ConditionalOnProperty(prefix = "nexary.messaging", name = "provider", havingValue = "activemq-classic")
+    public MessageDeduplicationStore activeMqClassicMessageDeduplicationStore() {
+        return new ConcurrentMapMessageDeduplicationStore();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(MessageDeduplicationStore.class)
     @ConditionalOnProperty(prefix = "nexary.messaging", name = "provider", havingValue = "kafka")
     public MessageDeduplicationStore kafkaMessageDeduplicationStore() {
         return new ConcurrentMapMessageDeduplicationStore();

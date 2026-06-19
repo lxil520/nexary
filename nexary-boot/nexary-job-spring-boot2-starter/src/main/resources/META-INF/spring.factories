@@ -1,4 +1,5 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 org.nexary.job.scheduler.boot2.LocalJobSchedulerAutoConfiguration,\
 org.nexary.job.xxljob.boot2.XxlJobAutoConfiguration,\
+org.nexary.job.powerjob.boot2.PowerJobAutoConfiguration,\
 org.nexary.job.store.redis.boot2.RedisJobExecutionStoreAutoConfiguration

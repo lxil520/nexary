@@ -31,6 +31,24 @@ class RedisCacheAutoConfigurationTest {
     }
 
     @Test
+    void valkeyProviderUsesRedisProtocolCacheClient() {
+        contextRunner
+                .withPropertyValues("nexary.cache.provider=valkey")
+                .run(context -> {
+                    assertThat(context.getBean("primaryCacheClient", CacheClient.class)).isInstanceOf(RedisCacheClient.class);
+                    assertThat(context.getBean(CacheCounterClient.class)).isInstanceOf(RedisCacheCounterClient.class);
+                    assertThat(context.getBean(RedisCacheProperties.class).getProviderName()).isEqualTo("valkey");
+                });
+    }
+
+    @Test
+    void unsupportedProviderDoesNotCreateCacheClient() {
+        contextRunner
+                .withPropertyValues("nexary.cache.provider=memcached")
+                .run(context -> assertThat(context).doesNotHaveBean(CacheClient.class));
+    }
+
+    @Test
     void tieredOptInCreatesLocalTierAndInvalidationListenerByDefault() {
         contextRunner
                 .withPropertyValues("nexary.cache.redis.tiered-enabled=true")

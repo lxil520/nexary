@@ -3,18 +3,18 @@
 - Chinese: [../zh/index.md](../zh/index.md)
 - Repository overview: [../../README.en.md](../../README.en.md)
 
-## Pick What You Need
+## Capability Guides
 
 - [Cache Guide](cache.md)
 - [Messaging Guide](messaging.md)
 - [Job Guide](job.md)
+- [Governance Guide](governance.md)
 - [Observation and Micrometer](observation.md)
 - [Local Validation Guide](verification.md)
 
 ## Start Here
 
 - [Getting Started](getting-started.md)
-- [Configuration](configuration.md)
 - [Architecture](architecture.md)
 - [Coding and Contribution Standards](standards.md)
 - [Core Concepts](concepts.md)

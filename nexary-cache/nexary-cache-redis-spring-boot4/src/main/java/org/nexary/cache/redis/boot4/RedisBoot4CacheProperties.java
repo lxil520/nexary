@@ -18,6 +18,7 @@ public class RedisBoot4CacheProperties {
     private String invalidationOriginId = UUID.randomUUID().toString();
     private boolean invalidationListenerAutoStart = true;
     private Duration invalidationListenerRecoveryBackoff = Duration.ofSeconds(5);
+    private String providerName = "redis";
 
     public String getLockPrefix() {
         return lockPrefix;
@@ -105,5 +106,13 @@ public class RedisBoot4CacheProperties {
 
     public void setInvalidationListenerRecoveryBackoff(Duration invalidationListenerRecoveryBackoff) {
         this.invalidationListenerRecoveryBackoff = invalidationListenerRecoveryBackoff;
+    }
+
+    public String getProviderName() {
+        return providerName;
+    }
+
+    public void setProviderName(String providerName) {
+        this.providerName = RedisBoot4ProtocolCacheProviderCondition.normalize(providerName);
     }
 }

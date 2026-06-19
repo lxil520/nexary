@@ -24,6 +24,16 @@ public final class RedisCacheObservation {
         publish(publisher, operation, tier, outcome, NONE, startedAt);
     }
 
+    public static void publishForProvider(
+            NexaryObservationPublisher publisher,
+            String provider,
+            String operation,
+            String tier,
+            String outcome,
+            Instant startedAt) {
+        publishForProvider(publisher, provider, operation, tier, outcome, NONE, startedAt);
+    }
+
     public static void publish(
             NexaryObservationPublisher publisher,
             String operation,
@@ -36,7 +46,34 @@ public final class RedisCacheObservation {
         Map<String, String> tags = new LinkedHashMap<>();
         tags.put("capability", CAPABILITY);
         tags.put("operation", operation);
-        tags.put("provider", PROVIDER);
+        tags.put("provider", providerName(PROVIDER));
+        tags.put("tier", hasNoText(tier) ? NONE : tier);
+        tags.put("outcome", hasNoText(outcome) ? "unknown" : outcome);
+        tags.put("failure", hasNoText(failure) ? NONE : failure);
+        safePublisher.publish(new NexaryObservationEvent(
+                NexaryObservationEvent.EventCategory.CACHE,
+                operation,
+                startedAt == null ? endedAt : startedAt,
+                endedAt,
+                null,
+                null,
+                tags));
+    }
+
+    public static void publishForProvider(
+            NexaryObservationPublisher publisher,
+            String provider,
+            String operation,
+            String tier,
+            String outcome,
+            String failure,
+            Instant startedAt) {
+        NexaryObservationPublisher safePublisher = publisher == null ? NexaryObservationPublisher.noop() : publisher;
+        Instant endedAt = Instant.now();
+        Map<String, String> tags = new LinkedHashMap<>();
+        tags.put("capability", CAPABILITY);
+        tags.put("operation", operation);
+        tags.put("provider", providerName(provider));
         tags.put("tier", hasNoText(tier) ? NONE : tier);
         tags.put("outcome", hasNoText(outcome) ? "unknown" : outcome);
         tags.put("failure", hasNoText(failure) ? NONE : failure);
@@ -62,5 +99,13 @@ public final class RedisCacheObservation {
 
     private static boolean hasNoText(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private static String providerName(String provider) {
+        String normalized = RedisProtocolCacheProviderCondition.normalize(provider);
+        if (RedisProtocolCacheProviderCondition.VALKEY.equals(normalized)) {
+            return RedisProtocolCacheProviderCondition.VALKEY;
+        }
+        return PROVIDER;
     }
 }

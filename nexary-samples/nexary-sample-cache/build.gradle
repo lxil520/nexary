@@ -10,14 +10,15 @@ dependencies {
     //   nexary-cache-spring-boot3-starter.
     // - planned Boot2/Boot4 artifactIds are not published or supported yet.
     // - application code uses only Nexary cache API types such as CacheClient and CacheCounterClient.
-    // - the starter aggregates the cache API and Redis provider.
+    // - the starter aggregates the cache API and Redis-protocol provider.
+    // - provider=redis and provider=valkey use the same business API; Valkey points the connection at Valkey.
     // - application*.yml selects the provider/mode through nexary.* properties.
     implementation project(':nexary-boot:nexary-cache-spring-boot-starter')
 
     // SPI/provider dependency adoption path:
     // - in a plain service, replace the starter with nexary-cache-api plus a provider artifact.
-    // - for Redis this means adding nexary-cache-redis as the provider dependency.
-    // - Boot2/JDK8 needs a future Java8-compatible API/provider line; do not use this sample as Boot2 evidence.
+    // - for Redis/Valkey this means adding nexary-cache-redis as the Redis-protocol provider dependency.
+    // - Boot2 and Boot4 have version-line artifacts documented in the sample README.
     // - provider setup stays outside controller/service code.
     // implementation project(':nexary-cache:nexary-cache-api')
     // runtimeOnly project(':nexary-cache:nexary-cache-redis')

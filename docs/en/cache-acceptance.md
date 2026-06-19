@@ -12,8 +12,8 @@
 - the Redis counter implementation must use atomic counter operations and must not enter `TieredCacheClient` or JVM-local L1
 - counter TTL semantics must be explicit and tested: TTL is set only when the counter is first created, and later mutations do not refresh it
 - owner-token lock regression must pass, and unlock must remain current-owner safe
-- when fencing tokens are implemented, the public API must be provider-neutral and Redis tokens must be monotonic for the same lock resource
+- when fencing tokens are implemented, the public API must be Nexary-level and Redis tokens must be monotonic for the same lock resource
 - docs must explain how callers obtain, carry, and validate fencing tokens at the protected resource, and must explicitly avoid Redlock or strong distributed coordination claims
-- the cache-focused sample explains adoption clearly
-- docs and samples do not treat the showcase as the primary validation surface
+- the cache-dedicated sample explains integration clearly
+- docs and samples do not treat the demo as the primary validation surface
 - when real validation is needed, local validation commands can cover Redis integration and regression

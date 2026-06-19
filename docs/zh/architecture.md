@@ -1,12 +1,12 @@
 # 架构说明
 
-Nexary 的分层很简单：业务代码面向 Nexary API，Redis/Kafka/RocketMQ/XXL-JOB 放到适配器里，Spring Boot Starter 负责把它们装起来。
+Nexary 采用分层设计：中间是 Nexary 层 API，外围是具体适配器，再往外是 Spring Boot Starter。
 
 ## 设计原则
 
-- 公共 API 尽量小。
+- 公共 API 保持小而稳定。
 - Redis、Kafka、RocketMQ 的原生类型不进入公共 API 模块。
-- Starter 负责组装依赖，不强迫业务工程依赖所有 provider。
+- Starter 负责组装能力，不强迫业务工程依赖所有 provider。
 - 尽早统一治理语义：deadline、traffic tag、retry、fault、observation。
 - 兼容边界以已发布公共 API 和文档为准；实现模块在 1.0 前仍会继续演进。
 

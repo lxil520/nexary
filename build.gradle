@@ -9,17 +9,20 @@ ext {
     junitVersion = '5.10.5'
     caffeineVersion = '3.2.4'
     disruptorVersion = '4.0.0'
+    activeMqClassicVersion = '6.2.6'
     rocketMqVersion = '5.3.1'
     centralReleaseModulePaths = [
             ':nexary-boot:nexary-bom',
             ':nexary-framework:nexary-core',
             ':nexary-framework:nexary-spi',
+            ':nexary-governance:nexary-governance-runtime',
             ':nexary-cache:nexary-cache-api',
             ':nexary-cache:nexary-cache-tiered-internal',
             ':nexary-cache:nexary-cache-redis',
             ':nexary-cache:nexary-cache-redis-spring-boot2',
             ':nexary-cache:nexary-cache-redis-spring-boot4',
             ':nexary-messaging:nexary-messaging-api',
+            ':nexary-messaging:nexary-messaging-activemq-classic',
             ':nexary-messaging:nexary-messaging-disruptor',
             ':nexary-messaging:nexary-messaging-disruptor-spring-boot4',
             ':nexary-messaging:nexary-messaging-kafka',
@@ -36,6 +39,9 @@ ext {
             ':nexary-job:nexary-job-xxljob',
             ':nexary-job:nexary-job-xxljob-spring-boot2',
             ':nexary-job:nexary-job-xxljob-spring-boot4',
+            ':nexary-job:nexary-job-powerjob',
+            ':nexary-job:nexary-job-powerjob-spring-boot2',
+            ':nexary-job:nexary-job-powerjob-spring-boot4',
             ':nexary-job:nexary-job-execution-store-redis',
             ':nexary-job:nexary-job-execution-store-redis-spring-boot2',
             ':nexary-job:nexary-job-execution-store-redis-spring-boot4',
@@ -48,6 +54,7 @@ ext {
             ':nexary-boot:nexary-job-spring-boot-starter',
             ':nexary-boot:nexary-job-spring-boot2-starter',
             ':nexary-boot:nexary-job-spring-boot4-starter',
+            ':nexary-boot:nexary-governance-spring-boot-starter',
             ':nexary-boot:nexary-observation-micrometer-spring-boot-starter'
     ] as Set
     projectWebsite = findProperty('projectWebsite') ?: 'https://github.com/lxil520/nexary'
@@ -59,7 +66,7 @@ ext {
 
 allprojects {
     group = 'org.nexary'
-    version = findProperty('nexaryVersion') ?: '0.2.0-SNAPSHOT'
+    version = findProperty('nexaryVersion') ?: '0.3.0'
 }
 
 configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists() }) {
@@ -95,6 +102,8 @@ configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists()
                 'nexary-job-scheduler-spring-boot4',
                 'nexary-job-xxljob-spring-boot2',
                 'nexary-job-xxljob-spring-boot4',
+                'nexary-job-powerjob-spring-boot2',
+                'nexary-job-powerjob-spring-boot4',
                 'nexary-job-execution-store-redis-spring-boot2',
                 'nexary-job-execution-store-redis-spring-boot4',
                 'nexary-job-spring-boot2-starter',
@@ -313,8 +322,8 @@ tasks.register('compatibilityAudit') {
 
         report('Nexary compatibility audit')
         report('- Boot 3.3 / Java 17 remains the verified mainline.')
-        report('- Boot 2.7 / Java 8 is verified for Cache Redis single-tier, Messaging Redis-only provider/starter, and Job provider/starter within a bounded scope. Remaining unverified scopes are Messaging Disruptor/Kafka/RocketMQ, real XXL-JOB Admin scheduling/executor/callback lifecycle, non-bridge platform trigger execution, PowerJob, and distributed scheduler control plane.')
-        report('- Boot 4.1 / Java 21 is verified per capability for Cache Redis, Messaging provider-by-provider, and bounded Job provider/starter entries. This is not a blanket repository support declaration; dedicated Boot4 BOM, samples, and release closeout still need to progress. Spring documentation remains the source for the official minimum JDK.')
+        report('- Boot 2.7 / Java 8 is verified for Cache Redis/Valkey single-tier, Messaging Redis-only provider/starter, and Job provider/starter within a bounded scope, including local scheduler, XXL-JOB trigger mapping, PowerJob trigger mapping, and Redis completed-record store. Remaining unverified scopes are Messaging Disruptor/Kafka/RocketMQ/ActiveMQ Classic, real XXL-JOB or PowerJob platform scheduling/worker lifecycle/callback lifecycle, non-bridge platform trigger execution, and distributed scheduler control plane.')
+        report('- Boot 4.1 / Java 21 is verified per capability for Cache Redis/Valkey, Messaging provider-by-provider, and bounded Job provider/starter entries, including local scheduler, XXL-JOB trigger mapping, PowerJob trigger mapping, and Redis completed-record store. This is not a blanket repository support declaration; dedicated Boot4 BOM and broader samples can progress later. Spring documentation remains the source for the official minimum JDK.')
 
         def totalCompatibilityBlockers = 0
         patterns.each { label, pattern ->

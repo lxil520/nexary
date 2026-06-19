@@ -1,0 +1,19 @@
+spring:
+  config:
+    activate:
+      on-profile: activemq-classic
+
+nexary:
+  messaging:
+    provider: activemq-classic
+    activemq-classic:
+      enabled: true
+      # Local ActiveMQ Classic broker. Nexary maps sample topics to JMS queue names.
+      broker-url: tcp://127.0.0.1:61616
+      # Duplicate-consumption protection window for the Nexary consume path.
+      deduplication-ttl: 1h
+      # ActiveMQ Classic/JMS types stay inside the provider; business code uses Nexary APIs.
+      retry-max-attempts: 3
+      retry-initial-delay: 1s
+      retry-backoff-strategy: fixed
+      retry-max-backoff: 30s

@@ -1,0 +1,15 @@
+dependencies {
+    api project(':nexary-job:nexary-job-api')
+    implementation project(':nexary-framework:nexary-core')
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot4Version}")
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework:spring-context'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation enforcedPlatform("org.junit:junit-bom:${rootProject.ext.junitVersion}")
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}

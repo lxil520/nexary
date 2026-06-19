@@ -27,6 +27,7 @@ public class RedisCacheCounterClient implements CacheCounterClient {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final NexaryObservationPublisher observationPublisher;
+    private final String providerName;
 
     public RedisCacheCounterClient(StringRedisTemplate stringRedisTemplate) {
         this(stringRedisTemplate, NexaryObservationPublisher.noop());
@@ -35,8 +36,16 @@ public class RedisCacheCounterClient implements CacheCounterClient {
     public RedisCacheCounterClient(
             StringRedisTemplate stringRedisTemplate,
             NexaryObservationPublisher observationPublisher) {
+        this(stringRedisTemplate, observationPublisher, RedisProtocolCacheProviderCondition.REDIS);
+    }
+
+    public RedisCacheCounterClient(
+            StringRedisTemplate stringRedisTemplate,
+            NexaryObservationPublisher observationPublisher,
+            String providerName) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.providerName = RedisProtocolCacheProviderCondition.normalize(providerName);
     }
 
     @Override
@@ -57,16 +66,10 @@ public class RedisCacheCounterClient implements CacheCounterClient {
                     asLong(result.get(0)),
                     asLong(result.get(1)) == 1,
                     asLong(result.get(2)) == 1);
-            RedisCacheObservation.publish(observationPublisher, operation, "none", "success", startedAt);
+            publish(operation, "none", "success", startedAt);
             return mutation;
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    operation,
-                    "none",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish(operation, "none", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -77,19 +80,13 @@ public class RedisCacheCounterClient implements CacheCounterClient {
         try {
             String value = stringRedisTemplate.opsForValue().get(key.qualified());
             if (value == null) {
-                RedisCacheObservation.publish(observationPublisher, "cache.counter_current", "none", "miss", startedAt);
+                publish("cache.counter_current", "none", "miss", startedAt);
                 return OptionalLong.empty();
             }
-            RedisCacheObservation.publish(observationPublisher, "cache.counter_current", "none", "hit", startedAt);
+            publish("cache.counter_current", "none", "hit", startedAt);
             return OptionalLong.of(Long.parseLong(value));
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.counter_current",
-                    "none",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.counter_current", "none", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
     }
@@ -100,19 +97,20 @@ public class RedisCacheCounterClient implements CacheCounterClient {
         try {
             Boolean result = stringRedisTemplate.delete(key.qualified());
             boolean deleted = Boolean.TRUE.equals(result);
-            RedisCacheObservation.publish(
-                    observationPublisher, "cache.counter_clear", "none", deleted ? "success" : "miss", startedAt);
+            publish("cache.counter_clear", "none", deleted ? "success" : "miss", startedAt);
             return deleted;
         } catch (RuntimeException ex) {
-            RedisCacheObservation.publish(
-                    observationPublisher,
-                    "cache.counter_clear",
-                    "none",
-                    "failure",
-                    RedisCacheObservation.failureCategory(ex),
-                    startedAt);
+            publish("cache.counter_clear", "none", "failure", RedisCacheObservation.failureCategory(ex), startedAt);
             throw ex;
         }
+    }
+
+    private void publish(String operation, String tier, String outcome, Instant startedAt) {
+        RedisCacheObservation.publishForProvider(observationPublisher, providerName, operation, tier, outcome, startedAt);
+    }
+
+    private void publish(String operation, String tier, String outcome, String failure, Instant startedAt) {
+        RedisCacheObservation.publishForProvider(observationPublisher, providerName, operation, tier, outcome, failure, startedAt);
     }
 
     private long ttlMillis(Duration ttl) {

@@ -2,15 +2,16 @@ spring:
   data:
     redis:
       # Local middleware defaults from scripts/middleware/docker-compose.yml.
-      # Override with environment variables when Redis runs elsewhere.
+      # This is the Redis-protocol connection used for Redis or Valkey.
+      # For local Valkey, set NEXARY_SAMPLE_CACHE_PROVIDER=valkey and NEXARY_SAMPLE_REDIS_PORT=16380.
       host: ${NEXARY_SAMPLE_REDIS_HOST:127.0.0.1}
       port: ${NEXARY_SAMPLE_REDIS_PORT:16379}
 
 nexary:
   cache:
     # Starter selector path: the Nexary cache starter aggregates API + provider.
-    # provider=redis lets nexary-cache-redis auto-configure the CacheClient.
-    provider: redis
+    # provider=redis targets Redis; provider=valkey targets Valkey through the same Redis-protocol provider.
+    provider: ${NEXARY_SAMPLE_CACHE_PROVIDER:redis}
     sample:
       mode: redis
     redis:

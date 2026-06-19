@@ -1,6 +1,6 @@
 # nexary-sample-cache
 
-This sample shows how a Spring Boot service uses Nexary Cache. Business code uses `CacheClient` / `CacheCounterClient`; Redis is wired by the starter and `nexary.cache.*` configuration.
+Cache starter integration sample. It shows how a business service uses only the Nexary cache API while the starter aggregates cache capabilities and `nexary.cache.*` selects the underlying provider.
 
 This module does not implement a provider, does not hand-write `RedisTemplate`, and does not expose Redis, Spring Data Redis, or Caffeine native types to business code.
 
@@ -17,9 +17,9 @@ org.nexary.samples.cache.common
   Profile / LockResult DTOs
 ```
 
-## Dependencies
+## Dependency Mode
 
-This runnable sample uses Spring Boot 3.3.x + Java 17+. If you use Boot2 or Boot4, the business code stays the same and only the starter changes.
+This runnable sample uses the Spring Boot 3.3.x + Java 17+ line. The table below lists the verified Cache starter coordinates; the business code shape stays the same.
 
 | Spring Boot | JDK | Status | Cache Starter |
 | --- | --- | --- | --- |
@@ -27,7 +27,9 @@ This runnable sample uses Spring Boot 3.3.x + Java 17+. If you use Boot2 or Boot
 | Spring Boot 2.7.x | Java 8+ | Redis single-tier is verified; tiered local cache is not included | `nexary-cache-spring-boot2-starter` |
 | Spring Boot 4.1.x | Java 21 primary validation runtime | Cache Redis provider/starter verified; not whole-repository Boot4 support | `nexary-cache-spring-boot4-starter` |
 
-The current development version is `0.2.0-SNAPSHOT`. After Maven Central publication, replace it with the latest release / tag version. The Boot4 / Java21 wording is only Nexary Cache's primary validation runtime; it is not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+The current development version is `0.3.0`. After Maven Central publication, replace it with the latest release / tag version. The Boot4 / Java21 wording is only Nexary Cache's primary validation runtime; it is not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+
+Valkey is a v0.3 Redis-protocol deployment target. This sample does not add Valkey-specific business code; it keeps the same starter and the same controller/service code, and switches with `NEXARY_SAMPLE_CACHE_PROVIDER=valkey` plus the Valkey port.
 
 `build.gradle` uses the starter:
 
@@ -39,7 +41,7 @@ implementation project(':nexary-boot:nexary-cache-spring-boot-starter')
 Copy this in an external Spring Boot 3.3.x / Java 17+ service:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -51,7 +53,7 @@ Copy this in an external Spring Boot 2.7.x / Java 8+ Redis single-tier service:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-spring-boot2-starter:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-spring-boot2-starter:0.3.0"
 }
 ```
 
@@ -59,11 +61,11 @@ Copy this in an external Spring Boot 4.1.x / Java 21 primary-validation-runtime 
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-spring-boot4-starter:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-spring-boot4-starter:0.3.0"
 }
 ```
 
-The starter brings in the cache API and provider. Business code injects `CacheClient` and `CacheCounterClient`; switching providers should not change controller/service code.
+The starter aggregates the cache API and optional providers. Business code injects Nexary abstractions such as `CacheClient` and `CacheCounterClient`; switching providers must not change controller/service code.
 
 ## Configuration
 
@@ -72,7 +74,7 @@ The starter brings in the cache API and provider. Business code injects `CacheCl
 ```yaml
 nexary:
   cache:
-    provider: redis
+    provider: ${NEXARY_SAMPLE_CACHE_PROVIDER:redis}
     redis:
       default-ttl: 10m
       local-ttl: 30s
@@ -86,6 +88,16 @@ nexary:
 ```
 
 Local Redis defaults to `127.0.0.1:16379`. Override with `NEXARY_SAMPLE_REDIS_HOST` and `NEXARY_SAMPLE_REDIS_PORT`.
+
+Local Valkey is included in the same middleware stack on port `16380`. Switch without changing business code:
+
+```bash
+NEXARY_SAMPLE_CACHE_PROVIDER=valkey \
+NEXARY_SAMPLE_REDIS_PORT=16380 \
+./gradlew :nexary-samples:nexary-sample-cache:run
+```
+
+The sample still uses Spring Boot's Redis-protocol connection settings; business code does not import Redis, Valkey, Lettuce, or Spring Data Redis native types.
 
 ## Run
 
@@ -155,9 +167,9 @@ Allowed tags are bounded fields only: `capability`, `operation`, `provider`, `ti
 - `POST /examples/cache/locks/{id}` demonstrates owner-token based release, renewal, and optional fencing token only. It is not a complete distributed coordination pattern.
 - Do not use tiered cache for counters, balances, inventory, permissions, order status, or other values that require strong cross-node freshness; keep those data paths Redis-only or use a dedicated consistency model.
 
-## Without the Starter
+## SPI / Provider Dependency Mode
 
-If you want to manage the dependencies yourself, use this separate sample:
+non-starter dependency integration lives in a separate module:
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache-spi-redis:run
@@ -166,7 +178,7 @@ If you want to manage the dependencies yourself, use this separate sample:
 Its production dependency shape is:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -179,8 +191,8 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.2.0-SNAPSHOT"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-api:0.3.0"
+    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.3.0"
 }
 ```
 
@@ -188,8 +200,8 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.2.0-SNAPSHOT"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-api:0.3.0"
+    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.3.0"
 }
 ```
 

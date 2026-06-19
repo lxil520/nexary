@@ -1,12 +1,12 @@
 # nexary-sample-messaging-spi-disruptor
 
-这个样例不走 starter，只手动加入 Messaging API 和 Disruptor provider。
+这是 Messaging 的 不用 starter 的依赖方式 引入样例：只引入 `nexary-messaging-api` 和 `nexary-messaging-disruptor`。
 
-业务代码只使用 `org.nexary.messaging.*`，不直接创建 Disruptor bus。以后要换 Kafka、Redis 或 RocketMQ，通常改依赖和配置就够了，controller、发送入口和 consumer 不需要跟着重写。
+业务代码仍然只使用 `org.nexary.messaging.*`，不直接创建 Disruptor bus。切换到其它 provider 时，新建/使用对应 provider SPI 样例模块并调整依赖，不改 facade、controller、consumer。
 
-样例业务包：`org.nexary.samples.messaging.spi.disruptor.*`。consumer 只实现 `NexaryMessageHandler` 并标注 `@NexaryMessageListener`；provider 加载、订阅注册和重复消费保护由 Nexary Disruptor provider 接上。
+样例业务包：`org.nexary.samples.messaging.spi.disruptor.*`。consumer 只实现 Nexary `NexaryMessageHandler` 并标注 `@NexaryMessageListener`；provider 加载、订阅注册和重复消费保护由 Nexary Disruptor provider 自动配置完成。
 
-失败处理也不用写到 consumer 里：`MessageRetryPolicy` 控制重试次数，耗尽后写入 `MessageDeadLetterRecord`。这个样例不处理 Disruptor 原生对象，也不承诺 exactly-once。
+失败处理同样由 Nexary 统一完成：`MessageRetryPolicy` 控制有界重试，耗尽后写入 `MessageDeadLetterRecord`。业务 consumer 不处理 Disruptor 原生对象，也不声明 exactly-once。
 
 发送侧核心用法：
 

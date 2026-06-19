@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import org.junit.jupiter.api.Test;
 import org.nexary.job.NexaryJobOperations;
+import org.nexary.job.powerjob.boot4.PowerJobAutoConfiguration;
 import org.nexary.job.scheduler.boot4.LocalJobSchedulerAutoConfiguration;
 import org.nexary.job.store.redis.boot4.RedisJobExecutionStoreAutoConfiguration;
 import org.nexary.job.xxljob.boot4.XxlJobAutoConfiguration;
@@ -19,6 +20,8 @@ class JobBoot4StarterDependencyTest {
                 .isEqualTo("org.nexary.job.scheduler.boot4.LocalJobSchedulerAutoConfiguration");
         assertThat(XxlJobAutoConfiguration.class.getName())
                 .isEqualTo("org.nexary.job.xxljob.boot4.XxlJobAutoConfiguration");
+        assertThat(PowerJobAutoConfiguration.class.getName())
+                .isEqualTo("org.nexary.job.powerjob.boot4.PowerJobAutoConfiguration");
         assertThat(RedisJobExecutionStoreAutoConfiguration.class.getName())
                 .isEqualTo("org.nexary.job.store.redis.boot4.RedisJobExecutionStoreAutoConfiguration");
 
@@ -28,6 +31,7 @@ class JobBoot4StarterDependencyTest {
             String imports = read(stream);
             assertThat(imports).contains("org.nexary.job.scheduler.boot4.LocalJobSchedulerAutoConfiguration");
             assertThat(imports).contains("org.nexary.job.xxljob.boot4.XxlJobAutoConfiguration");
+            assertThat(imports).contains("org.nexary.job.powerjob.boot4.PowerJobAutoConfiguration");
             assertThat(imports).contains("org.nexary.job.store.redis.boot4.RedisJobExecutionStoreAutoConfiguration");
         }
     }

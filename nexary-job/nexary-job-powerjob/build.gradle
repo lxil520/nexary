@@ -1,0 +1,7 @@
+dependencies {
+    api project(':nexary-job:nexary-job-api')
+    implementation project(':nexary-framework:nexary-core')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework:spring-context'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}

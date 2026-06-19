@@ -1,6 +1,6 @@
 # nexary-sample-job-spi-scheduler
 
-这个样例不使用 starter，只手动引入 Job API 和本地 scheduler provider。
+这是 Job 能力的 不用 starter 的依赖方式 样例，且只展示 local scheduler provider。
 
 ## 引入方式
 
@@ -15,7 +15,7 @@ runtimeOnly project(':nexary-job:nexary-job-scheduler')
 Spring Boot 3.3 / Java 17+ local scheduler provider：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "org.nexary:nexary-job-scheduler:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ local scheduler provider：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 ```
@@ -31,14 +31,14 @@ runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 主验证运行时 local scheduler provider：
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 implementation "org.nexary:nexary-job-api:${nexaryVersion}"
 runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
 
-业务代码只使用 `org.nexary.job.*`，不依赖本地 scheduler 类型。
+业务代码只使用 `org.nexary.job.*`，不依赖 provider 类型。
 
-业务 job 仍然只是普通 Spring 组件：
+业务 job 代码仍然只是普通 Spring 组件：
 
 ```java
 @Component
@@ -64,16 +64,7 @@ public class SampleBusinessJob implements NexaryJob {
 nexary:
   job:
     provider: local
-    scheduler:
-      schedules:
-        - job-name: sample-business-job
-          cron: "0 */10 * * * *"
-          enabled: true
-          single-instance: true
-          shard-total: 1
 ```
-
-`job-name` 必须等于 `NexaryJob.name()`。
 
 ## 运行
 

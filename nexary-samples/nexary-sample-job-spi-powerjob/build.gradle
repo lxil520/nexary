@@ -1,0 +1,27 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    // Use this path when the service does not want the all-in-one job starter:
+    // - currently verified for Spring Boot 3.3.x + Java 17+.
+    // - published artifactIds after release are shown in this sample README
+    //   with the Nexary BOM/version in the same copyable block.
+    // - Boot2 and Boot4 services should use the matching Spring Boot version-line
+    //   provider artifact shown in the README.
+    // - business code uses only org.nexary.job.* abstractions.
+    // - this module introduces exactly one provider: the PowerJob bridge.
+    // - switching to the local scheduler means using nexary-sample-job-spi-scheduler
+    //   or changing the provider dependency/configuration, not changing business code.
+    // - durable execution records are optional; see the README for the
+    //   BOM-backed Redis execution store dependency when needed.
+    implementation project(':nexary-job:nexary-job-api')
+    runtimeOnly project(':nexary-job:nexary-job-powerjob')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.job.spi.powerjob.JobSpiPowerJobSampleApplication'
+}

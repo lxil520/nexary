@@ -1,12 +1,12 @@
 # nexary-sample-cache-spi-redis
 
-This sample skips the starter and adds the Cache API plus the Redis provider by hand.
+Cache non-starter dependency integration sample. It shows business code compiling against `nexary-cache-api` while the concrete provider is introduced by a separate dependency.
 
-Business code compiles against `nexary-cache-api`; Redis is attached through a runtime dependency. This module does not depend on `nexary-cache-spring-boot-starter`, does not add provider wiring classes, and does not hand-write `RedisTemplate`.
+This module does not depend on `nexary-cache-spring-boot-starter`, does not contain provider wiring classes, and does not hand-write `RedisTemplate`.
 
 ## Dependency Mode
 
-This runnable sample uses Spring Boot 3.3.x + Java 17+. If your project is on Boot2 or Boot4, business code still uses `CacheClient`; the main change is the provider coordinate.
+This runnable sample uses the Spring Boot 3.3.x + Java 17+ line. It does not use the starter; it shows the API + Redis provider dependency mode. The table below lists the verified Cache provider coordinates.
 
 | Spring Boot | JDK | Status | API / Provider Dependencies |
 | --- | --- | --- | --- |
@@ -14,7 +14,9 @@ This runnable sample uses Spring Boot 3.3.x + Java 17+. If your project is on Bo
 | Spring Boot 2.7.x | Java 8+ | Redis single-tier is verified; tiered local cache is not included | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
 | Spring Boot 4.1.x | Java 21 primary validation runtime | Cache Redis provider verified; not whole-repository Boot4 support | `nexary-cache-api` + `nexary-cache-redis-spring-boot4` |
 
-The current development version is `0.2.0-SNAPSHOT`. After Maven Central publication, replace it with the latest release / tag version. The Boot4 / Java21 wording is only Nexary Cache's primary validation runtime; it is not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+The current development version is `0.3.0`. After Maven Central publication, replace it with the latest release / tag version. The Boot4 / Java21 wording is only Nexary Cache's primary validation runtime; it is not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+
+Valkey is a v0.3 Redis-protocol deployment target. This sample does not add Valkey-specific business code; it keeps `nexary-cache-api` + `nexary-cache-redis` and switches with `NEXARY_SAMPLE_CACHE_PROVIDER=valkey` plus the Valkey port.
 
 `build.gradle`:
 
@@ -27,7 +29,7 @@ runtimeOnly project(':nexary-cache:nexary-cache-redis')
 Copy this in an external Spring Boot 3.3.x / Java 17+ service:
 
 ```groovy
-def nexaryVersion = "0.2.0-SNAPSHOT"
+def nexaryVersion = "0.3.0"
 
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -40,8 +42,8 @@ Copy this in an external Spring Boot 2.7.x / Java 8+ Redis single-tier service:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.2.0-SNAPSHOT"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-api:0.3.0"
+    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.3.0"
 }
 ```
 
@@ -49,8 +51,8 @@ Copy this in an external Spring Boot 4.1.x / Java 21 primary-validation-runtime 
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.2.0-SNAPSHOT"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.2.0-SNAPSHOT"
+    implementation "org.nexary:nexary-cache-api:0.3.0"
+    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.3.0"
 }
 ```
 
@@ -63,7 +65,7 @@ To switch providers, change the provider dependency and `nexary.cache.provider` 
 ```yaml
 nexary:
   cache:
-    provider: redis
+    provider: ${NEXARY_SAMPLE_CACHE_PROVIDER:redis}
     redis:
       default-ttl: 10m
       local-ttl: 30s
@@ -77,6 +79,16 @@ nexary:
 ```
 
 Local Redis defaults to `127.0.0.1:16379`. Override with `NEXARY_SAMPLE_REDIS_HOST` and `NEXARY_SAMPLE_REDIS_PORT`.
+
+Local Valkey is included in the same middleware stack on port `16380`. Switch without changing business code:
+
+```bash
+NEXARY_SAMPLE_CACHE_PROVIDER=valkey \
+NEXARY_SAMPLE_REDIS_PORT=16380 \
+./gradlew :nexary-samples:nexary-sample-cache-spi-redis:run
+```
+
+The sample still uses the Redis-protocol provider dependency and connection settings; business code does not import Redis, Valkey, Lettuce, or Spring Data Redis native types.
 
 ## Run
 

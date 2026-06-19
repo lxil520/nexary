@@ -1,6 +1,6 @@
 # 快速开始
 
-先把依赖接起来，再跑一个样例。这里不展开设计细节，只保留安装、配置和验证命令。
+这个页面尽量保持短小直接，优先解决“怎么装、怎么配、怎么跑”。
 
 ## 环境要求
 
@@ -8,49 +8,49 @@
 - 当前已验证：Spring Boot 2.7 + Java 8+ 的 Cache Redis 单级缓存入口
 - 当前已验证：Spring Boot 2.7 + Java 8+ 的 Messaging Redis-only 入口
 - 当前已验证：Spring Boot 2.7 + Java 8+ 的 Job 受限边界入口
-- 当前已验证：Spring Boot 4.1 + Java 21 主验证运行时的 Cache、Messaging 分 provider 接入和 Job 受限边界入口
+- 当前已验证：Spring Boot 4.1 + Java 21 主验证运行时的 Cache、Messaging provider-by-provider 和 Job 受限边界入口
 - Gradle 8.x，或支持 BOM 的 Maven
 
 ## 安装方式
 
 ### 1. 选择版本
 
-Nexary 当前还没有 Maven Central 正式版本。现在只能先本地安装 `0.2.0-SNAPSHOT`：
+当前源码版本是 `0.3.0`。如果 Maven Central 还没有同步到这个版本，可以先从 GitHub tag `v0.3.0` 构建并安装到本地：
 
 ```bash
 ./gradlew publishToMavenLocal
 ```
 
-正式发布后，版本选择规则和成熟框架一致：
+正式发布到 Maven Central 后，版本选择规则和成熟框架一致：
 
 - 优先使用 Maven Central 显示的 Latest Version。
-- 也可以使用 GitHub Releases / Tags 中的版本号，例如 `v0.2.0` 对应依赖版本 `0.2.0`。
+- 也可以使用 GitHub Releases / Tags 中的版本号，例如 `v0.3.0` 对应依赖版本 `0.3.0`。
 
-不要把 `main` 分支提交号或未发布的 `0.2.0-SNAPSHOT` 当作生产依赖版本。
+不要把 `main` 分支提交号当作生产依赖版本。
 
 ### 2. 选择 Spring Boot / JDK 入口
 
 | Spring Boot | JDK | 状态 | BOM | Starter artifactId |
 | --- | --- | --- | --- | --- |
-| Spring Boot 3.3 | Java 17+ | 当前已验证 | `nexary-bom` | `nexary-cache-spring-boot-starter`<br>`nexary-messaging-spring-boot-starter`<br>`nexary-job-spring-boot-starter`<br>`nexary-observation-micrometer-spring-boot-starter` |
-| Spring Boot 2.7 | Java 8+ | Cache Redis 单级缓存已验证；Messaging Redis-only 已验证；Job 受限边界已验证 | 当前入口使用直接版本；专用 BOM 另行发布时再切换 | 已验证：`nexary-cache-spring-boot2-starter`<br>已验证：`nexary-messaging-spring-boot2-starter`<br>已验证：`nexary-job-spring-boot2-starter` |
-| Spring Boot 4.1 | Java 21 主验证运行时 | Cache Redis 已验证；Messaging provider-by-provider 已验证；Job 受限边界已验证；不是全仓库 Boot4 支持 | 当前入口使用直接版本；专用 BOM 另行发布时再切换 | 已验证：`nexary-cache-spring-boot4-starter`<br>已验证：`nexary-messaging-spring-boot4-starter` 加一个 Boot4 provider artifact<br>已验证：`nexary-job-spring-boot4-starter` |
+| Spring Boot 3.3 | Java 17+ | 当前已验证 | `nexary-bom` | `nexary-cache-spring-boot-starter`<br>`nexary-messaging-spring-boot-starter`<br>`nexary-job-spring-boot-starter`<br>`nexary-observation-micrometer-spring-boot-starter`<br>`nexary-governance-spring-boot-starter` |
+| Spring Boot 2.7 | Java 8+ | Cache Redis/Valkey 单级缓存、Messaging Redis-only、Job local/XXL-JOB/PowerJob bridge 已验证 | 当前入口使用直接版本；专用 BOM 另行发布时再切换 | `nexary-cache-spring-boot2-starter`<br>`nexary-messaging-spring-boot2-starter`<br>`nexary-job-spring-boot2-starter` |
+| Spring Boot 4.1 | Java 21 主验证运行时 | Cache Redis/Valkey、Messaging 按 provider、Job local/XXL-JOB/PowerJob bridge 已验证；不是全仓库 Boot4 支持 | 当前入口使用直接版本；专用 BOM 另行发布时再切换 | `nexary-cache-spring-boot4-starter`<br>`nexary-messaging-spring-boot4-starter` 加一个 Boot4 provider artifact<br>`nexary-job-spring-boot4-starter` |
 
-下面只展示已经验证过的接入方式。
+下面展示当前已验证的 Spring Boot 3.3 / Java 17+ 全模块入口、Spring Boot 2.7 / Java 8+ 入口，以及 Spring Boot 4.1 / Java 21 主验证运行时入口。
 
 ### 3. Gradle
 
 先引入 BOM，再按需要引入 starter。
 
 ```groovy
-// 当前只能本地使用 0.2.0-SNAPSHOT；正式发布后替换为 Maven Central Latest Version 或 tag 版本。
-def nexaryVersion = "0.2.0-SNAPSHOT"
+// Maven Central 同步后也可以替换为 Latest Version。
+def nexaryVersion = "0.3.0"
 
 dependencies {
     // 使用 BOM 锁定 Nexary 模块版本；正式发布后使用 Latest Version 或 tag 版本。
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
 
-    // 按需要引入 starter，业务代码只依赖 Nexary API。
+    // Starter 模式：按能力引入，业务代码只依赖 Nexary API。
     implementation 'org.nexary:nexary-cache-spring-boot-starter'
     implementation 'org.nexary:nexary-messaging-spring-boot-starter'
     implementation 'org.nexary:nexary-job-spring-boot-starter'
@@ -64,8 +64,8 @@ dependencies {
 
 ```xml
 <properties>
-  <!-- 当前只能本地使用 0.2.0-SNAPSHOT；正式发布后替换为 Maven Central Latest Version 或 tag 版本。 -->
-  <nexary.version>0.2.0-SNAPSHOT</nexary.version>
+  <!-- Maven Central 同步后也可以替换为 Latest Version。 -->
+  <nexary.version>0.3.0</nexary.version>
 </properties>
 
 <dependencyManagement>
@@ -105,7 +105,7 @@ Boot2 当前只验证 Cache Redis 单级缓存，不包含 tiered local cache。
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-cache-spring-boot2-starter:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-cache-spring-boot2-starter:0.3.0'
 }
 ```
 
@@ -114,7 +114,7 @@ dependencies {
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-cache-spring-boot2-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
   </dependency>
 </dependencies>
 ```
@@ -128,11 +128,11 @@ nexary:
 
 ### 6. Spring Boot 2.7 / Java 8+ Messaging Redis-only
 
-Boot2 Messaging 当前只验证 Redis-only provider/starter。Disruptor、Kafka、RocketMQ 的 Boot2/JDK8 入口仍待独立验证。
+Boot2 Messaging 当前只验证 Redis-only provider/starter。Disruptor、Kafka、RocketMQ、ActiveMQ Classic 的 Boot2/JDK8 入口仍待独立验证。
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-messaging-spring-boot2-starter:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-messaging-spring-boot2-starter:0.3.0'
 }
 ```
 
@@ -141,7 +141,7 @@ dependencies {
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-messaging-spring-boot2-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
   </dependency>
 </dependencies>
 ```
@@ -156,11 +156,11 @@ nexary:
 
 ### 7. Spring Boot 2.7 / Java 8+ Job
 
-Boot2 Job 验证统一 Job API、本地 scheduler、XXL-JOB bridge 入口，以及可选 Redis 已完成执行记录存储。不声明真实 XXL-JOB Admin 调度、executor 注册生命周期、回调生命周期、平台触发执行、PowerJob、分布式调度控制面或 exactly-once 执行。
+Boot2 Job 当前验证 Job API、本地 scheduler、XXL-JOB 触发映射、PowerJob 触发映射，以及可选 Redis completed-record execution store；不声明真实 XXL-JOB / PowerJob 平台调度、worker/executor 注册生命周期、完整回调流程、平台托管触发、分布式调度控制面、exactly-once 或运行中强取消。
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-job-spring-boot2-starter:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-job-spring-boot2-starter:0.3.0'
 }
 ```
 
@@ -169,7 +169,7 @@ dependencies {
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-job-spring-boot2-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
   </dependency>
 </dependencies>
 ```
@@ -188,7 +188,7 @@ nexary:
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-cache-spring-boot4-starter:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-cache-spring-boot4-starter:0.3.0'
 }
 ```
 
@@ -197,19 +197,19 @@ dependencies {
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-cache-spring-boot4-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
   </dependency>
 </dependencies>
 ```
 
 ### 9. Spring Boot 4.1 / Java 21 Messaging
 
-Boot4 Messaging starter 不会自动带上所有 provider。必须再选择恰好一个 Boot4 provider artifact。下面是 Redis provider 示例，可直接复制使用。
+Boot4 Messaging starter 只提供 Nexary 消息公共 API 和自动配置入口。必须再选择恰好一个 Boot4 provider artifact。下面是 Redis provider 示例，可直接复制使用。
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-messaging-spring-boot4-starter:0.2.0-SNAPSHOT'
-    runtimeOnly 'org.nexary:nexary-messaging-redis-boot4:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-messaging-spring-boot4-starter:0.3.0'
+    runtimeOnly 'org.nexary:nexary-messaging-redis-spring-boot4:0.3.0'
 }
 ```
 
@@ -218,26 +218,26 @@ dependencies {
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-messaging-spring-boot4-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
   </dependency>
   <dependency>
     <groupId>org.nexary</groupId>
-    <artifactId>nexary-messaging-redis-boot4</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <artifactId>nexary-messaging-redis-spring-boot4</artifactId>
+    <version>0.3.0</version>
     <scope>runtime</scope>
   </dependency>
 </dependencies>
 ```
 
-Boot4 Messaging provider artifactId：`nexary-messaging-disruptor-boot4`、`nexary-messaging-redis-boot4`、`nexary-messaging-kafka-boot4`、`nexary-messaging-rocketmq-boot4`。每个服务默认只选择一个。
+Boot4 Messaging provider artifactId：`nexary-messaging-disruptor-spring-boot4`、`nexary-messaging-redis-spring-boot4`、`nexary-messaging-kafka-spring-boot4`、`nexary-messaging-rocketmq-spring-boot4`。每个服务默认只选择一个。
 
 ### 10. Spring Boot 4.1 / Java 21 Job
 
-Boot4 Job 验证本地 scheduler、XXL-JOB bridge 触发映射和可选 Redis 已完成执行记录存储，不声明完整 XXL-JOB Admin 生命周期、PowerJob、分布式调度控制面或 exactly-once。
+Boot4 Job 验证本地 scheduler、XXL-JOB 触发映射、PowerJob 触发映射和可选 Redis completed-record execution store；不声明完整 XXL-JOB / PowerJob 平台生命周期、分布式调度控制面、exactly-once 或运行中强取消。
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-job-spring-boot4-starter:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-job-spring-boot4-starter:0.3.0'
 }
 ```
 
@@ -246,7 +246,7 @@ dependencies {
   <dependency>
     <groupId>org.nexary</groupId>
     <artifactId>nexary-job-spring-boot4-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
   </dependency>
 </dependencies>
 ```
@@ -256,8 +256,8 @@ dependencies {
 不用 starter 时，业务代码仍只依赖 Nexary API。具体 provider 通过运行时依赖和配置选择：
 
 ```groovy
-// 当前只能本地使用 0.2.0-SNAPSHOT；正式发布后替换为 Maven Central Latest Version 或 tag 版本。
-def nexaryVersion = "0.2.0-SNAPSHOT"
+// Maven Central 同步后也可以替换为 Latest Version。
+def nexaryVersion = "0.3.0"
 
 dependencies {
     implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
@@ -274,26 +274,27 @@ Boot2 / Java8+ 的 Messaging SPI/provider 当前只验证 Redis-only：
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-messaging-api:0.2.0-SNAPSHOT'
-    runtimeOnly 'org.nexary:nexary-messaging-redis-spring-boot2:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-messaging-api:0.3.0'
+    runtimeOnly 'org.nexary:nexary-messaging-redis-spring-boot2:0.3.0'
 }
 ```
 
-Boot2 / Java8+ 的 Job SPI/provider 当前验证本地 scheduler、XXL-JOB bridge 和 Redis completed-record store。只需要本地调度时使用下面这段：
+Boot2 / Java8+ 的 Job 不用 starter 时，当前验证本地 scheduler、XXL-JOB 触发映射、PowerJob 触发映射和 Redis completed-record store。只需要本地调度时使用下面这段：
 
 ```groovy
 dependencies {
-    implementation 'org.nexary:nexary-job-api:0.2.0-SNAPSHOT'
-    runtimeOnly 'org.nexary:nexary-job-scheduler-spring-boot2:0.2.0-SNAPSHOT'
+    implementation 'org.nexary:nexary-job-api:0.3.0'
+    runtimeOnly 'org.nexary:nexary-job-scheduler-spring-boot2:0.3.0'
 }
 ```
 
-需要 XXL-JOB bridge 或 Redis completed-record store 时，再分别加入：
+需要 XXL-JOB、PowerJob 或 Redis completed-record store 时，再分别加入：
 
 ```groovy
 dependencies {
-    runtimeOnly 'org.nexary:nexary-job-xxljob-spring-boot2:0.2.0-SNAPSHOT'
-    runtimeOnly 'org.nexary:nexary-job-execution-store-redis-spring-boot2:0.2.0-SNAPSHOT'
+    runtimeOnly 'org.nexary:nexary-job-xxljob-spring-boot2:0.3.0'
+    runtimeOnly 'org.nexary:nexary-job-powerjob-spring-boot2:0.3.0'
+    runtimeOnly 'org.nexary:nexary-job-execution-store-redis-spring-boot2:0.3.0'
 }
 ```
 
@@ -338,7 +339,7 @@ scheduler.schedule(job, JobSchedule.single("demo-job", "0 */5 * * * *"));
 
 ## 运行样例
 
-按你要接的模块选择样例：
+按能力选择专项样例：
 
 ```bash
 ./gradlew :nexary-samples:nexary-sample-cache:run

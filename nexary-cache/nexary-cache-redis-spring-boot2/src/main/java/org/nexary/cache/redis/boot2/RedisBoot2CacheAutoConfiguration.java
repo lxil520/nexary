@@ -8,17 +8,18 @@ import org.nexary.core.observation.NexaryObservationPublisher;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /** Spring Boot 2 auto-configuration for Redis cache support. */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(RedisTemplate.class)
-@ConditionalOnProperty(prefix = "nexary.cache", name = "provider", havingValue = "redis", matchIfMissing = true)
+@Conditional(RedisBoot2ProtocolCacheProviderCondition.class)
 @EnableConfigurationProperties(RedisBoot2CacheProperties.class)
 public class RedisBoot2CacheAutoConfiguration {
     @Bean
@@ -35,7 +36,9 @@ public class RedisBoot2CacheAutoConfiguration {
             RedisTemplate redisTemplate,
             StringRedisTemplate stringRedisTemplate,
             RedisBoot2CacheProperties properties,
+            Environment environment,
             NexaryObservationPublisher observationPublisher) {
+        configureProvider(properties, environment);
         assertTieredUnavailable(properties);
         return new RedisBoot2CacheClient(redisTemplate, stringRedisTemplate, properties, observationPublisher);
     }
@@ -45,8 +48,11 @@ public class RedisBoot2CacheAutoConfiguration {
     @ConditionalOnMissingBean(CacheCounterClient.class)
     public CacheCounterClient cacheCounterClient(
             StringRedisTemplate stringRedisTemplate,
+            RedisBoot2CacheProperties properties,
+            Environment environment,
             NexaryObservationPublisher observationPublisher) {
-        return new RedisBoot2CacheCounterClient(stringRedisTemplate, observationPublisher);
+        configureProvider(properties, environment);
+        return new RedisBoot2CacheCounterClient(stringRedisTemplate, observationPublisher, properties.getProviderName());
     }
 
     @Bean
@@ -57,9 +63,15 @@ public class RedisBoot2CacheAutoConfiguration {
             RedisTemplate redisTemplate,
             StringRedisTemplate stringRedisTemplate,
             RedisBoot2CacheProperties properties,
+            Environment environment,
             NexaryObservationPublisher observationPublisher) {
+        configureProvider(properties, environment);
         assertTieredUnavailable(properties);
         return new RedisBoot2CacheClient(redisTemplate, stringRedisTemplate, properties, observationPublisher);
+    }
+
+    private void configureProvider(RedisBoot2CacheProperties properties, Environment environment) {
+        properties.setProviderName(environment.getProperty("nexary.cache.provider", RedisBoot2ProtocolCacheProviderCondition.REDIS));
     }
 
     private void assertTieredUnavailable(RedisBoot2CacheProperties properties) {

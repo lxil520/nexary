@@ -1,6 +1,8 @@
 package org.nexary.boot.observation.micrometer;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.List;
+import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.observation.NexaryObservationListener;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -27,5 +29,16 @@ public class NexaryObservationMicrometerAutoConfiguration {
             MeterRegistry meterRegistry,
             NexaryObservationMicrometerProperties properties) {
         return new NexaryMicrometerObservationListener(meterRegistry, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(NexaryObservationPublisher.class)
+    @ConditionalOnProperty(
+            prefix = "nexary.observation.micrometer",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public NexaryObservationPublisher nexaryObservationPublisher(List<NexaryObservationListener> listeners) {
+        return NexaryObservationPublisher.fanOut(listeners);
     }
 }

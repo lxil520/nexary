@@ -26,6 +26,14 @@ public class RedisBoot4CacheInvalidationPublisher implements CacheInvalidationPu
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
     }
 
+    public RedisBoot4CacheInvalidationPublisher(
+            StringRedisTemplate stringRedisTemplate,
+            String channel,
+            NexaryObservationPublisher observationPublisher,
+            String providerName) {
+        this(stringRedisTemplate, channel, observationPublisher);
+    }
+
     @Override
     public void publish(CacheInvalidationEvent event) {
         Instant startedAt = Instant.now();

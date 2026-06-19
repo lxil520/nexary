@@ -35,6 +35,14 @@ public final class JobCompatibilityCollections {
         return Collections.unmodifiableList(values);
     }
 
+    /** Returns an immutable defensive copy of a string map. */
+    public static Map<String, String> copyMap(Map<String, String> source) {
+        if (source == null || source.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(source));
+    }
+
     /** Returns a single-entry immutable map. */
     public static Map<String, String> tags(String key, String value) {
         Map<String, String> tags = new LinkedHashMap<>();

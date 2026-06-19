@@ -3,9 +3,11 @@ package org.nexary.job.execution;
 import java.beans.ConstructorProperties;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import org.nexary.job.JobContext;
 import org.nexary.job.JobResult;
+import org.nexary.job.internal.JobCompatibilityCollections;
 
 /** Immutable value for one completed job execution. */
 public final class JobExecutionRecord {
@@ -20,21 +22,9 @@ public final class JobExecutionRecord {
     private final Duration duration;
     private final String message;
     private final String errorMessage;
+    private final Map<String, String> providerMetadata;
 
     /** Creates an immutable value for one completed job execution. */
-    @ConstructorProperties({
-            "executionId",
-            "trigger",
-            "context",
-            "status",
-            "result",
-            "attempts",
-            "startedAt",
-            "endedAt",
-            "duration",
-            "message",
-            "errorMessage"
-    })
     public JobExecutionRecord(
             JobExecutionId executionId,
             JobExecutionTrigger trigger,
@@ -47,6 +37,49 @@ public final class JobExecutionRecord {
             Duration duration,
             String message,
             String errorMessage) {
+        this(
+                executionId,
+                trigger,
+                context,
+                status,
+                result,
+                attempts,
+                startedAt,
+                endedAt,
+                duration,
+                message,
+                errorMessage,
+                null);
+    }
+
+    /** Creates an immutable value for one completed job execution with provider metadata. */
+    @ConstructorProperties({
+            "executionId",
+            "trigger",
+            "context",
+            "status",
+            "result",
+            "attempts",
+            "startedAt",
+            "endedAt",
+            "duration",
+            "message",
+            "errorMessage",
+            "providerMetadata"
+    })
+    public JobExecutionRecord(
+            JobExecutionId executionId,
+            JobExecutionTrigger trigger,
+            JobContext context,
+            JobExecutionStatus status,
+            JobResult result,
+            int attempts,
+            Instant startedAt,
+            Instant endedAt,
+            Duration duration,
+            String message,
+            String errorMessage,
+            Map<String, String> providerMetadata) {
         this.executionId = executionId;
         this.trigger = trigger;
         this.context = context;
@@ -58,6 +91,7 @@ public final class JobExecutionRecord {
         this.duration = duration;
         this.message = message;
         this.errorMessage = errorMessage;
+        this.providerMetadata = JobCompatibilityCollections.copyMap(providerMetadata);
     }
 
     public JobExecutionId executionId() {
@@ -104,6 +138,10 @@ public final class JobExecutionRecord {
         return errorMessage;
     }
 
+    public Map<String, String> providerMetadata() {
+        return providerMetadata;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -123,12 +161,13 @@ public final class JobExecutionRecord {
                 && Objects.equals(endedAt, that.endedAt)
                 && Objects.equals(duration, that.duration)
                 && Objects.equals(message, that.message)
-                && Objects.equals(errorMessage, that.errorMessage);
+                && Objects.equals(errorMessage, that.errorMessage)
+                && Objects.equals(providerMetadata, that.providerMetadata);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(executionId, trigger, context, status, result, attempts, startedAt, endedAt, duration, message, errorMessage);
+        return Objects.hash(executionId, trigger, context, status, result, attempts, startedAt, endedAt, duration, message, errorMessage, providerMetadata);
     }
 
     @Override
@@ -145,6 +184,7 @@ public final class JobExecutionRecord {
                 + ", duration=" + duration
                 + ", message=" + message
                 + ", errorMessage=" + errorMessage
+                + ", providerMetadata=" + providerMetadata
                 + ']';
     }
 }

@@ -12,10 +12,12 @@ dependencies {
     constraints {
         api project(':nexary-framework:nexary-core')
         api project(':nexary-framework:nexary-spi')
+        api project(':nexary-governance:nexary-governance-runtime')
         api project(':nexary-cache:nexary-cache-api')
         api project(':nexary-cache:nexary-cache-redis')
         api project(':nexary-cache:nexary-cache-redis-spring-boot2')
         api project(':nexary-messaging:nexary-messaging-api')
+        api project(':nexary-messaging:nexary-messaging-activemq-classic')
         api project(':nexary-messaging:nexary-messaging-disruptor')
         api project(':nexary-messaging:nexary-messaging-kafka')
         api project(':nexary-messaging:nexary-messaging-redis')
@@ -28,6 +30,9 @@ dependencies {
         api project(':nexary-job:nexary-job-xxljob')
         api project(':nexary-job:nexary-job-xxljob-spring-boot2')
         api project(':nexary-job:nexary-job-xxljob-spring-boot4')
+        api project(':nexary-job:nexary-job-powerjob')
+        api project(':nexary-job:nexary-job-powerjob-spring-boot2')
+        api project(':nexary-job:nexary-job-powerjob-spring-boot4')
         api project(':nexary-job:nexary-job-execution-store-redis')
         api project(':nexary-job:nexary-job-execution-store-redis-spring-boot2')
         api project(':nexary-job:nexary-job-execution-store-redis-spring-boot4')
@@ -38,6 +43,7 @@ dependencies {
         api project(':nexary-boot:nexary-job-spring-boot-starter')
         api project(':nexary-boot:nexary-job-spring-boot2-starter')
         api project(':nexary-boot:nexary-job-spring-boot4-starter')
+        api project(':nexary-boot:nexary-governance-spring-boot-starter')
         api project(':nexary-boot:nexary-observation-micrometer-spring-boot-starter')
     }
 }

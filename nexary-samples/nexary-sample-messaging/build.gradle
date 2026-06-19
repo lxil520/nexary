@@ -13,11 +13,13 @@ dependencies {
     // - keep facade/controller/consumer code on org.nexary.messaging APIs only
     implementation project(':nexary-boot:nexary-messaging-spring-boot-starter')
     // Redis profile needs Spring Boot's Redis connection factory.
-    // Kafka/RocketMQ/Disruptor provider code is not imported by sample business code.
+    // Kafka/RocketMQ/ActiveMQ Classic/Disruptor provider code is not imported by sample business code.
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly platform("org.apache.activemq:activemq-bom:${rootProject.ext.activeMqClassicVersion}")
+    testRuntimeOnly 'org.apache.activemq:activemq-broker'
 }
 
 application {

@@ -1,0 +1,6 @@
+dependencies {
+    api project(':nexary-governance:nexary-governance-runtime')
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

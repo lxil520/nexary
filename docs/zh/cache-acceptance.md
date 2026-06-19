@@ -12,8 +12,8 @@
 - Redis counter 实现必须使用原子 counter 操作，不能进入 `TieredCacheClient` 或 JVM-local L1
 - counter TTL 语义必须明确并测试：TTL 只在首次创建 counter 时设置，后续加减不刷新 TTL
 - owner-token lock regression 必须通过，unlock 仍然只能释放当前 owner
-- 如果实现 fencing token，public API 必须 provider-neutral，Redis token 必须对同一 lock resource 单调递增
+- 如果实现 fencing token，public API 必须 Nexary 层，Redis token 必须对同一 lock resource 单调递增
 - 文档必须说明 fencing token 的获取、携带、受保护资源侧校验方式，并明确不声明 Redlock 或强分布式协调
 - cache 专项样例能说明接入方式
-- 文档与样例不把 showcase 当主验证面
+- 文档与样例不把 综合演示 当主验证面
 - 需要真实验证时，能通过本地验证命令完成 Redis 联调和回归

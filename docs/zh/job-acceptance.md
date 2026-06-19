@@ -6,11 +6,11 @@
 - `JobContext` 能表达任务名、计划时间、分片信息和扩展参数。
 - `JobResult` 使用 enum 状态表达成功或失败，不使用魔法字符串。
 - `JobSchedule` 能表达 cron、单实例执行、分片总数、worker 信息和负载算法。
-- `JobExecutionId`、`JobExecutionRecord`、`JobExecutionStatus` 能表达 provider-neutral 的执行身份和状态。
+- `JobExecutionId`、`JobExecutionRecord`、`JobExecutionStatus` 能表达 Nexary 层 的执行身份和状态。
 - `JobExecutionPolicy` 能表达 timeout、retry attempts/backoff、concurrency behavior、misfire behavior 和 single-instance lock lease。
-- `JobExecutionStore` 是 provider-neutral 的执行记录存储抽象，默认 in-memory，可替换为 durable provider。
+- `JobExecutionStore` 是 Nexary 层 的执行记录存储抽象，默认 in-memory，可替换为 durable provider。
 - 负载算法抽象至少覆盖 `round_robin`、`random`、`consistent_hash`、`least_active`、`first_available`。
-- 公开 API 不暴露 XXL-JOB 或未来 PowerJob 原生类型。
+- 公开 API 不暴露 XXL-JOB 或 PowerJob 原生类型。
 
 ## 本地调度
 
@@ -48,6 +48,7 @@
 - SPI/provider 样例按 provider 独立模块拆分，不把多个 provider 放进一个 SPI 样例模块。
 - `nexary-sample-job-spi-scheduler` 只展示 API + local provider。
 - `nexary-sample-job-spi-xxljob` 只展示 API + XXL-JOB bridge provider。
+- `nexary-sample-job-spi-powerjob` 只展示 API + PowerJob 触发 provider。
 - `local` profile 通过测试展示任务名映射、直接执行和本地调度注册。
 - `xxljob` profile 通过测试展示 bridge 触发形态和分片参数映射。
 - 样例文档明确区分本地调度和 bridge 触发。
@@ -70,9 +71,12 @@
 
 ## PowerJob 边界
 
-- PowerJob 是后续 bridge 方向，不进入当前已实现能力。
-- 未来 PowerJob bridge 应复用 `NexaryJob`、`JobContext`、`JobResult`、`JobExecutionListener`。
-- PowerJob 原生类型不应进入当前公共 API。
+- PowerJob 触发映射复用 `NexaryJob`，不创建第二套公开任务 API。
+- PowerJob 触发映射能把外部平台的分片信息映射到 `JobContext`。
+- PowerJob 触发后仍进入同一条 execution lifecycle 管线，统一 listener、retry、timeout、result mapping 和 execution record。
+- PowerJob 触发必须通过同一个 `JobExecutionStore` 写入记录，并保留 trigger 与 shard metadata。
+- PowerJob Server 调度、worker 注册完整托管、控制台生命周期和完整 callback 生命周期属于 PowerJob 平台能力，不在 Nexary local scheduler 内重复实现。
+- 文档不能把 PowerJob 触发映射说成完整平台生命周期验证。
 
 ## 集成验证
 

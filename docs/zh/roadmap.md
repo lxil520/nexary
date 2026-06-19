@@ -69,7 +69,7 @@
 
 第二批继续围绕现有能力做生产可观测性，不引入新 provider，也不提前建设治理模块。
 
-- Core：补齐 provider-neutral observation 发布入口，复用 `NexaryObservationEvent`，公共 API 不暴露 Micrometer、Actuator 或任意中间件原生类型。
+- Core：补齐 Nexary 层 observation 发布入口，复用 `NexaryObservationEvent`，公共 API 不暴露 Micrometer、Actuator 或任意中间件原生类型。
 - Cache：围绕 get/put/delete/expire、batch、tiered L1/L2 hit/miss、invalidation、lock、counter 输出事件和指标。
 - Messaging：围绕 publish、consume、retry、dead-letter、dedup、provider ack/requeue/recover 输出事件和指标。
 - Job：围绕 trigger、execution status、duration、retry、timeout、skip reason、shard metadata、durable store write/read 输出事件和指标。
@@ -84,7 +84,7 @@
 
 ### `0.2.0-alpha.3`
 
-第三批补齐 Spring Boot 指标桥接，让 `alpha.2` 的 provider-neutral observation events 能直接接入常见指标体系。
+第三批补齐 Spring Boot 指标桥接，让 `alpha.2` 的 Nexary 层 observation events 能直接接入常见指标体系。
 
 - Boot：新增独立 Micrometer bridge starter，把 `NexaryObservationEvent` 转换成 Micrometer counter / timer。
 - Core / capability API：保持不依赖 Micrometer、Actuator 或具体监控后端。
@@ -108,7 +108,7 @@
 - Samples：准备 Boot 2 / Java 8 独立样例，业务代码仍只依赖 Nexary API。
 - CI：建立 Boot 2.7 / Java 8+ 编译、样例运行和 provider 集成 gate。
 
-这批的退出标准不是“文档声明支持”，而是形成明确差距清单、改造方案和可执行 gate。每个能力入口只有通过对应 gate 后，README 才增加 Boot2 已支持依赖片段。
+这批的退出标准不是“文档声明支持”，而是形成明确差距清单、改造方案和可执行 gate。每个模块入口只有通过对应 gate 后，README 才增加 Boot2 已支持依赖片段。
 
 ### `0.2.0-alpha.5`
 
@@ -177,19 +177,25 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 示例工程和文档从“可运行”升级到“可作为接入模板”。
 - GitHub issue / PR 模板、贡献指南、变更日志流程稳定。
 
-## `0.3.x` 治理扩展版
+## `0.3.x` 治理与新 provider 版
 
-`0.3.x` 再开始让治理能力独立成模块。
+`0.3.0` 已经把治理能力独立成模块，并补齐三类常见替换诉求：Cache 的 Valkey 部署目标、Messaging 的 ActiveMQ Classic provider、Job 的 PowerJob bridge。
 
-优先候选：
+`0.3.0` 已纳入：
 
-- 统一观测导出：metrics、trace、audit event。
-- timeout、retry、bulkhead、rate limit、degradation/fallback 等治理策略。
-- 服务治理模块原型。
-- 跨能力的统一配置模型和观测标签。
-- 可选 provider：PowerJob、ActiveMQ 等只在现有抽象稳定后进入评估，不抢占治理主线。
+- Governance：deadline、traffic、rate limit、bulkhead、degradation、retry-stop 等基础语义。
+- Cache：Valkey 作为 Redis 协议兼容部署目标，业务 API 不变。
+- Messaging：ActiveMQ Classic queue provider，业务代码不接触 JMS 类型。
+- Job：PowerJob bridge，复用统一 execution lifecycle。
+- Samples：补齐 governance、ActiveMQ Classic、PowerJob 的可运行样例。
+- Docs：补齐中英文接入文档、边界说明和本地验证命令。
 
 治理模块必须保持清晰边界：它可以消费 cache / messaging / job 的事件与策略扩展点，但不应让这些能力的主 API 变胖。
+
+`0.3.x` 后续继续做两件事：
+
+- 把更多治理策略从基础语义推进到可直接启用的运行时策略。
+- 只在样例和真实中间件测试通过后，继续扩大 Boot2 / Boot4 的 provider 支持声明。
 
 ## `1.0.0` 稳定版目标
 
