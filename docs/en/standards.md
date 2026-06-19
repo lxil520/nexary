@@ -33,6 +33,15 @@ This document is the engineering standards guide for Nexary maintainers and cont
 - English documentation mirrors user-facing changes.
 - User-facing documentation covers capabilities, adoption paths, limits, verification steps, and version boundaries.
 - User-facing documentation must not include chat transcripts, temporary work records, private paths, or unreleased plans.
+- README, Getting Started, sample guides, and module READMEs are new-user entry points. The first screen should explain what problem the module solves, which version line to choose, which dependency snippet to copy, and which command to run before describing internal design.
+- Version matrices must state Spring Boot, JDK, support status, artifactIds, and limits. Do not write vague entries such as "planned", "mainline", or "entry" without telling users which dependency to use.
+- Use terms that match user actions. Prefer "business API", "without the starter", "sending entry", "combined demo", "module", "setup", and "sample". Avoid exposing terms such as `provider-neutral`, `SPI/provider dependency`, `facade`, `showcase`, `capability`, `adoption`, `focused sample`, or `bridge-shaped` in entry-level user docs.
+- Avoid generic marketing or template words. If a paragraph says the project "empowers", "builds an ecosystem", "closes the loop", or "focuses on capabilities" without giving the user an action, rewrite it with concrete limits, verified combinations, or commands.
+- Every user-facing paragraph should support one action: add a dependency, write configuration, copy business code, run a sample, understand a limit, or find a validation command. Move vision-only text to roadmap / architecture, or delete it.
+- Keep the reader clear: README / Getting Started is for first-time users; capability READMEs are for users who already chose cache, messaging, or job; acceptance / roadmap / release docs are for maintainers. Maintainer terminology should not leak into new-user entry points.
+- Code snippets must be copyable. Comments should explain why an artifactId, provider, or setting is chosen instead of restating the code.
+- Chinese and English docs must keep the same meaning, but English does not need to be line-by-line translation. Natural, clear, copyable English is preferred.
+- Before committing public docs, run the public docs hygiene gate and scans for internal notes, conversation records, incorrect commit identities, old directory names, and template-like terms.
 
 ## Sample Rules
 
