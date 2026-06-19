@@ -14,6 +14,7 @@
 ## Start Here
 
 - [Getting Started](getting-started.md)
+- [Configuration](configuration.md)
 - [Architecture](architecture.md)
 - [Coding and Contribution Standards](standards.md)
 - [Core Concepts](concepts.md)

@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.nexary.cache.CacheClient;
 import org.nexary.core.observation.NexaryObservationListener;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.job.JobSchedule;
 import org.nexary.job.JobExecutionListener;
 import org.nexary.job.NexaryJob;
 import org.nexary.job.NexaryJobOperations;
@@ -17,6 +18,7 @@ import org.nexary.job.execution.InMemoryJobExecutionStore;
 import org.nexary.job.execution.JobExecutionRunner;
 import org.nexary.job.execution.JobExecutionStore;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -127,6 +129,21 @@ public class LocalJobSchedulerAutoConfiguration {
                 scheduler,
                 executionRunner,
                 properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "nexaryConfiguredJobSchedules")
+    public SmartInitializingSingleton nexaryConfiguredJobSchedules(
+            NexaryJobOperations operations,
+            LocalJobSchedulerProperties properties) {
+        return () -> {
+            if (!operations.supportsScheduling()) {
+                return;
+            }
+            for (JobSchedule schedule : properties.toSchedules()) {
+                operations.schedule(schedule);
+            }
+        };
     }
 
     private NexaryObservationPublisher observationPublisher(

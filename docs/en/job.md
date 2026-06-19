@@ -4,11 +4,31 @@ Read the job capability independently because local scheduling and external plat
 
 ## What to Read First
 
+- configuration: [configuration.md](configuration.md)
 - module entry: [../../nexary-job/README.md](../../nexary-job/README.md)
 - acceptance checklist: [job-acceptance.md](job-acceptance.md)
 - focused job sample: [../../nexary-samples/nexary-sample-job/README.en.md](../../nexary-samples/nexary-sample-job/README.en.md)
 - processor-style integration: [job-processor-style.md](job-processor-style.md)
 - module guide: [modules.md](modules.md)
+
+## Where Cron Goes
+
+The common local scheduler setup goes in `application.yml`:
+
+```yaml
+nexary:
+  job:
+    provider: local
+    scheduler:
+      schedules:
+        - job-name: sample-business-job
+          cron: "0 */10 * * * *"
+          enabled: true
+          single-instance: true
+          shard-total: 1
+```
+
+`job-name` must match the value returned by `NexaryJob.name()`. If code registration is a better fit, inject `NexaryJobOperations` and call `schedule(new JobSchedule(...))`. Both paths enter the same local scheduler execution pipeline.
 
 ## Current Scope
 
@@ -301,7 +321,7 @@ The current sample covers:
 - Spring scanning of `NexaryJob` beans
 - job-name mapping through `NexaryJob.name()`
 - direct business-job execution
-- cron schedule registration
+- cron schedule registration through `nexary.job.scheduler.schedules` or `NexaryJobOperations.schedule(...)`
 - single-instance execution: when a Nexary cache provider is available, a distributed lock avoids duplicate execution
 - local distributed sharding: worker metadata can come from `JobSchedule` or `nexary.job.scheduler.*`
 - built-in load-balancing strategies: `round_robin`, `random`, `consistent_hash`, `least_active`, `first_available`

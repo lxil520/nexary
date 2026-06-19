@@ -5,6 +5,20 @@
 
 本目录是 Nexary 的任务能力入口，不是全仓库总览。
 
+Cron 配置入口：
+
+```yaml
+nexary:
+  job:
+    provider: local
+    scheduler:
+      schedules:
+        - job-name: sample-business-job
+          cron: "0 */10 * * * *"
+```
+
+`job-name` 对应业务类 `NexaryJob.name()`。完整配置字段见 [docs/zh/configuration.md](../docs/zh/configuration.md) / [docs/en/configuration.md](../docs/en/configuration.md)。
+
 当前关注：
 
 - `nexary-job-api`

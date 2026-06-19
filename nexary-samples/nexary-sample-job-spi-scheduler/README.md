@@ -64,7 +64,16 @@ public class SampleBusinessJob implements NexaryJob {
 nexary:
   job:
     provider: local
+    scheduler:
+      schedules:
+        - job-name: sample-business-job
+          cron: "0 */10 * * * *"
+          enabled: true
+          single-instance: true
+          shard-total: 1
 ```
+
+`job-name` 必须等于 `NexaryJob.name()`。
 
 ## 运行
 

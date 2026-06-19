@@ -56,6 +56,14 @@ nexary:
       # - heartbeat-interval: 10s
       # - heartbeat-ttl: 30s
       load-balance: round_robin
+      # Cron schedules can be registered from configuration. The job-name must
+      # match NexaryJob.name().
+      schedules:
+        - job-name: sample-business-job
+          cron: "0 */10 * * * *"
+          enabled: true
+          single-instance: true
+          shard-total: 1
 
 # Observation events emitted by the local provider include:
 # - job.scheduler.run

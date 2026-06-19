@@ -14,6 +14,7 @@
 ## 建议先读
 
 - [快速开始](getting-started.md)
+- [配置手册](configuration.md)
 - [架构说明](architecture.md)
 - [编码规范与贡献规则](standards.md)
 - [核心概念](concepts.md)

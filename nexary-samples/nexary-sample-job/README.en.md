@@ -73,6 +73,21 @@ nexary:
     provider: local
 ```
 
+Local scheduler cron entries live under `nexary.job.scheduler.schedules`. `job-name` must match `NexaryJob.name()`:
+
+```yaml
+nexary:
+  job:
+    provider: local
+    scheduler:
+      schedules:
+        - job-name: sample-business-job
+          cron: "0 */10 * * * *"
+          enabled: true
+          single-instance: true
+          shard-total: 1
+```
+
 Switch to the XXL-JOB bridge-shaped mode:
 
 ```yaml
@@ -167,4 +182,3 @@ Version matrix:
 | 3.3.x | Java 17+ | currently verified | `nexary-job-spring-boot-starter` |
 | 2.7.x | Java 8+ | verified bounded scope | `nexary-job-spring-boot2-starter` |
 | 4.1.x | Official minimum JDK follows Spring documentation; Java 21 is Nexary's primary validation runtime | verified Boot4 entry | `nexary-job-spring-boot4-starter` |
-

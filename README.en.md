@@ -67,6 +67,7 @@ To reach more users, Nexary includes Spring Boot 2.7 / Java 8+ and Spring Boot 4
 
 Read by capability:
 
+- Configuration: [docs/en/configuration.md](docs/en/configuration.md)
 - Cache: [docs/en/cache.md](docs/en/cache.md)
 - Messaging: [docs/en/messaging.md](docs/en/messaging.md)
 - Job: [docs/en/job.md](docs/en/job.md)
