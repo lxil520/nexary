@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example 0.3.1 or v0.3.1'
+        required: true
+      publish_to_central:
+        description: 'Upload and publish the bundle to Maven Central'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -20,7 +30,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build Maven Central Portal bundle
         env:
-          ORG_GRADLE_PROJECT_nexaryVersion: ${{ github.ref_name }}
+          RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          ORG_GRADLE_PROJECT_nexaryVersion: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           ORG_GRADLE_PROJECT_nexarySigningKey: ${{ secrets.NEXARY_SIGNING_KEY }}
           ORG_GRADLE_PROJECT_nexarySigningPassword: ${{ secrets.NEXARY_SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_projectWebsite: ${{ vars.NEXARY_PROJECT_WEBSITE }}
@@ -28,9 +39,111 @@ jobs:
           ORG_GRADLE_PROJECT_projectScmConnection: ${{ vars.NEXARY_PROJECT_SCM_CONNECTION }}
           ORG_GRADLE_PROJECT_projectScmDeveloperConnection: ${{ vars.NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_REF_NAME#v}"
           ./gradlew mavenCentralBundle -PnexaryVersion="${VERSION}"
       - uses: actions/upload-artifact@v4
         with:
           name: maven-central-bundle
           path: build/distributions/*.zip
+      - name: Publish Maven Central deployment
+        env:
+          RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          PUBLISH_TO_CENTRAL: ${{ github.event_name == 'push' || inputs.publish_to_central }}
+          CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ "${PUBLISH_TO_CENTRAL}" != "true" ]; then
+            echo "Maven Central publish skipped by workflow input."
+            exit 0
+          fi
+
+          if [ -z "${CENTRAL_USERNAME}" ] || [ -z "${CENTRAL_PASSWORD}" ]; then
+            echo "Maven Central publish skipped because MAVEN_CENTRAL_USERNAME or MAVEN_CENTRAL_PASSWORD is not configured."
+            exit 0
+          fi
+
+          echo "::add-mask::${CENTRAL_USERNAME}"
+          echo "::add-mask::${CENTRAL_PASSWORD}"
+
+          VERSION="${RELEASE_REF_NAME#v}"
+          BUNDLE="$(find build/distributions -maxdepth 1 -name "nexary-${VERSION}-central-bundle.zip" -print -quit)"
+          if [ -z "${BUNDLE}" ]; then
+            echo "Central bundle not found for version ${VERSION}."
+            exit 1
+          fi
+
+          AUTH_TOKEN="$(printf '%s:%s' "${CENTRAL_USERNAME}" "${CENTRAL_PASSWORD}" | base64 | tr -d '\n')"
+          echo "::add-mask::${AUTH_TOKEN}"
+
+          DEPLOYMENT_ID="$(curl --fail-with-body -sS \
+            --request POST \
+            --header "Authorization: Bearer ${AUTH_TOKEN}" \
+            --form "bundle=@${BUNDLE}" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=nexary-${VERSION}&publishingType=USER_MANAGED")"
+
+          echo "Central deployment id: ${DEPLOYMENT_ID}"
+
+          for attempt in $(seq 1 60); do
+            curl --fail-with-body -sS \
+              --request POST \
+              --header "Authorization: Bearer ${AUTH_TOKEN}" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}" \
+              > central-status.json
+            STATE="$(python3 -c 'import json; print(json.load(open("central-status.json"))["deploymentState"])')"
+            echo "Central validation state: ${STATE}"
+
+            if [ "${STATE}" = "VALIDATED" ]; then
+              curl --fail-with-body -sS \
+                --request POST \
+                --header "Authorization: Bearer ${AUTH_TOKEN}" \
+                "https://central.sonatype.com/api/v1/publisher/deployment/${DEPLOYMENT_ID}"
+              break
+            fi
+
+            if [ "${STATE}" = "PUBLISHED" ]; then
+              exit 0
+            fi
+
+            if [ "${STATE}" = "FAILED" ]; then
+              cat central-status.json
+              exit 1
+            fi
+
+            if [ "${attempt}" = "60" ]; then
+              echo "Timed out waiting for Central validation."
+              cat central-status.json
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          for attempt in $(seq 1 60); do
+            curl --fail-with-body -sS \
+              --request POST \
+              --header "Authorization: Bearer ${AUTH_TOKEN}" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}" \
+              > central-status.json
+            STATE="$(python3 -c 'import json; print(json.load(open("central-status.json"))["deploymentState"])')"
+            echo "Central publish state: ${STATE}"
+
+            if [ "${STATE}" = "PUBLISHED" ]; then
+              cat central-status.json
+              exit 0
+            fi
+
+            if [ "${STATE}" = "FAILED" ]; then
+              cat central-status.json
+              exit 1
+            fi
+
+            if [ "${attempt}" = "60" ]; then
+              echo "Timed out waiting for Central publish."
+              cat central-status.json
+              exit 1
+            fi
+
+            sleep 10
+          done
