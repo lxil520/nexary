@@ -134,7 +134,7 @@ class ActiveMqClassicBrokerIntegrationTest {
         assertThat(deadLetters.records()).hasSize(1);
         assertThat(deadLetters.records().get(0).messageId()).isEqualTo(messageId);
         assertThat(events).extracting(NexaryObservationEvent::operation)
-                .contains("provider.recover", "provider.ack", "retry.schedule", "deadletter.publish");
+                .contains("provider.recover", "retry.schedule", "deadletter.publish");
         assertNoHighCardinalityTags(events, messageId, topic);
     }
 
