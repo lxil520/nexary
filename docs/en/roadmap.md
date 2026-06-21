@@ -197,6 +197,47 @@ The `0.3.0` code scope is closed. Later `0.3.x` updates should continue two trac
 - turn more governance primitives into configurable, runnable, and testable policies while keeping the primary cache / messaging / job APIs simple.
 - keep validating Boot2 / Boot4 provider entries one by one; README support claims and dependency snippets are added only after samples and real middleware tests pass.
 
+## `0.4.x` Runnable Governance Policies
+
+`0.4.x` should not keep adding providers for its own sake. The main work is to connect the governance primitives from `0.3.0` to real execution paths so users can enable them through configuration, verify them through samples, and observe them through metrics.
+
+Planned scope:
+
+- Governance: expose deadline, rate limit, bulkhead, degradation, and retry-stop as Spring Boot configurable policies.
+- Cache: validate deadline, rate limit, degradation, and observation events at cache operation entry points without changing the `CacheClient` business API.
+- Messaging: validate deadline, retry-stop, degradation, and failure events on publish / consume paths without exposing JMS, Kafka, or RocketMQ types to business code.
+- Job: validate deadline, bulkhead, skip reason, and execution events on the local scheduler, XXL-JOB bridge, and PowerJob bridge trigger paths.
+- Observation: document governance metric names, tag whitelist, Prometheus examples, and dashboard data sources.
+- Samples: provide runnable governance examples for pass, rate-limited, bulkhead-rejected, timeout, degraded, and retry-stopped paths.
+- Verification: add governance policy unit tests, Spring Boot sample tests, and Docker integration scripts.
+
+`0.4.x` does not include:
+
+- control planes, admin consoles, sidecars, or agents.
+- automatic policy distribution or remote dynamic configuration.
+- wrapping external scheduler, messaging, or cache consoles as Nexary-owned capabilities.
+
+## `0.5.x` Integration Experience and Ecosystem Stability
+
+`0.5.x` should make it easier for users to decide how to integrate Nexary, how to verify the integration, and how to debug failures. It should also stabilize release, documentation, samples, and provider validation workflows.
+
+Planned scope:
+
+- Release: stabilize Maven Central namespace, signing, sources, Javadocs, release workflow, and rollback instructions.
+- Docs: keep the public site and README consistent; every capability page should include version choice, dependency snippets, minimal configuration, sample commands, and limits.
+- Compatibility: continue deciding whether Boot2 / Boot4 need dedicated BOMs so users do not have to guess artifactIds.
+- Cache: after Redis / Valkey are stable, evaluate Dragonfly, Garnet, and Memcached; README claims are added only after samples and real middleware tests pass.
+- Messaging: harden production configuration docs for Kafka, RocketMQ, Redis queue, and ActiveMQ Classic; RabbitMQ or other new providers should start with an issue discussion.
+- Job: continue validating real XXL-JOB / PowerJob platform triggers, worker / executor lifecycle boundaries, and failure callback boundaries. Docs must distinguish "bridge validation passed" from "the external platform owns the full lifecycle."
+- Samples: evolve samples from runnable references into templates that can be copied into application projects.
+- Operations: add common troubleshooting steps, commands, metric explanations, and provider limits.
+
+`0.5.x` does not include:
+
+- commercial product positioning.
+- private deployment platforms, tenant management, user permissions, billing, or ticketing.
+- support claims for providers that have not passed real middleware validation.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

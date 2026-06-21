@@ -197,6 +197,47 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 把更多治理基础语义做成可配置、可运行、可测试的策略，同时保持 cache / messaging / job 主 API 简单。
 - Boot2 / Boot4 继续按 provider 独立验收；只有样例和真实中间件测试都通过，README 才增加支持声明和依赖片段。
 
+## `0.4.x` 可运行治理策略版
+
+`0.4.x` 的重点不是继续堆 provider，而是把 `0.3.0` 已经落下来的治理语义接到真实调用路径里，让用户可以通过配置启用、通过样例验证、通过指标观察。
+
+计划范围：
+
+- Governance：把 deadline、rate limit、bulkhead、degradation、retry-stop 做成 Spring Boot 可配置策略。
+- Cache：在 cache 操作入口验证 deadline、限流、降级和指标事件，不改变 `CacheClient` 业务 API。
+- Messaging：在 publish / consume 路径验证 deadline、停止重试、降级和失败事件，不把 JMS、Kafka、RocketMQ 类型暴露给业务代码。
+- Job：在本地 scheduler、XXL-JOB bridge、PowerJob bridge 触发路径验证 deadline、并发隔离、跳过原因和执行事件。
+- Observation：补齐治理策略的指标名、标签白名单、Prometheus 示例和 dashboard 数据来源说明。
+- Samples：提供可直接运行的治理样例，覆盖正常通过、被限流、被隔离、超时、降级和停止重试。
+- Verification：新增治理策略的单元测试、Spring Boot 样例测试和 Docker 联调脚本。
+
+`0.4.x` 不包含：
+
+- 控制面、管理后台、sidecar、agent。
+- 自动下发策略或远程动态配置。
+- 把外部调度平台、消息平台或缓存平台的控制台能力包装成 Nexary 自己的能力。
+
+## `0.5.x` 接入体验和生态稳定版
+
+`0.5.x` 的重点是让用户更容易判断“我该怎么接、接完怎么验证、出问题怎么定位”，并把发布、文档、样例和 provider 验证流程固定下来。
+
+计划范围：
+
+- Release：Maven Central namespace、签名、sources、Javadoc、release workflow 和回滚说明稳定。
+- Docs：公开站点和 README 保持一致；每个能力页都给出版本选择、依赖片段、最小配置、样例命令和限制。
+- Compatibility：继续收敛 Boot2 / Boot4 专用 BOM 是否需要发布；不让用户在 artifactId 上猜。
+- Cache：在 Redis / Valkey 稳定后，再评估 Dragonfly、Garnet、Memcached；只有通过样例和真实中间件测试才写进 README。
+- Messaging：继续加固 Kafka、RocketMQ、Redis queue、ActiveMQ Classic 的生产配置说明；是否新增 RabbitMQ 等 provider 先走 issue 讨论。
+- Job：继续验证 XXL-JOB / PowerJob 的真实平台触发、worker / executor 生命周期边界和失败回调边界，文档必须区分“bridge 验证通过”和“平台完整生命周期由外部系统负责”。
+- Samples：把样例从“能跑”整理成“能复制到业务工程”的接入模板。
+- Operations：补齐常见问题、排查命令、指标解释和 provider 限制。
+
+`0.5.x` 不包含：
+
+- 商业产品形态说明。
+- 私有部署平台、租户管理、用户权限、计费或工单能力。
+- 未经真实中间件验证的 provider 支持声明。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。
