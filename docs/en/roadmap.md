@@ -192,10 +192,10 @@ Included in `0.3.0`:
 
 Governance must keep a clear boundary: it may consume events and policy extension points from cache, messaging, and job, but it should not make their primary APIs heavy.
 
-Later `0.3.x` work should do two things:
+The `0.3.0` code scope is closed. Later `0.3.x` updates should continue two tracks that do not block `0.3.0`:
 
-- turn more governance primitives into directly usable runtime policies.
-- expand Boot2 / Boot4 provider support only after samples and real middleware tests pass.
+- turn more governance primitives into configurable, runnable, and testable policies while keeping the primary cache / messaging / job APIs simple.
+- keep validating Boot2 / Boot4 provider entries one by one; README support claims and dependency snippets are added only after samples and real middleware tests pass.
 
 ## `1.0.0` Stability Target
 
