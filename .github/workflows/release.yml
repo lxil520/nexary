@@ -82,6 +82,11 @@ jobs:
             curl --head --fail --silent --show-error "${CENTRAL_BOM_URL}" > /dev/null
           }
 
+          if central_version_exists; then
+            echo "Maven Central already has nexary-bom ${VERSION}; publish step is complete."
+            exit 0
+          fi
+
           DEPLOYMENT_ID="$(curl --fail-with-body -sS \
             --request POST \
             --header "Authorization: Bearer ${AUTH_TOKEN}" \
@@ -125,6 +130,11 @@ jobs:
             fi
 
             if [ "${STATE}" = "FAILED" ]; then
+              if grep -q "already exists" central-status.json && central_version_exists; then
+                echo "Maven Central already has nexary-bom ${VERSION}; treating this duplicate validation failure as complete."
+                cat central-status.json
+                exit 0
+              fi
               cat central-status.json
               exit 1
             fi
