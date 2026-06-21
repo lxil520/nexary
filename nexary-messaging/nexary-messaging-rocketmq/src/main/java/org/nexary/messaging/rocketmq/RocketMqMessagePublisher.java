@@ -8,6 +8,7 @@ import java.util.concurrent.CompletionStage;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageObservationSupport;
 import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessagePublisher;
@@ -36,6 +37,11 @@ public class RocketMqMessagePublisher implements MessagePublisher {
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
+        java.util.Optional<MessagePublishResult> expired =
+                MessageGovernanceSupport.rejectExpiredPublish(envelope, "rocketmq", observationPublisher);
+        if (expired.isPresent()) {
+            return CompletableFuture.completedFuture(expired.get());
+        }
         try {
             Message<byte[]> message = createMessage(envelope);
             Method syncSend = rocketMqTemplate.getClass().getMethod("syncSend", String.class, Object.class);
@@ -45,7 +51,10 @@ public class RocketMqMessagePublisher implements MessagePublisher {
         } catch (ReflectiveOperationException ex) {
             String detail = failureDetail(ex);
             MessageObservationSupport.publish(observationPublisher, "publish", "rocketmq", "failure", Collections.emptyMap(), ex);
-            return CompletableFuture.completedFuture(MessagePublishResult.failed(detail, RetrySignal.stop(detail)));
+            MessagePublishResult result = MessagePublishResult.failed(detail, RetrySignal.stop(detail));
+            MessageGovernanceSupport.publishRetryStoppedIfStop(
+                    envelope, "rocketmq", "publish", result.retrySignal(), observationPublisher);
+            return CompletableFuture.completedFuture(result);
         }
     }
 
@@ -61,7 +70,7 @@ public class RocketMqMessagePublisher implements MessagePublisher {
 
     private Message<byte[]> createMessage(MessageEnvelope<?> envelope) {
         MessageBuilder<byte[]> builder = MessageBuilder.withPayload(serializer.serialize(envelope.payload()));
-        envelope.headers().forEach((name, value) -> {
+        MessageGovernanceSupport.governedHeaders(envelope).forEach((name, value) -> {
             if (value != null) {
                 builder.setHeader(name, value);
             }

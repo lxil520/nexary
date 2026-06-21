@@ -6,11 +6,13 @@ import jakarta.jms.Message;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageSerializer;
 
 final class ActiveMqClassicMessageCodec {
@@ -29,7 +31,7 @@ final class ActiveMqClassicMessageCodec {
         if (!isBlank(envelope.key())) {
             message.setStringProperty(KEY_PROPERTY, envelope.key());
         }
-        message.setStringProperty(HEADERS_PROPERTY, encodeHeaders(envelope.headers()));
+        message.setStringProperty(HEADERS_PROPERTY, encodeHeaders(MessageGovernanceSupport.governedHeaders(envelope)));
         return message;
     }
 
@@ -44,12 +46,13 @@ final class ActiveMqClassicMessageCodec {
         if (!isBlank(messageId)) {
             headers.putIfAbsent(MessageEnvelope.MESSAGE_ID_HEADER, messageId);
         }
+        Instant deadline = MessageGovernanceSupport.deadlineFromHeaders(headers);
         return new MessageEnvelope<>(
                 topic,
                 message.getStringProperty(KEY_PROPERTY),
                 serializer.deserialize(payload, payloadType),
                 headers,
-                null,
+                deadline,
                 null);
     }
 

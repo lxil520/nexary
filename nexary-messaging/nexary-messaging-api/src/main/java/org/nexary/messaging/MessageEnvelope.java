@@ -43,6 +43,9 @@ public final class MessageEnvelope<T> {
     /** Header used for provider-neutral duplicate consumption protection. */
     public static final String MESSAGE_ID_HEADER = "nexary-message-id";
 
+    /** Header used to propagate provider-neutral message deadlines across provider boundaries. */
+    public static final String DEADLINE_HEADER = "nexary-deadline-epoch-millis";
+
     /** Message topic. */
     public String topic() {
         return topic;

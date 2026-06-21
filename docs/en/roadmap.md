@@ -201,21 +201,26 @@ The base `0.3.x` scope is closed. Later updates in the same minor line should co
 
 `0.4.x` should not keep adding providers for its own sake. The main work is to connect the governance primitives from `0.3.x` to real execution paths so users can enable them through configuration, verify them through samples, and observe them through metrics.
 
-Planned scope:
+Included scope:
 
 - Governance: expose deadline, rate limit, bulkhead, degradation, and retry-stop as Spring Boot configurable policies.
 - Cache: validate deadline, rate limit, degradation, and observation events at cache operation entry points without changing the `CacheClient` business API.
 - Messaging: validate deadline, retry-stop, degradation, and failure events on publish / consume paths without exposing JMS, Kafka, or RocketMQ types to business code.
 - Job: validate deadline, bulkhead, skip reason, and execution events on the local scheduler, XXL-JOB bridge, and PowerJob bridge trigger paths.
 - Observation: document governance metric names, tag whitelist, Prometheus examples, and dashboard data sources.
-- Samples: provide runnable governance examples for pass, rate-limited, bulkhead-rejected, timeout, degraded, and retry-stopped paths.
-- Verification: add governance policy unit tests, Spring Boot sample tests, and Docker integration scripts.
+- Samples: provide runnable governance examples for pass, rate-limited, degraded, and metric output paths.
+- Verification: add governance policy unit tests, Spring Boot sample tests, and the repository-wide `check` gate.
 
 `0.4.x` does not include:
 
 - control planes, admin consoles, sidecars, or agents.
 - automatic policy distribution or remote dynamic configuration.
 - wrapping external scheduler, messaging, or cache consoles as Nexary-owned capabilities.
+
+Later updates in the same minor line should only close two kinds of gaps:
+
+- Expand Boot2 / Boot4 governance claims after real samples prove them.
+- Add governance samples for more real middleware combinations, but do not put them in the README support matrix before tests pass.
 
 ## `0.5.x` Integration Experience and Ecosystem Stability
 

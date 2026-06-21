@@ -10,6 +10,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageObservationSupport;
 import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessagePublisher;
@@ -36,6 +37,11 @@ public class KafkaMessagePublisher implements MessagePublisher {
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
+        java.util.Optional<MessagePublishResult> expired =
+                MessageGovernanceSupport.rejectExpiredPublish(envelope, "kafka", observationPublisher);
+        if (expired.isPresent()) {
+            return CompletableFuture.completedFuture(expired.get());
+        }
         try {
             ProducerRecord<String, byte[]> record = createRecord(envelope);
             Method send = kafkaTemplate.getClass().getMethod("send", ProducerRecord.class);
@@ -55,6 +61,8 @@ public class KafkaMessagePublisher implements MessagePublisher {
                             MessageObservationSupport.outcome(publishResult),
                             Collections.emptyMap(),
                             error);
+                    MessageGovernanceSupport.publishRetryStoppedIfStop(
+                            envelope, "kafka", "publish", publishResult.retrySignal(), observationPublisher);
                     return publishResult;
                 });
             }
@@ -62,13 +70,16 @@ public class KafkaMessagePublisher implements MessagePublisher {
             return CompletableFuture.completedFuture(MessagePublishResult.success(null));
         } catch (ReflectiveOperationException ex) {
             MessageObservationSupport.publish(observationPublisher, "publish", "kafka", "failure", Collections.emptyMap(), ex);
-            return CompletableFuture.completedFuture(MessagePublishResult.failed(ex.getMessage(), RetrySignal.stop(ex.getMessage())));
+            MessagePublishResult result = MessagePublishResult.failed(ex.getMessage(), RetrySignal.stop(ex.getMessage()));
+            MessageGovernanceSupport.publishRetryStoppedIfStop(
+                    envelope, "kafka", "publish", result.retrySignal(), observationPublisher);
+            return CompletableFuture.completedFuture(result);
         }
     }
 
     private ProducerRecord<String, byte[]> createRecord(MessageEnvelope<?> envelope) {
         RecordHeaders headers = new RecordHeaders();
-        envelope.headers().forEach((name, value) -> {
+        MessageGovernanceSupport.governedHeaders(envelope).forEach((name, value) -> {
             if (value != null) {
                 headers.add(name, value.getBytes(StandardCharsets.UTF_8));
             }

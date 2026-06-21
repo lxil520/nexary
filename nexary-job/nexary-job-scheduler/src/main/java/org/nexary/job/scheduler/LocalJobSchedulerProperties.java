@@ -60,6 +60,12 @@ public class LocalJobSchedulerProperties {
     /** Lease used by the local single-instance distributed lock. */
     private Duration lockLeaseTime = Duration.ofMinutes(5);
 
+    /** Maximum delay after scheduled time before a trigger is rejected by governance. */
+    private Duration startDeadline;
+
+    /** Maximum concurrent executions for one job trigger resource. */
+    private int maxConcurrentExecutions = Integer.MAX_VALUE;
+
     /** Retention for in-memory execution records when no durable store is configured. */
     private Duration executionRecordRetention = Duration.ofDays(1);
 
@@ -175,6 +181,22 @@ public class LocalJobSchedulerProperties {
         this.lockLeaseTime = lockLeaseTime == null ? Duration.ofMinutes(5) : lockLeaseTime;
     }
 
+    public Duration getStartDeadline() {
+        return startDeadline;
+    }
+
+    public void setStartDeadline(Duration startDeadline) {
+        this.startDeadline = startDeadline == null || startDeadline.isNegative() ? null : startDeadline;
+    }
+
+    public int getMaxConcurrentExecutions() {
+        return maxConcurrentExecutions;
+    }
+
+    public void setMaxConcurrentExecutions(int maxConcurrentExecutions) {
+        this.maxConcurrentExecutions = maxConcurrentExecutions <= 0 ? Integer.MAX_VALUE : maxConcurrentExecutions;
+    }
+
     public Duration getExecutionRecordRetention() {
         return executionRecordRetention;
     }
@@ -192,6 +214,8 @@ public class LocalJobSchedulerProperties {
                 concurrencyPolicy,
                 misfirePolicy,
                 misfireThreshold,
-                lockLeaseTime);
+                lockLeaseTime,
+                startDeadline,
+                maxConcurrentExecutions);
     }
 }

@@ -1,82 +1,126 @@
 # Governance
 
-Governance 是 Nexary v0.3 增加的基础语义。它先把几个会反复用到的概念定清楚：这次调用还剩多少时间、属于哪类流量、优先级是什么、被保护的是哪个资源，以及重试什么时候应该停。
+Governance 用来给业务调用加一层本地保护：deadline 到了就别再启动新动作，请求太密就直接拒绝，同一个资源并发过高就让后面的调用走 fallback，需要临时停用某个下游时也不改业务代码。
 
-这一层只提供 Java API 和事件对象。它不内置限流器、隔离舱、降级执行器，也不把任何监控后端或中间件 SDK 暴露给业务代码。
+业务代码仍然只写 `GovernanceContext`、`GovernanceRuntime`、`CacheClient`、`MessagePublisher`、`NexaryJob` 这些 Nexary API。Redis、Kafka、RocketMQ、ActiveMQ、XXL-JOB、PowerJob 的原生类型不会出现在业务接口里。
 
-## 在业务调用前传上下文
+## 先引入 starter
 
-在进入一个业务入口或调用下游前，创建 `GovernanceContext`：
+Spring Boot 3.3 主线使用：
+
+```groovy
+implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+implementation "com.aweimao:nexary-governance-spring-boot-starter"
+implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
+```
+
+样例工程可以直接运行：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run
+```
+
+## 写策略配置
+
+```yaml
+nexary:
+  governance:
+    runtime:
+      enabled: true
+    default-policy:
+      max-requests-per-window: 100
+      rate-limit-window: 1s
+      max-concurrency: 64
+    resources:
+      profile-api:
+        kind: http
+        name: profile-api
+        provider: nexary
+        operation: get-profile
+        deadline: 300ms
+        max-requests-per-window: 2
+        rate-limit-window: 1m
+        max-concurrency: 1
+      inventory-reserve:
+        kind: downstream
+        name: inventory-service
+        provider: nexary
+        operation: reserve
+        degraded: true
+```
+
+`default-policy` 兜底；`resources` 里的每一项只匹配一个稳定资源。`kind` 可选 `http`、`downstream`、`cache`、`messaging`、`job`、`service`、`custom`。`name`、`provider`、`operation` 必须是固定小集合，不能拼用户 id、订单号、cache key、message id。
+
+需要按优先级覆盖时，可以在资源下面加 `priorities`：
+
+```yaml
+nexary:
+  governance:
+    resources:
+      profile-api:
+        kind: http
+        name: profile-api
+        operation: get-profile
+        max-requests-per-window: 10
+        priorities:
+          low:
+            degraded: true
+          high:
+            max-requests-per-window: 100
+```
+
+## 在业务入口使用
 
 ```java
 GovernanceContext context = GovernanceContext.builder()
-        .deadline(Instant.now().plusMillis(200))
+        .resource(GovernanceResource.http("profile-api", "get-profile"))
         .trafficTag(TrafficTag.builder()
                 .channel(TrafficTag.Channel.ONLINE)
-                .priority(TrafficTag.Priority.HIGH)
+                .priority(TrafficTag.Priority.NORMAL)
                 .build())
-        .resource(GovernanceResource.service("checkout-api"))
+        .deadline(Instant.now().plusMillis(300))
         .build();
 
-return GovernanceContext.callWithContext(context, () -> checkoutService.submit(order));
+return governanceRuntime.execute(
+        context,
+        () -> profileService.load(userId),
+        () -> profileService.fallback(userId));
 ```
 
-`GovernanceContext.callWithContext(...)` 会同时设置旧的 `DeadlineContext`。已经读取 `DeadlineContext.current()` 的 cache、messaging、job 代码不需要换一套 deadline 入口。
+`deadline` 会同步写入旧的 `DeadlineContext`，已有 cache、messaging、job 代码仍然能沿用同一个截止时间。
 
-## 判断 deadline
+## 哪些路径已经接入
 
-如果只想在执行前判断还能不能继续，可以用 `TimeoutDecision`：
+| 路径 | v0.4 行为 |
+| --- | --- |
+| `GovernanceRuntime` | 执行前检查 deadline、限流、并发隔离和降级；拒绝时发布治理事件；有 fallback 就执行 fallback，否则抛出 `GovernanceRejectedException`。 |
+| Cache Redis 主线 | Spring Boot 3 Redis `CacheClient` Bean 会被治理运行时包一层；资源名是 `cache-client`，后端标签是 `redis`，操作名如 `cache.get`、`cache.put`、`cache.batch_get`。 |
+| Messaging | publish / consume 会传递 `nexary-deadline-epoch-millis` header；过期消息会在业务 handler 前被拒绝；重试结束和降级会发布治理事件。 |
+| Job | 本地 scheduler、XXL-JOB bridge、PowerJob bridge 支持 `start-deadline` 和 `max-concurrent-executions`；被跳过时记录 bounded skip reason。 |
+| Observation | Micrometer bridge 会保留治理相关固定 tag，丢弃资源名、tenant、bizKey、异常全文等高数量字段。 |
 
-```java
-TimeoutDecision decision = TimeoutDecision.from(context, Instant.now());
-if (!decision.isAllowed()) {
-    return CheckoutResult.timeout();
-}
+## 策略字段
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `deadline` | 无 | 本次动作最多还能运行多久。已经带入更早 deadline 时，以更早的为准。 |
+| `max-requests-per-window` | 不限制 | 一个窗口内允许启动的次数。`0` 或负数按不限制处理。 |
+| `rate-limit-window` | `1s` | 限流窗口。 |
+| `max-concurrency` | 不限制 | 同一个资源同一个优先级允许并发运行的数量。 |
+| `degraded` | `false` | 为 `true` 时直接走 fallback，不执行主逻辑。 |
+
+## 现在的边界
+
+- deadline 是启动前检查和上下文传播，不会强行杀掉已经进入业务方法的普通 Java 代码。
+- Cache 的治理包裹只声明在 Spring Boot 3 Redis 主线；Boot2 / Boot4 的 cache 入口要按对应样例和测试结果再扩大说明。
+- Messaging 的 deadline header 只对新发送的消息有效；历史积压消息没有这个 header。
+- Job 的 `execution-timeout` 仍负责执行中的超时控制；`start-deadline` 只判断这次触发是否还值得启动。
+- 这里没有控制台、sidecar、agent、远程动态配置或自动下发策略。
+
+## 验证
+
+```bash
+./gradlew :nexary-boot:nexary-governance-spring-boot-starter:check
+./gradlew :nexary-samples:nexary-sample-governance:check
+./gradlew check
 ```
-
-`reason()` 目前只会返回固定值，例如 `allowed` 或 `deadline_exceeded`。不要把用户 id、订单号、异常全文之类的动态内容放进 reason。
-
-## 资源名怎么取
-
-`GovernanceResource` 里的 `name` 和 `operation` 要是稳定、低数量的配置名：
-
-- `checkout-api`
-- `payment-events`
-- `nightly-sync`
-- `redis-cache`
-
-例如 `GovernanceResource.http("profile-api", "get-profile")` 里，`profile-api` 是资源名，`get-profile` 是操作名。不要把真实 URL、用户 id 或订单号拼进去。
-
-不要放这些值：
-
-- 用户 id、订单号、手机号
-- cache key、message id、execution id
-- token、异常全文、堆栈
-
-这些值会让策略匹配和事件聚合变得不可控，也可能把业务数据带进日志或监控系统。
-
-## 重试什么时候停
-
-下游已经明确拒绝重试时，业务代码或 provider 可以使用 `RetrySignal.stop("reason")`。`reason` 只给本地判断使用，不应该进入事件 tag。
-
-核心事件工厂会把这类结果记成 `governance.retry.stopped`，并按重试次数放进固定桶，例如 `0`、`1`、`2`、`3_5`、`6_10`、`gt_10`。
-
-## 事件对象
-
-`GovernanceObservationEvents` 只创建事件对象，不负责把事件送到任何监控后端。当前预留的事件名：
-
-- `governance.deadline.exceeded`
-- `governance.retry.stopped`
-- `governance.rate_limited`
-- `governance.degraded`
-- `governance.bulkhead.rejected`
-
-这些名字给后续的本地运行时和观测模块复用。事件里不放 payload、cache key、message id、execution id、token、异常全文或堆栈。
-
-## 现在不做什么
-
-- 不内置限流、隔离、降级执行逻辑。
-- 不内置控制台。
-- 不做 sidecar、agent 或平台托管。
-- 不做自动封禁、自动根因定位或 IDC 切流。
-- 不把 Sentinel、Resilience4j、Micrometer、Redis、Kafka、RocketMQ、PowerJob、ActiveMQ 类型放进业务 API。

@@ -93,6 +93,55 @@ class JobExecutionRunnerTest {
     }
 
     @Test
+    void skipsWhenStartDeadlineIsExpiredBeforeExecution() {
+        RecordingObservationPublisher publisher = new RecordingObservationPublisher();
+        JobExecutionRunner runner = runner(publisher);
+        AtomicInteger executions = new AtomicInteger();
+        JobExecutionPolicy policy = JobExecutionPolicy.defaults().withStartDeadline(Duration.ZERO);
+
+        JobExecutionRecord record = runner.execute(job(context -> {
+            executions.incrementAndGet();
+            return JobResult.success();
+        }), request(policy));
+
+        assertThat(record.status()).isEqualTo(JobExecutionStatus.SKIPPED);
+        assertThat(record.message()).isEqualTo("deadline_exceeded");
+        assertThat(executions).hasValue(0);
+        assertThat(publisher.events)
+                .filteredOn(event -> event.operation().equals(JobObservationSupport.OPERATION_SKIP))
+                .allSatisfy(event -> assertThat(event.tags().get("skip_reason")).isEqualTo("deadline"));
+    }
+
+    @Test
+    void skipsWhenBulkheadLimitIsReachedForJobResource() throws Exception {
+        RecordingObservationPublisher publisher = new RecordingObservationPublisher();
+        JobExecutionRunner runner = runner(publisher);
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        NexaryJob job = job(context -> {
+            entered.countDown();
+            release.await(1, TimeUnit.SECONDS);
+            return JobResult.success();
+        });
+        JobExecutionPolicy policy = JobExecutionPolicy.defaults().withMaxConcurrentExecutions(1);
+
+        CompletableFuture<JobExecutionRecord> first =
+                CompletableFuture.supplyAsync(() -> runner.execute(job, request(policy, 0, 2)));
+        assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+
+        JobExecutionRecord second = runner.execute(job, request(policy, 1, 2));
+        release.countDown();
+        JobExecutionRecord firstRecord = first.get(1, TimeUnit.SECONDS);
+
+        assertThat(firstRecord.status()).isEqualTo(JobExecutionStatus.SUCCESS);
+        assertThat(second.status()).isEqualTo(JobExecutionStatus.SKIPPED);
+        assertThat(second.message()).contains("bulkhead");
+        assertThat(publisher.events)
+                .filteredOn(event -> event.operation().equals(JobObservationSupport.OPERATION_SKIP))
+                .allSatisfy(event -> assertThat(event.tags().get("skip_reason")).isEqualTo("bulkhead"));
+    }
+
+    @Test
     void skipsConcurrentExecutionForSameJobShardWhenPolicyRequiresIt() throws Exception {
         RecordingObservationPublisher publisher = new RecordingObservationPublisher();
         JobExecutionRunner runner = runner(publisher);
@@ -153,7 +202,11 @@ class JobExecutionRunnerTest {
     }
 
     private JobExecutionRequest request(JobExecutionPolicy policy) {
-        JobContext context = new JobContext("sample-job", Instant.now(), 0, 1, null);
+        return request(policy, 0, 1);
+    }
+
+    private JobExecutionRequest request(JobExecutionPolicy policy, int shardIndex, int shardTotal) {
+        JobContext context = new JobContext("sample-job", Instant.now(), shardIndex, shardTotal, null);
         return new JobExecutionRequest(null, JobExecutionTrigger.DIRECT, context, policy);
     }
 

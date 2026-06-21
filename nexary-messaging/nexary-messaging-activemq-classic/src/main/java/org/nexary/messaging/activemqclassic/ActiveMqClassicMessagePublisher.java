@@ -13,6 +13,7 @@ import java.util.concurrent.CompletionStage;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageObservationSupport;
 import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessagePublisher;
@@ -39,6 +40,11 @@ public class ActiveMqClassicMessagePublisher implements MessagePublisher {
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
+        java.util.Optional<MessagePublishResult> expired =
+                MessageGovernanceSupport.rejectExpiredPublish(envelope, "activemq_classic", observationPublisher);
+        if (expired.isPresent()) {
+            return CompletableFuture.completedFuture(expired.get());
+        }
         try (Connection connection = connectionFactory.createConnection();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
                 MessageProducer producer = session.createProducer(queue(session, envelope.topic()))) {
@@ -49,8 +55,11 @@ public class ActiveMqClassicMessagePublisher implements MessagePublisher {
         } catch (JMSException ex) {
             MessageObservationSupport.publish(
                     observationPublisher, "publish", "activemq_classic", "failure", Collections.emptyMap(), ex);
+            MessagePublishResult result = MessagePublishResult.failed(ex.getMessage(), RetrySignal.stop(ex.getMessage()));
+            MessageGovernanceSupport.publishRetryStoppedIfStop(
+                    envelope, "activemq_classic", "publish", result.retrySignal(), observationPublisher);
             return CompletableFuture.completedFuture(
-                    MessagePublishResult.failed(ex.getMessage(), RetrySignal.stop(ex.getMessage())));
+                    result);
         }
     }
 

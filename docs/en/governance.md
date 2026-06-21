@@ -1,82 +1,126 @@
 # Governance
 
-Governance in Nexary v0.3 starts with shared Java semantics: how much time a call has left, what kind of traffic it carries, how important it is, which resource is protected, and when retry should stop.
+Governance adds local protection around business calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code.
 
-This layer only provides Java APIs and event objects. It does not include a rate limiter, bulkhead, fallback executor, monitoring backend, or provider SDK in application APIs.
+Application code still uses Nexary APIs such as `GovernanceContext`, `GovernanceRuntime`, `CacheClient`, `MessagePublisher`, and `NexaryJob`. Redis, Kafka, RocketMQ, ActiveMQ, XXL-JOB, and PowerJob native types stay out of application-facing interfaces.
 
-## Pass Context Before a Business Call
+## Add the Starter
 
-Create a `GovernanceContext` before entering a business path or calling a downstream service:
+For the Spring Boot 3.3 mainline:
+
+```groovy
+implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+implementation "com.aweimao:nexary-governance-spring-boot-starter"
+implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
+```
+
+Run the sample:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run
+```
+
+## Configure Policies
+
+```yaml
+nexary:
+  governance:
+    runtime:
+      enabled: true
+    default-policy:
+      max-requests-per-window: 100
+      rate-limit-window: 1s
+      max-concurrency: 64
+    resources:
+      profile-api:
+        kind: http
+        name: profile-api
+        provider: nexary
+        operation: get-profile
+        deadline: 300ms
+        max-requests-per-window: 2
+        rate-limit-window: 1m
+        max-concurrency: 1
+      inventory-reserve:
+        kind: downstream
+        name: inventory-service
+        provider: nexary
+        operation: reserve
+        degraded: true
+```
+
+`default-policy` is the fallback policy. Each entry under `resources` matches one stable resource. `kind` can be `http`, `downstream`, `cache`, `messaging`, `job`, `service`, or `custom`. Keep `name`, `provider`, and `operation` in a small fixed set; never build them from user ids, order ids, cache keys, or message ids.
+
+Use `priorities` when low and high priority traffic need different behavior:
+
+```yaml
+nexary:
+  governance:
+    resources:
+      profile-api:
+        kind: http
+        name: profile-api
+        operation: get-profile
+        max-requests-per-window: 10
+        priorities:
+          low:
+            degraded: true
+          high:
+            max-requests-per-window: 100
+```
+
+## Use It at a Business Entry Point
 
 ```java
 GovernanceContext context = GovernanceContext.builder()
-        .deadline(Instant.now().plusMillis(200))
+        .resource(GovernanceResource.http("profile-api", "get-profile"))
         .trafficTag(TrafficTag.builder()
                 .channel(TrafficTag.Channel.ONLINE)
-                .priority(TrafficTag.Priority.HIGH)
+                .priority(TrafficTag.Priority.NORMAL)
                 .build())
-        .resource(GovernanceResource.service("checkout-api"))
+        .deadline(Instant.now().plusMillis(300))
         .build();
 
-return GovernanceContext.callWithContext(context, () -> checkoutService.submit(order));
+return governanceRuntime.execute(
+        context,
+        () -> profileService.load(userId),
+        () -> profileService.fallback(userId));
 ```
 
-`GovernanceContext.callWithContext(...)` also updates the older `DeadlineContext`. Existing cache, messaging, and job code that reads `DeadlineContext.current()` can keep using that deadline entry point.
+The deadline is also written to the older `DeadlineContext`, so existing cache, messaging, and job code can continue to read the same deadline.
 
-## Check the Deadline
+## Integrated Paths
 
-Use `TimeoutDecision` when code only needs to know whether it may start:
+| Path | v0.4 behavior |
+| --- | --- |
+| `GovernanceRuntime` | Checks deadline, rate limit, bulkhead, and degradation before the action starts; publishes governance events when it rejects; runs fallback when provided, otherwise throws `GovernanceRejectedException`. |
+| Cache Redis mainline | The Spring Boot 3 Redis `CacheClient` Bean is wrapped by the governance runtime; resource name is `cache-client`, provider tag is `redis`, and operations include `cache.get`, `cache.put`, and `cache.batch_get`. |
+| Messaging | publish / consume propagates the `nexary-deadline-epoch-millis` header; expired messages are rejected before the business handler; retry-stop and degradation publish governance events. |
+| Job | local scheduler, XXL-JOB bridge, and PowerJob bridge support `start-deadline` and `max-concurrent-executions`; skipped runs record bounded skip reasons. |
+| Observation | The Micrometer bridge keeps fixed governance tags and drops resource names, tenant, bizKey, exception text, and other high-cardinality data. |
 
-```java
-TimeoutDecision decision = TimeoutDecision.from(context, Instant.now());
-if (!decision.isAllowed()) {
-    return CheckoutResult.timeout();
-}
+## Policy Fields
+
+| Property | Default | Meaning |
+| --- | --- | --- |
+| `deadline` | none | Maximum time allowed for this action. If the incoming context already has an earlier deadline, the earlier one wins. |
+| `max-requests-per-window` | unlimited | Starts allowed in one rate-limit window. `0` or negative values mean unlimited. |
+| `rate-limit-window` | `1s` | Rate-limit accounting window. |
+| `max-concurrency` | unlimited | Concurrent calls allowed for the same resource and priority. |
+| `degraded` | `false` | When `true`, runs fallback without executing the main action. |
+
+## Current Boundaries
+
+- Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
+- Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.
+- Messaging deadline headers apply to newly published messages. Older queued messages do not gain a deadline retroactively.
+- Job `execution-timeout` still controls in-flight timeout. `start-deadline` only decides whether a trigger should start.
+- There is no console, sidecar, agent, remote dynamic config, or policy push service here.
+
+## Verify
+
+```bash
+./gradlew :nexary-boot:nexary-governance-spring-boot-starter:check
+./gradlew :nexary-samples:nexary-sample-governance:check
+./gradlew check
 ```
-
-`reason()` returns bounded values such as `allowed` or `deadline_exceeded`. Do not put user ids, order numbers, exception text, or other dynamic data into the reason.
-
-## Resource Names
-
-`GovernanceResource.name` and `operation` should be stable, low-cardinality configured names:
-
-- `checkout-api`
-- `payment-events`
-- `nightly-sync`
-- `redis-cache`
-
-For example, in `GovernanceResource.http("profile-api", "get-profile")`, `profile-api` is the resource name and `get-profile` is the operation name. Do not include the real URL, user id, or order number.
-
-Do not put these values there:
-
-- user ids, order numbers, phone numbers
-- cache keys, message ids, execution ids
-- tokens, exception text, stack traces
-
-Those values make policy matching and event grouping hard to operate and may leak business data into logs or monitoring systems.
-
-## Stop Retry
-
-When a downstream path clearly rejects another retry, application code or a provider can use `RetrySignal.stop("reason")`. The `reason` is only for local decisions and should not be used as an event tag.
-
-The core event factory records this as `governance.retry.stopped` and buckets attempts into fixed values such as `0`, `1`, `2`, `3_5`, `6_10`, and `gt_10`.
-
-## Event Objects
-
-`GovernanceObservationEvents` only creates event objects. It does not send them to any monitoring backend. Current event names:
-
-- `governance.deadline.exceeded`
-- `governance.retry.stopped`
-- `governance.rate_limited`
-- `governance.degraded`
-- `governance.bulkhead.rejected`
-
-Later runtime and observation modules can reuse these names. Events do not include payloads, cache keys, message ids, execution ids, tokens, exception text, or stack traces.
-
-## Not Included Yet
-
-- No rate limiter, bulkhead, or fallback execution logic.
-- No built-in console.
-- No sidecar, agent, or platform hosting.
-- No automatic instance quarantine, automatic root cause analysis, or IDC traffic shifting.
-- No Sentinel, Resilience4j, Micrometer, Redis, Kafka, RocketMQ, PowerJob, or ActiveMQ types in application APIs.

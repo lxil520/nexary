@@ -11,6 +11,8 @@ import org.nexary.cache.tiered.LocalCacheClient;
 import org.nexary.cache.tiered.TieredCacheClient;
 import org.nexary.core.observation.NexaryObservationListener;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.governance.runtime.GovernanceRuntime;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -72,10 +74,12 @@ public class RedisCacheAutoConfiguration {
             StringRedisTemplate stringRedisTemplate,
             RedisCacheProperties properties,
             Environment environment,
-            NexaryObservationPublisher observationPublisher) {
+            NexaryObservationPublisher observationPublisher,
+            ObjectProvider<GovernanceRuntime> governanceRuntime) {
         configureProvider(properties, environment);
         RedisCacheClient redisCacheClient =
                 new RedisCacheClient(redisTemplate, stringRedisTemplate, properties, observationPublisher);
+        CacheClient cacheClient;
         if (properties.isTieredEnabled()) {
             LocalCacheClient local = new LocalCacheClient(properties.getLocalTtl());
             CacheInvalidationPublisher publisher = properties.isInvalidationEnabled()
@@ -85,15 +89,17 @@ public class RedisCacheAutoConfiguration {
                             observationPublisher,
                             properties.getProviderName())
                     : CacheInvalidationPublisher.NOOP;
-            return new TieredCacheClient(
+            cacheClient = new TieredCacheClient(
                     local,
                     redisCacheClient,
                     properties.getLocalTtl(),
                     publisher,
                     properties.getInvalidationOriginId(),
                     observationPublisher);
+        } else {
+            cacheClient = redisCacheClient;
         }
-        return redisCacheClient;
+        return GovernedCacheClient.wrap(cacheClient, governanceRuntime.getIfAvailable(), properties.getProviderName());
     }
 
     @Bean

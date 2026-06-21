@@ -52,6 +52,11 @@ public class MessageConsumeExecutor {
 
     /** Consumes an envelope with the provider-neutral consumer group included in terminal failure records. */
     public <T> MessageConsumeResult consume(MessageEnvelope<T> envelope, String consumerGroup, MessageConsumer<T> consumer) {
+        Optional<MessageConsumeResult> expired = MessageGovernanceSupport.rejectExpiredConsume(
+                envelope, "core", observationPublisher);
+        if (expired.isPresent()) {
+            return expired.get();
+        }
         MessageEnvelope<T> current = envelope;
         for (MessageInterceptor interceptor : interceptors) {
             current = interceptor.beforeConsume(current);
@@ -130,7 +135,11 @@ public class MessageConsumeExecutor {
                     "success",
                     MessageObservationSupport.terminalTags(record.status().name()),
                     error);
-            return MessageConsumeResult.deadLetter(record);
+            MessageConsumeResult result = MessageConsumeResult.deadLetter(record);
+            MessageGovernanceSupport.publishRetryStoppedIfStop(
+                    envelope, "core", "consume", result.retrySignal(), observationPublisher);
+            MessageGovernanceSupport.publishDegraded(envelope, "core", "consume", observationPublisher);
+            return result;
         } catch (RuntimeException dlqError) {
             MessageObservationSupport.publish(
                     observationPublisher,
@@ -139,7 +148,10 @@ public class MessageConsumeExecutor {
                     "failure",
                     MessageObservationSupport.terminalTags(record.status().name()),
                     dlqError);
-            return MessageConsumeResult.failed(dlqError.getMessage());
+            MessageConsumeResult result = MessageConsumeResult.failed(dlqError.getMessage());
+            MessageGovernanceSupport.publishRetryStoppedIfStop(
+                    envelope, "core", "consume", result.retrySignal(), observationPublisher);
+            return result;
         }
     }
 }

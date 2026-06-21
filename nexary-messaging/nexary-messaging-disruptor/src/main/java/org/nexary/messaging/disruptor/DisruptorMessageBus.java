@@ -21,6 +21,7 @@ import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageConsumer;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageObservationSupport;
 import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessagePublisher;
@@ -71,6 +72,11 @@ public class DisruptorMessageBus implements MessagePublisher, MessageSubscriber,
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
+        java.util.Optional<MessagePublishResult> expired =
+                MessageGovernanceSupport.rejectExpiredPublish(envelope, "disruptor", observationPublisher);
+        if (expired.isPresent()) {
+            return CompletableFuture.completedFuture(expired.get());
+        }
         if (!running.get()) {
             MessageObservationSupport.publish(observationPublisher, "publish", "disruptor", "failure");
             return CompletableFuture.completedFuture(MessagePublishResult.failed("disruptor is closed", null));

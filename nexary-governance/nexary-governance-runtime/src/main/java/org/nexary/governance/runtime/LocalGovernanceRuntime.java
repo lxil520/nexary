@@ -36,26 +36,51 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         Objects.requireNonNull(action, "action");
         GovernanceContext safeContext = context == null ? GovernanceContext.builder().build() : context;
         GovernancePolicy policy = policyRegistry.policyFor(safeContext);
+        if (policy == null) {
+            policy = GovernancePolicy.allowAll();
+        }
         Instant startedAt = Instant.now();
-        GovernanceDecision rejected = rejectBeforeAcquire(safeContext, policy);
+        GovernanceContext effectiveContext = withPolicyDeadline(safeContext, policy, startedAt);
+        GovernanceDecision rejected = rejectBeforeAcquire(effectiveContext, policy);
         if (rejected != null) {
-            publishRejection(safeContext, rejected, startedAt);
+            publishRejection(effectiveContext, rejected, startedAt);
             return fallbackOrThrow(fallback, rejected);
         }
-        State state = stateFor(safeContext, policy);
+        State state = stateFor(effectiveContext, policy);
         if (!state.tryAcquire()) {
             GovernanceDecision decision = GovernanceDecision.rejected(
                     GovernanceDecision.Decision.CONCURRENCY_LIMITED,
                     new FaultSignal(FaultSignal.FaultType.REJECTED, "governance", "concurrency limited", Instant.now(), true));
             observationPublisher.publish(GovernanceObservationEvents.bulkheadRejected(
-                    safeContext.resource(), safeContext.trafficTag(), startedAt, Instant.now()));
+                    effectiveContext.resource(), effectiveContext.trafficTag(), startedAt, Instant.now()));
+            publishRetryStopped(effectiveContext, decision, startedAt);
             return fallbackOrThrow(fallback, decision);
         }
         try {
-            return GovernanceContext.callWithContext(safeContext, action);
+            return GovernanceContext.callWithContext(effectiveContext, action);
         } finally {
             state.release();
         }
+    }
+
+    private GovernanceContext withPolicyDeadline(GovernanceContext context, GovernancePolicy policy, Instant startedAt) {
+        if (!policy.deadline().isPresent()) {
+            return context;
+        }
+        Instant policyDeadline = startedAt.plus(policy.deadline().get());
+        Instant effectiveDeadline = context.deadline()
+                .map(existing -> existing.isBefore(policyDeadline) ? existing : policyDeadline)
+                .orElse(policyDeadline);
+        if (context.deadline().isPresent() && context.deadline().get().equals(effectiveDeadline)) {
+            return context;
+        }
+        GovernanceContext.Builder builder = GovernanceContext.builder()
+                .resource(context.resource())
+                .trafficTag(context.trafficTag())
+                .priority(context.priority())
+                .deadline(effectiveDeadline);
+        context.attributes().forEach(builder::attribute);
+        return builder.build();
     }
 
     private GovernanceDecision rejectBeforeAcquire(GovernanceContext context, GovernancePolicy policy) {
@@ -88,6 +113,14 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         } else if (decision.decision() == GovernanceDecision.Decision.RATE_LIMITED) {
             observationPublisher.publish(GovernanceObservationEvents.rateLimited(
                     context.resource(), context.trafficTag(), startedAt, endedAt));
+        }
+        publishRetryStopped(context, decision, startedAt);
+    }
+
+    private void publishRetryStopped(GovernanceContext context, GovernanceDecision decision, Instant startedAt) {
+        if (decision.retrySignal() != null) {
+            observationPublisher.publish(GovernanceObservationEvents.retryStopped(
+                    context.resource(), context.trafficTag(), decision.retrySignal(), startedAt, Instant.now()));
         }
     }
 

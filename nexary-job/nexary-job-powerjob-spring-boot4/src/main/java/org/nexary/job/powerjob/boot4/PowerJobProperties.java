@@ -30,6 +30,12 @@ public class PowerJobProperties {
     /** Retention for in-memory execution records when no durable store is configured. */
     private Duration executionRecordRetention = Duration.ofDays(1);
 
+    /** Maximum delay after trigger time before a bridge execution is rejected by governance. */
+    private Duration startDeadline;
+
+    /** Maximum concurrent executions for one bridge-triggered job resource. */
+    private int maxConcurrentExecutions = Integer.MAX_VALUE;
+
     public Duration getExecutionTimeout() {
         return executionTimeout;
     }
@@ -86,6 +92,22 @@ public class PowerJobProperties {
         this.executionRecordRetention = executionRecordRetention == null ? Duration.ofDays(1) : executionRecordRetention;
     }
 
+    public Duration getStartDeadline() {
+        return startDeadline;
+    }
+
+    public void setStartDeadline(Duration startDeadline) {
+        this.startDeadline = startDeadline == null || startDeadline.isNegative() ? null : startDeadline;
+    }
+
+    public int getMaxConcurrentExecutions() {
+        return maxConcurrentExecutions;
+    }
+
+    public void setMaxConcurrentExecutions(int maxConcurrentExecutions) {
+        this.maxConcurrentExecutions = maxConcurrentExecutions <= 0 ? Integer.MAX_VALUE : maxConcurrentExecutions;
+    }
+
     /** Builds the default execution policy for PowerJob bridge executions. */
     public JobExecutionPolicy toExecutionPolicy() {
         return new JobExecutionPolicy(
@@ -95,6 +117,8 @@ public class PowerJobProperties {
                 concurrencyPolicy,
                 misfirePolicy,
                 misfireThreshold,
-                JobExecutionPolicy.defaults().lockLeaseTime());
+                JobExecutionPolicy.defaults().lockLeaseTime(),
+                startDeadline,
+                maxConcurrentExecutions);
     }
 }

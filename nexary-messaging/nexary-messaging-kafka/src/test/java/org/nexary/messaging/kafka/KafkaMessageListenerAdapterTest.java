@@ -3,6 +3,7 @@ package org.nexary.messaging.kafka;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import org.nexary.messaging.MessageBackoffStrategy;
 import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageDeadLetterPublisher;
+import org.nexary.messaging.MessageEnvelope;
 import org.nexary.messaging.MessageRetryPolicy;
 
 class KafkaMessageListenerAdapterTest {
@@ -114,6 +116,41 @@ class KafkaMessageListenerAdapterTest {
             assertThat(event.operation()).isEqualTo("provider.seek");
             assertThat(event.tags()).containsEntry("provider", "kafka").containsEntry("boundary", "seek_current");
         });
+        assertNoHighCardinalityTags(events);
+    }
+
+    @Test
+    void rejectsExpiredDeadlineHeaderBeforeCallingHandler() {
+        List<NexaryObservationEvent> events = new CopyOnWriteArrayList<>();
+        MessageConsumeExecutor executor = new MessageConsumeExecutor(
+                Optional.empty(),
+                Duration.ofMinutes(5),
+                List.of(),
+                new MessageRetryPolicy(2, Duration.ZERO, MessageBackoffStrategy.FIXED, 1.0d, Duration.ZERO),
+                MessageDeadLetterPublisher.inMemory(),
+                events::add);
+        KafkaMessageListenerAdapter<String> adapter = new KafkaMessageListenerAdapter<>(
+                executor,
+                new DefaultStringMessageSerializer(),
+                String.class,
+                "raw-user-group",
+                envelope -> calls.incrementAndGet(),
+                events::add);
+
+        MessageConsumeResult result = adapter.onMessage(
+                "raw-user-topic",
+                "42",
+                "payload".getBytes(),
+                Map.of(
+                        "nexary-message-id", "kafka-expired-1",
+                        MessageEnvelope.DEADLINE_HEADER, Long.toString(Instant.now().minusMillis(1).toEpochMilli())));
+
+        assertThat(result.status()).isEqualTo(MessageConsumeResult.ConsumeStatus.FAILED);
+        assertThat(result.retrySignal()).isNotNull();
+        assertThat(result.retrySignal().decision().name()).isEqualTo("STOP");
+        assertThat(calls).hasValue(0);
+        assertThat(events).extracting(NexaryObservationEvent::operation)
+                .contains("governance.deadline.exceeded", "governance.retry.stopped", "consume");
         assertNoHighCardinalityTags(events);
     }
 

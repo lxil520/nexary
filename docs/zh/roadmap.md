@@ -201,21 +201,26 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 `0.4.x` 的重点不是继续堆 provider，而是把 `0.3.x` 已经落下来的治理语义接到真实调用路径里，让用户可以通过配置启用、通过样例验证、通过指标观察。
 
-计划范围：
+已纳入范围：
 
 - Governance：把 deadline、rate limit、bulkhead、degradation、retry-stop 做成 Spring Boot 可配置策略。
 - Cache：在 cache 操作入口验证 deadline、限流、降级和指标事件，不改变 `CacheClient` 业务 API。
 - Messaging：在 publish / consume 路径验证 deadline、停止重试、降级和失败事件，不把 JMS、Kafka、RocketMQ 类型暴露给业务代码。
 - Job：在本地 scheduler、XXL-JOB bridge、PowerJob bridge 触发路径验证 deadline、并发隔离、跳过原因和执行事件。
 - Observation：补齐治理策略的指标名、标签白名单、Prometheus 示例和 dashboard 数据来源说明。
-- Samples：提供可直接运行的治理样例，覆盖正常通过、被限流、被隔离、超时、降级和停止重试。
-- Verification：新增治理策略的单元测试、Spring Boot 样例测试和 Docker 联调脚本。
+- Samples：提供可直接运行的治理样例，覆盖正常通过、被限流、降级和指标输出。
+- Verification：新增治理策略的单元测试、Spring Boot 样例测试和全仓库 `check` gate。
 
 `0.4.x` 不包含：
 
 - 控制面、管理后台、sidecar、agent。
 - 自动下发策略或远程动态配置。
 - 把外部调度平台、消息平台或缓存平台的控制台能力包装成 Nexary 自己的能力。
+
+同一小版本线后续只继续收尾两类问题：
+
+- 根据真实样例继续扩大 Boot2 / Boot4 上的治理接入声明。
+- 把治理样例补到更多真实中间件组合，但通过测试前不写进 README 支持矩阵。
 
 ## `0.5.x` 接入体验和生态稳定版
 

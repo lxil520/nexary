@@ -21,6 +21,7 @@ import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageConsumer;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageObservationSupport;
 import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessagePublisher;
@@ -89,6 +90,11 @@ public class RedisBoot2MessageQueue implements MessagePublisher, MessageSubscrib
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
+        java.util.Optional<MessagePublishResult> expired =
+                MessageGovernanceSupport.rejectExpiredPublish(envelope, "redis", observationPublisher);
+        if (expired.isPresent()) {
+            return CompletableFuture.completedFuture(expired.get());
+        }
         String encoded = encode(envelope);
         boolean accepted = processingStore.enqueueReady(envelope.topic(), encoded);
         MessageObservationSupport.publish(
@@ -128,8 +134,8 @@ public class RedisBoot2MessageQueue implements MessagePublisher, MessageSubscrib
         String messageId = envelope.messageId();
         String key = envelope.key() == null ? "" : envelope.key();
         String data = Base64.getEncoder().encodeToString(payload);
-        String headers = Base64.getEncoder()
-                .encodeToString(encodeHeaders(envelope.headers()).getBytes(StandardCharsets.UTF_8));
+        String headers = Base64.getEncoder().encodeToString(
+                encodeHeaders(MessageGovernanceSupport.governedHeaders(envelope)).getBytes(StandardCharsets.UTF_8));
         return messageId + "|" + key + "|" + data + "|" + headers;
     }
 
@@ -148,7 +154,13 @@ public class RedisBoot2MessageQueue implements MessagePublisher, MessageSubscrib
         if (!effectiveHeaders.containsKey(MessageEnvelope.MESSAGE_ID_HEADER)) {
             effectiveHeaders.put(MessageEnvelope.MESSAGE_ID_HEADER, messageId);
         }
-        return new MessageEnvelope<>(topic, key, deserialized, effectiveHeaders, null, null);
+        return new MessageEnvelope<>(
+                topic,
+                key,
+                deserialized,
+                effectiveHeaders,
+                MessageGovernanceSupport.deadlineFromHeaders(effectiveHeaders),
+                null);
     }
 
     private String encodeHeaders(Map<String, String> headers) {

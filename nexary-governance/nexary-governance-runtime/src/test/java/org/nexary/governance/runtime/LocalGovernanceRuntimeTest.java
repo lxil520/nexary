@@ -41,7 +41,7 @@ class LocalGovernanceRuntimeTest {
                     assertThat(rejected.decision().decision()).isEqualTo(GovernanceDecision.Decision.RATE_LIMITED);
                     assertThat(rejected.decision().retrySignal()).isNotNull();
                 });
-        assertThat(publisher.operations()).contains("governance.rate_limited");
+        assertThat(publisher.operations()).contains("governance.rate_limited", "governance.retry.stopped");
     }
 
     @Test
@@ -58,7 +58,7 @@ class LocalGovernanceRuntimeTest {
         String result = runtime.execute(context, () -> "main", () -> "fallback");
 
         assertThat(result).isEqualTo("fallback");
-        assertThat(publisher.operations()).contains("governance.degraded");
+        assertThat(publisher.operations()).contains("governance.degraded", "governance.retry.stopped");
     }
 
     @Test
@@ -77,7 +77,7 @@ class LocalGovernanceRuntimeTest {
                 .isInstanceOf(GovernanceRejectedException.class)
                 .satisfies(error -> assertThat(((GovernanceRejectedException) error).decision().decision())
                         .isEqualTo(GovernanceDecision.Decision.DEADLINE_EXPIRED));
-        assertThat(publisher.operations()).contains("governance.deadline.exceeded");
+        assertThat(publisher.operations()).contains("governance.deadline.exceeded", "governance.retry.stopped");
     }
 
     @Test
@@ -104,7 +104,7 @@ class LocalGovernanceRuntimeTest {
         assertThat(runtime.execute(context, () -> "second", () -> "fallback")).isEqualTo("fallback");
         release.countDown();
         assertThat(first.get()).isEqualTo("first");
-        assertThat(publisher.operations()).contains("governance.bulkhead.rejected");
+        assertThat(publisher.operations()).contains("governance.bulkhead.rejected", "governance.retry.stopped");
     }
 
     @Test
@@ -143,6 +143,28 @@ class LocalGovernanceRuntimeTest {
 
         String result = runtime.execute(context, () -> {
             assertThat(GovernanceContext.current()).contains(context);
+            assertThat(DeadlineContext.current()).isPresent();
+            return "ok";
+        });
+
+        assertThat(result).isEqualTo("ok");
+        assertThat(GovernanceContext.current()).isEmpty();
+        assertThat(DeadlineContext.current()).isEmpty();
+    }
+
+    @Test
+    void appliesPolicyDeadlineDuringAction() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("payments-api", "authorize");
+        GovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(resource, GovernancePolicy.builder().deadline(Duration.ofSeconds(5)).build())
+                        .build(),
+                new RecordingPublisher());
+        GovernanceContext context = GovernanceContext.builder().resource(resource).build();
+
+        String result = runtime.execute(context, () -> {
+            assertThat(GovernanceContext.current()).isPresent();
+            assertThat(GovernanceContext.current().get().deadline()).isPresent();
             assertThat(DeadlineContext.current()).isPresent();
             return "ok";
         });

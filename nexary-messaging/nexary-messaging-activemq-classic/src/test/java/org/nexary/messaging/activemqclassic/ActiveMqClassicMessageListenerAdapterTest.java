@@ -8,6 +8,7 @@ import jakarta.jms.ConnectionFactory;
 import jakarta.jms.Message;
 import jakarta.jms.Session;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +34,13 @@ class ActiveMqClassicMessageListenerAdapterTest {
         ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://nexary-activemq-codec?broker.persistent=false");
         try (Connection connection = connectionFactory.createConnection();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
+            Instant deadline = Instant.ofEpochMilli(Instant.now().plusSeconds(30).toEpochMilli());
             MessageEnvelope<String> envelope = new MessageEnvelope<>(
                     "app.error.log",
                     "app-42",
                     "payload",
                     Map.of(MessageEnvelope.MESSAGE_ID_HEADER, "active-codec-1", "tenant-id", "demo"),
-                    null,
+                    deadline,
                     null);
 
             Message jmsMessage = ActiveMqClassicMessageCodec.toMessage(
@@ -56,6 +58,7 @@ class ActiveMqClassicMessageListenerAdapterTest {
             assertThat(decoded.key()).isEqualTo("app-42");
             assertThat(decoded.messageId()).isEqualTo("active-codec-1");
             assertThat(decoded.payload()).isEqualTo("payload");
+            assertThat(decoded.deadline()).isEqualTo(deadline);
             assertThat(decoded.headers()).containsEntry("tenant-id", "demo");
         }
     }

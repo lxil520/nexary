@@ -12,6 +12,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.governance.TimeoutDecision;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.job.JobExecutionListener;
 import org.nexary.job.JobResult;
@@ -26,6 +29,7 @@ public class JobExecutionRunner {
     private final NexaryObservationPublisher observationPublisher;
     private final String provider;
     private final Map<String, AtomicInteger> running = new ConcurrentHashMap<>();
+    private final Map<String, AtomicInteger> bulkheads = new ConcurrentHashMap<>();
 
     public JobExecutionRunner(List<JobExecutionListener> listeners, ExecutorService executorService) {
         this(listeners, executorService, new InMemoryJobExecutionStore());
@@ -63,20 +67,40 @@ public class JobExecutionRunner {
                 "accepted",
                 JobObservationSupport.shardTags(request),
                 null);
+        TimeoutDecision timeoutDecision = TimeoutDecision.from(governanceContext(request), Instant.now());
+        if (!timeoutDecision.isAllowed()) {
+            return skipped(request, timeoutDecision.reason());
+        }
         if (isMisfired(request)) {
             return skipped(request, "scheduled execution misfired");
         }
+        AtomicInteger bulkheadCount = null;
+        boolean bulkheadAcquired = false;
+        if (request.policy().maxConcurrentExecutions() < Integer.MAX_VALUE) {
+            bulkheadCount = bulkheads.computeIfAbsent(bulkheadKey(request), ignored -> new AtomicInteger());
+            if (!tryAcquire(bulkheadCount, request.policy().maxConcurrentExecutions())) {
+                return skipped(request, "bulkhead rejected");
+            }
+            bulkheadAcquired = true;
+        }
         String concurrencyKey = concurrencyKey(request);
         AtomicInteger runningCount = running.computeIfAbsent(concurrencyKey, ignored -> new AtomicInteger());
-        if (request.policy().concurrencyPolicy() == JobConcurrencyPolicy.SKIP_IF_RUNNING
-                && runningCount.get() > 0) {
-            return skipped(request, "same job shard is already running");
-        }
-        runningCount.incrementAndGet();
+        boolean runningAcquired = false;
         try {
+            if (request.policy().concurrencyPolicy() == JobConcurrencyPolicy.SKIP_IF_RUNNING
+                    && runningCount.get() > 0) {
+                return skipped(request, "same job shard is already running");
+            }
+            runningCount.incrementAndGet();
+            runningAcquired = true;
             return executeWithRetry(job, request);
         } finally {
-            runningCount.decrementAndGet();
+            if (runningAcquired) {
+                runningCount.decrementAndGet();
+            }
+            if (bulkheadAcquired) {
+                bulkheadCount.decrementAndGet();
+            }
         }
     }
 
@@ -141,7 +165,10 @@ public class JobExecutionRunner {
                     merge(JobObservationSupport.shardTags(request), JobObservationSupport.retryTags(attempt, maxAttempts)),
                     null);
             try {
-                lastResult = callWithTimeout(() -> job.execute(request.context()), request.policy().timeout());
+                GovernanceContext governanceContext = governanceContext(request);
+                lastResult = callWithTimeout(
+                        () -> GovernanceContext.callWithContext(governanceContext, () -> job.execute(request.context())),
+                        request.policy().timeout());
                 if (lastResult != null && lastResult.status() == JobResult.JobStatus.SUCCESS) {
                     return complete(request, startedAt, attempt, lastResult, null);
                 }
@@ -256,6 +283,44 @@ public class JobExecutionRunner {
 
     private String concurrencyKey(JobExecutionRequest request) {
         return request.context().jobName() + ':' + request.context().shardIndex() + ':' + request.context().shardTotal();
+    }
+
+    private String bulkheadKey(JobExecutionRequest request) {
+        return request.context().jobName() + ':' + JobObservationSupport.trigger(request.trigger());
+    }
+
+    private boolean tryAcquire(AtomicInteger count, int max) {
+        while (true) {
+            int current = count.get();
+            if (current >= max) {
+                return false;
+            }
+            if (count.compareAndSet(current, current + 1)) {
+                return true;
+            }
+        }
+    }
+
+    private GovernanceContext governanceContext(JobExecutionRequest request) {
+        GovernanceContext.Builder builder = GovernanceContext.builder()
+                .resource(GovernanceResource.job(request.context().jobName(), JobObservationSupport.trigger(request.trigger())))
+                .trafficTag(request.context().trafficTag())
+                .attribute("trigger", JobObservationSupport.trigger(request.trigger()));
+        effectiveDeadline(request).ifPresent(builder::deadline);
+        return builder.build();
+    }
+
+    private Optional<Instant> effectiveDeadline(JobExecutionRequest request) {
+        Optional<Instant> inherited = GovernanceContext.current().flatMap(GovernanceContext::deadline);
+        Optional<Instant> policyDeadline = request.policy().startDeadline()
+                .map(duration -> request.context().scheduledAt().plus(duration));
+        if (!inherited.isPresent()) {
+            return policyDeadline;
+        }
+        if (!policyDeadline.isPresent()) {
+            return inherited;
+        }
+        return Optional.of(inherited.get().isBefore(policyDeadline.get()) ? inherited.get() : policyDeadline.get());
     }
 
     private void publish(JobExecutionRecord record, Throwable error) {

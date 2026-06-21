@@ -6,6 +6,26 @@ nexary:
   governance:
     runtime:
       enabled: true
+    default-policy:
+      max-requests-per-window: 100
+      rate-limit-window: 1s
+      max-concurrency: 64
+    resources:
+      profile-api:
+        kind: http
+        name: profile-api
+        provider: nexary
+        operation: get-profile
+        deadline: 300ms
+        max-requests-per-window: 2
+        rate-limit-window: 1m
+        max-concurrency: 1
+      inventory-reserve:
+        kind: downstream
+        name: inventory-service
+        provider: nexary
+        operation: reserve
+        degraded: true
   observation:
     micrometer:
       enabled: true

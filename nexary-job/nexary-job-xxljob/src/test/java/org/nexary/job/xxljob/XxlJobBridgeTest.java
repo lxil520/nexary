@@ -2,10 +2,12 @@ package org.nexary.job.xxljob;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.nexary.core.observation.NexaryObservationEvent;
@@ -69,6 +71,50 @@ class XxlJobBridgeTest {
                     assertThat(event.tags().get("provider")).isEqualTo("xxljob");
                     assertThat(event.tags().get("trigger")).isEqualTo("bridge");
                     assertThat(event.tags().get("shard_presence")).isEqualTo("true");
+        });
+    }
+
+    @Test
+    void bridgeTriggerSkipsWhenStartDeadlineIsExpired() {
+        AtomicInteger executions = new AtomicInteger();
+        NexaryJob job = new NexaryJob() {
+            @Override
+            public String name() {
+                return "sample-job";
+            }
+
+            @Override
+            public JobResult execute(JobContext context) {
+                executions.incrementAndGet();
+                return JobResult.success();
+            }
+        };
+        RecordingJobExecutionStore store = new RecordingJobExecutionStore();
+        RecordingObservationPublisher publisher = new RecordingObservationPublisher();
+        XxlJobProperties properties = new XxlJobProperties();
+        properties.setStartDeadline(Duration.ZERO);
+        XxlJobBridge bridge = new XxlJobBridge(
+                List.of(job),
+                runner(List.of(), store, publisher),
+                properties,
+                publisher);
+
+        JobExecutionRecord record = bridge.triggerExecution("sample-job", 0, 1);
+
+        assertThat(record.status()).isEqualTo(JobExecutionStatus.SKIPPED);
+        assertThat(record.message()).isEqualTo("deadline_exceeded");
+        assertThat(executions).hasValue(0);
+        assertThat(store.find(record.executionId())).contains(record);
+        assertThat(publisher.operations()).contains(
+                JobObservationSupport.OPERATION_XXLJOB_BRIDGE_TRIGGER,
+                JobObservationSupport.OPERATION_TRIGGER,
+                JobObservationSupport.OPERATION_SKIP);
+        assertThat(publisher.events)
+                .filteredOn(event -> event.operation().equals(JobObservationSupport.OPERATION_SKIP))
+                .allSatisfy(event -> {
+                    assertThat(event.tags().get("provider")).isEqualTo("xxljob");
+                    assertThat(event.tags().get("trigger")).isEqualTo("bridge");
+                    assertThat(event.tags().get("skip_reason")).isEqualTo("deadline");
                 });
     }
 

@@ -15,7 +15,7 @@ Chinese documentation: [README.md](README.md)
 
 Nexary adds a thin Java API between business code and middleware SDKs. Services call stable entries such as `CacheClient`, `MessagePublisher`, and `NexaryJob`; Redis, Valkey, Kafka, RocketMQ, ActiveMQ Classic, XXL-JOB, and PowerJob wiring stays in framework modules. When infrastructure needs to be upgraded, replaced, or worked around, most changes stay in dependencies and configuration instead of spreading through business code.
 
-The current `0.3.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and covers cache, messaging, jobs, observation bridging, and governance primitives. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
+The current `0.4.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and covers cache, messaging, jobs, observation bridging, and configurable governance policies. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
 
 ## When to Use It
 
@@ -57,7 +57,7 @@ The currently verified mainline is:
 
 This boundary comes from Spring Boot 3's own Java 17+ requirement, not from Nexary's initial development JDK.
 
-To reach more users, Nexary includes Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 in the `0.3.x` validation target. README snippets are only added after samples and tests pass for that combination. Java 21 is Nexary's primary validation runtime for the Boot4 line; it is not a statement about Spring Boot 4's official minimum JDK. Spring documentation remains the source for that.
+To reach more users, Nexary includes Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 in the `0.4.x` validation target. README snippets are only added after samples and tests pass for that combination. Java 21 is Nexary's primary validation runtime for the Boot4 line; it is not a statement about Spring Boot 4's official minimum JDK. Spring documentation remains the source for that.
 
 ## Documentation
 
@@ -134,7 +134,7 @@ The repository ships with local Docker workflows for Redis, Kafka, RocketMQ, MyS
 
 ### 1. Choose the Nexary version first
 
-The current source version is `0.3.1`. If Maven Central has not synced this version yet, build from GitHub tag `v0.3.1` and install it locally:
+The current source version is `0.4.0`. If Maven Central has not synced this version yet, build from GitHub tag `v0.4.0` and install it locally:
 
 ```bash
 ./gradlew publishToMavenLocal
@@ -143,7 +143,7 @@ The current source version is `0.3.1`. If Maven Central has not synced this vers
 After Maven Central publication, choose a version in one of two ways:
 
 - Use the Latest Version shown by Maven Central.
-- Use a GitHub Releases / Tags version. For example, tag `v0.3.1` maps to dependency version `0.3.1`.
+- Use a GitHub Releases / Tags version. For example, tag `v0.4.0` maps to dependency version `0.4.0`.
 
 Do not use a `main` branch commit hash as a production dependency version.
 
@@ -151,9 +151,9 @@ Do not use a `main` branch commit hash as a production dependency version.
 
 | Spring Boot | JDK | Status | Version Choice | BOM | Starter artifactId |
 | --- | --- | --- | --- | --- | --- |
-| Spring Boot 3.3 | Java 17+ | currently verified | `0.3.1`; use Latest Version after Maven Central sync | `nexary-bom` | `nexary-cache-spring-boot-starter`<br>`nexary-messaging-spring-boot-starter`<br>`nexary-job-spring-boot-starter`<br>`nexary-observation-micrometer-spring-boot-starter`<br>`nexary-governance-spring-boot-starter` |
-| Spring Boot 2.7 | Java 8+ | Cache Redis/Valkey single-tier, Messaging Redis-only, and Job local/XXL-JOB/PowerJob bridge are verified | `0.3.1`; use Latest Version after Maven Central sync | current entries use direct versions; switch only when a dedicated BOM is released | `nexary-cache-spring-boot2-starter`<br>`nexary-messaging-spring-boot2-starter`<br>`nexary-job-spring-boot2-starter` |
-| Spring Boot 4.1 | Java 21 primary validation runtime | Cache Redis/Valkey, Messaging by provider, and Job local/XXL-JOB/PowerJob bridge are verified; this is not whole-repository Boot4 support | `0.3.1`; use Latest Version after Maven Central sync | current entries use direct versions; switch only when a dedicated BOM is released | `nexary-cache-spring-boot4-starter`<br>`nexary-messaging-spring-boot4-starter` plus one Boot4 provider artifact<br>`nexary-job-spring-boot4-starter` |
+| Spring Boot 3.3 | Java 17+ | currently verified | `0.4.0`; use Latest Version after Maven Central sync | `nexary-bom` | `nexary-cache-spring-boot-starter`<br>`nexary-messaging-spring-boot-starter`<br>`nexary-job-spring-boot-starter`<br>`nexary-observation-micrometer-spring-boot-starter`<br>`nexary-governance-spring-boot-starter` |
+| Spring Boot 2.7 | Java 8+ | Cache Redis/Valkey single-tier, Messaging Redis-only, and Job local/XXL-JOB/PowerJob bridge are verified | `0.4.0`; use Latest Version after Maven Central sync | current entries use direct versions; switch only when a dedicated BOM is released | `nexary-cache-spring-boot2-starter`<br>`nexary-messaging-spring-boot2-starter`<br>`nexary-job-spring-boot2-starter` |
+| Spring Boot 4.1 | Java 21 primary validation runtime | Cache Redis/Valkey, Messaging by provider, and Job local/XXL-JOB/PowerJob bridge are verified; this is not whole-repository Boot4 support | `0.4.0`; use Latest Version after Maven Central sync | current entries use direct versions; switch only when a dedicated BOM is released | `nexary-cache-spring-boot4-starter`<br>`nexary-messaging-spring-boot4-starter` plus one Boot4 provider artifact<br>`nexary-job-spring-boot4-starter` |
 
 Only verified artifactIds should be copied from the snippets below. Production services should not depend on a `main` branch snapshot.
 
@@ -164,7 +164,7 @@ Import the BOM first, then choose the starters you need:
 ```xml
 <properties>
   <!-- After Maven Central sync, this can also use the Latest Version. -->
-  <nexary.version>0.3.1</nexary.version>
+  <nexary.version>0.4.0</nexary.version>
 </properties>
 
 <dependencyManagement>
@@ -207,7 +207,7 @@ Import the BOM first, then choose the starters you need:
 
 ```groovy
 // After Maven Central sync, this can also use the Latest Version.
-def nexaryVersion = "0.3.1"
+def nexaryVersion = "0.4.0"
 
 dependencies {
     // Use the BOM to keep Nexary modules on one version. After release, set nexaryVersion to Latest Version or a tag version.
@@ -234,7 +234,7 @@ Maven:
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-cache-spring-boot2-starter</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
   </dependency>
 </dependencies>
 ```
@@ -243,7 +243,7 @@ Gradle:
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-cache-spring-boot2-starter:0.3.1'
+    implementation 'com.aweimao:nexary-cache-spring-boot2-starter:0.4.0'
 }
 ```
 
@@ -267,7 +267,7 @@ Maven:
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-messaging-spring-boot2-starter</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
   </dependency>
 </dependencies>
 ```
@@ -276,7 +276,7 @@ Gradle:
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-spring-boot2-starter:0.3.1'
+    implementation 'com.aweimao:nexary-messaging-spring-boot2-starter:0.4.0'
 }
 ```
 
@@ -301,7 +301,7 @@ Maven:
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-job-spring-boot2-starter</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
   </dependency>
 </dependencies>
 ```
@@ -310,7 +310,7 @@ Gradle:
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-spring-boot2-starter:0.3.1'
+    implementation 'com.aweimao:nexary-job-spring-boot2-starter:0.4.0'
 }
 ```
 
@@ -332,7 +332,7 @@ The Boot4 Cache entry currently verifies the Redis provider/starter. This is not
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-cache-spring-boot4-starter:0.3.1'
+    implementation 'com.aweimao:nexary-cache-spring-boot4-starter:0.4.0'
 }
 ```
 
@@ -341,7 +341,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-cache-spring-boot4-starter</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
   </dependency>
 </dependencies>
 ```
@@ -352,8 +352,8 @@ The Boot4 Messaging starter is not an aggregate-all-provider starter. Add the Ne
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-spring-boot4-starter:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot4:0.3.1'
+    implementation 'com.aweimao:nexary-messaging-spring-boot4-starter:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot4:0.4.0'
 }
 ```
 
@@ -362,12 +362,12 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-messaging-spring-boot4-starter</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
   </dependency>
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-messaging-redis-spring-boot4</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
     <scope>runtime</scope>
   </dependency>
 </dependencies>
@@ -388,7 +388,7 @@ The Boot4 Job entry currently verifies the Job API, local scheduler, XXL-JOB tri
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-spring-boot4-starter:0.3.1'
+    implementation 'com.aweimao:nexary-job-spring-boot4-starter:0.4.0'
 }
 ```
 
@@ -397,7 +397,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-job-spring-boot4-starter</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
   </dependency>
 </dependencies>
 ```
@@ -408,7 +408,7 @@ If you do not want starters, use the non-starter dependency mode. Business code 
 
 ```groovy
 // After Maven Central sync, this can also use the Latest Version.
-def nexaryVersion = "0.3.1"
+def nexaryVersion = "0.4.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -427,8 +427,8 @@ Boot2 / Java8+ Messaging SPI/provider mode is currently verified only for Redis-
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-api:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot2:0.3.1'
+    implementation 'com.aweimao:nexary-messaging-api:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot2:0.4.0'
 }
 ```
 
@@ -436,8 +436,8 @@ Boot2 / Java8+ Job without a starter currently verifies the local scheduler, XXL
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-api:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-job-scheduler-spring-boot2:0.3.1'
+    implementation 'com.aweimao:nexary-job-api:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-scheduler-spring-boot2:0.4.0'
 }
 ```
 
@@ -445,9 +445,9 @@ Add these artifacts when the service needs XXL-JOB, PowerJob, or Redis completed
 
 ```groovy
 dependencies {
-    runtimeOnly 'com.aweimao:nexary-job-xxljob-spring-boot2:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-job-powerjob-spring-boot2:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-job-execution-store-redis-spring-boot2:0.3.1'
+    runtimeOnly 'com.aweimao:nexary-job-xxljob-spring-boot2:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-powerjob-spring-boot2:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-execution-store-redis-spring-boot2:0.4.0'
 }
 ```
 
@@ -455,8 +455,8 @@ Boot4 / Java21 validation-runtime Messaging SPI/provider mode is provider-by-pro
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-api:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot4:0.3.1'
+    implementation 'com.aweimao:nexary-messaging-api:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot4:0.4.0'
 }
 ```
 
@@ -466,8 +466,8 @@ Boot4 / Java21 validation-runtime Job SPI/provider local scheduler example:
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-api:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-job-scheduler-spring-boot4:0.3.1'
+    implementation 'com.aweimao:nexary-job-api:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-scheduler-spring-boot4:0.4.0'
 }
 ```
 
@@ -475,9 +475,9 @@ Add these artifacts when the service needs XXL-JOB, PowerJob, or Redis completed
 
 ```groovy
 dependencies {
-    runtimeOnly 'com.aweimao:nexary-job-xxljob-spring-boot4:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-job-powerjob-spring-boot4:0.3.1'
-    runtimeOnly 'com.aweimao:nexary-job-execution-store-redis-spring-boot4:0.3.1'
+    runtimeOnly 'com.aweimao:nexary-job-xxljob-spring-boot4:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-powerjob-spring-boot4:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-execution-store-redis-spring-boot4:0.4.0'
 }
 ```
 
@@ -486,7 +486,7 @@ The current recommendation is one outbound messaging provider per service. If a 
 ## Release and Versioning
 
 - complete namespace verification, signing, SCM metadata, and sources/javadocs before Maven Central publication
-- `0.3.1` includes verified entries for Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21
+- `0.4.0` includes verified entries for Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21
 - Spring Boot 2 / JDK 8 support should use dedicated provider / starter lines instead of polluting the Boot3 mainline API
 - Spring Boot 4.1 / Java 21 support uses dedicated Boot4 provider / starter lines; Messaging does not publish an aggregate-all-provider Boot4 starter
 

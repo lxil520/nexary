@@ -90,6 +90,12 @@ public final class JobObservationSupport {
         if (value.contains("misfired")) {
             return "misfire";
         }
+        if (value.contains("deadline_exceeded") || value.contains("deadline")) {
+            return "deadline";
+        }
+        if (value.contains("bulkhead_rejected") || value.contains("bulkhead")) {
+            return "bulkhead";
+        }
         if (value.contains("already_running")) {
             return "concurrency";
         }

@@ -196,6 +196,64 @@ class PowerJobBridgeTest {
         }
     }
 
+    @Test
+    void recordsBulkheadSkipFromBridgeTriggerAndEmitsSkipReason() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        NexaryJob job = new NexaryJob() {
+            @Override
+            public String name() {
+                return "bulkhead-job";
+            }
+
+            @Override
+            public JobResult execute(JobContext context) throws Exception {
+                started.countDown();
+                release.await(2, TimeUnit.SECONDS);
+                return JobResult.success();
+            }
+        };
+        PowerJobProperties properties = new PowerJobProperties();
+        properties.setMaxConcurrentExecutions(1);
+        RecordingJobExecutionStore store = new RecordingJobExecutionStore();
+        RecordingObservationPublisher publisher = new RecordingObservationPublisher();
+        PowerJobBridge bridge = new PowerJobBridge(
+                Collections.singletonList(job),
+                runner(Collections.emptyList(), store, publisher),
+                properties,
+                publisher);
+
+        ExecutorService triggerExecutor = Executors.newSingleThreadExecutor();
+        try {
+            java.util.concurrent.Future<JobExecutionRecord> running =
+                    triggerExecutor.submit(() -> bridge.triggerExecution(
+                            new PowerJobBridgeRequest("bulkhead-job", 0, 2, "instance-1", "task-1", "task-a")));
+            assertThat(started.await(1, TimeUnit.SECONDS)).isTrue();
+            JobExecutionRecord skipped = bridge.triggerExecution(
+                    new PowerJobBridgeRequest("bulkhead-job", 1, 2, "instance-2", "task-2", "task-b"));
+            release.countDown();
+            running.get(1, TimeUnit.SECONDS);
+
+            assertThat(skipped.status()).isEqualTo(JobExecutionStatus.SKIPPED);
+            assertThat(skipped.message()).contains("bulkhead");
+            assertThat(store.find(skipped.executionId())).contains(skipped);
+            assertThat(publisher.operations()).contains(
+                    JobObservationSupport.OPERATION_POWERJOB_BRIDGE_TRIGGER,
+                    JobObservationSupport.OPERATION_TRIGGER,
+                    JobObservationSupport.OPERATION_SKIP);
+            assertThat(publisher.events)
+                    .filteredOn(event -> event.operation().equals(JobObservationSupport.OPERATION_SKIP))
+                    .allSatisfy(event -> {
+                        assertThat(event.tags().get("provider")).isEqualTo("powerjob");
+                        assertThat(event.tags().get("trigger")).isEqualTo("bridge");
+                        assertThat(event.tags().get("skip_reason")).isEqualTo("bulkhead");
+                    });
+        } finally {
+            release.countDown();
+            triggerExecutor.shutdownNow();
+        }
+    }
+
     private NexaryJob successJob(String name) {
         return new NexaryJob() {
             @Override

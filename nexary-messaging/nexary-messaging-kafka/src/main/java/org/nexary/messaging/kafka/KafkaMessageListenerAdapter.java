@@ -6,6 +6,7 @@ import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageConsumer;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessageGovernanceSupport;
 import org.nexary.messaging.MessageObservationSupport;
 import org.nexary.messaging.MessageSerializer;
 
@@ -53,7 +54,13 @@ public class KafkaMessageListenerAdapter<T> {
     /** Handles a Kafka-delivered message without exposing Kafka consumer record types. */
     public MessageConsumeResult onMessage(String topic, String key, byte[] payload, Map<String, String> headers) {
         T deserialized = serializer.deserialize(payload, payloadType);
-        MessageEnvelope<T> envelope = new MessageEnvelope<>(topic, key, deserialized, headers, null, null);
+        MessageEnvelope<T> envelope = new MessageEnvelope<>(
+                topic,
+                key,
+                deserialized,
+                headers,
+                MessageGovernanceSupport.deadlineFromHeaders(headers),
+                null);
         MessageConsumeResult result = consumeExecutor.consume(envelope, consumerGroup, consumer);
         MessageObservationSupport.publish(
                 observationPublisher, "consume", "kafka", MessageObservationSupport.outcome(result));
