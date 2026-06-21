@@ -76,6 +76,11 @@ jobs:
 
           AUTH_TOKEN="$(printf '%s:%s' "${CENTRAL_USERNAME}" "${CENTRAL_PASSWORD}" | base64 | tr -d '\n')"
           echo "::add-mask::${AUTH_TOKEN}"
+          CENTRAL_BOM_URL="https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/${VERSION}/nexary-bom-${VERSION}.pom"
+
+          central_version_exists() {
+            curl --head --fail --silent --show-error "${CENTRAL_BOM_URL}" > /dev/null
+          }
 
           DEPLOYMENT_ID="$(curl --fail-with-body -sS \
             --request POST \
@@ -95,10 +100,23 @@ jobs:
             echo "Central validation state: ${STATE}"
 
             if [ "${STATE}" = "VALIDATED" ]; then
-              curl --fail-with-body -sS \
+              HTTP_STATUS="$(curl -sS \
                 --request POST \
                 --header "Authorization: Bearer ${AUTH_TOKEN}" \
-                "https://central.sonatype.com/api/v1/publisher/deployment/${DEPLOYMENT_ID}"
+                --output central-publish-response.txt \
+                --write-out '%{http_code}' \
+                "https://central.sonatype.com/api/v1/publisher/deployment/${DEPLOYMENT_ID}")"
+              if [ "${HTTP_STATUS}" -ge 200 ] && [ "${HTTP_STATUS}" -lt 300 ]; then
+                cat central-publish-response.txt
+              elif central_version_exists; then
+                echo "Maven Central already has nexary-bom ${VERSION}; treating this duplicate publish as complete."
+                cat central-publish-response.txt
+                exit 0
+              else
+                echo "Central publish request failed with HTTP ${HTTP_STATUS}."
+                cat central-publish-response.txt
+                exit 1
+              fi
               break
             fi
 
