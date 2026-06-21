@@ -15,25 +15,25 @@ runtimeOnly project(':nexary-job:nexary-job-xxljob')
 Spring Boot 3.3 / Java 17+ XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-api:${nexaryVersion}"
-runtimeOnly "org.nexary:nexary-job-xxljob:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
+runtimeOnly "com.aweimao:nexary-job-xxljob:${nexaryVersion}"
 ```
 
 Spring Boot 2.7 / Java 8+ XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-api:${nexaryVersion}"
-runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
+runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 主验证运行时 XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-api:${nexaryVersion}"
-runtimeOnly "org.nexary:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
+runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
 ```
 
 业务代码只使用 `org.nexary.job.*`，不依赖 provider 内部类或 XXL-JOB 原生类型。

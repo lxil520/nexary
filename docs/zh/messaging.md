@@ -17,7 +17,7 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 
 ## 版本与接入入口
 
-先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.3.0`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
+先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.3.1`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
 
 | Spring Boot | JDK | Messaging 状态 | Starter 模式 | SPI/provider 模式 |
 | --- | --- | --- | --- | --- |
@@ -28,16 +28,16 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 Spring Boot 3.3 / Java 17+ starter 模式：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
     // 使用 Nexary BOM 锁定当前已验证的 Boot3 / Java17+ Messaging 依赖版本。
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 
     // 当前已验证组合：Spring Boot 3.3 + Java 17+。
     // 这个 starter 聚合 Messaging API 和当前 provider 自动配置。
     // 用 nexary.messaging.provider 选择 disruptor / redis / kafka / rocketmq / activemq-classic。
-    implementation 'org.nexary:nexary-messaging-spring-boot-starter'
+    implementation 'com.aweimao:nexary-messaging-spring-boot-starter'
 }
 ```
 
@@ -46,10 +46,10 @@ dependencies {
 Spring Boot 2.7 / Java 8+ 当前只验证 Redis-only Messaging starter：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation "org.nexary:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
+    implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
 }
 ```
 
@@ -66,13 +66,13 @@ nexary:
 Spring Boot 4.1 的 Messaging starter 只提供 Nexary 层 core 自动配置。使用时必须显式增加一个 provider artifact；不要把四个 provider 都放进同一个 Boot4 starter classpath：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation "org.nexary:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
+    implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
 
     // 恰好选择一个 provider。
-    runtimeOnly "org.nexary:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
 }
 ```
 
@@ -95,83 +95,83 @@ Spring Boot 3.3 / Java 17+ SPI/provider 模式按 provider 选择。每个代码
 Disruptor：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation 'org.nexary:nexary-messaging-api'
-    runtimeOnly 'org.nexary:nexary-messaging-disruptor'
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation 'com.aweimao:nexary-messaging-api'
+    runtimeOnly 'com.aweimao:nexary-messaging-disruptor'
 }
 ```
 
 Redis queue：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation 'org.nexary:nexary-messaging-api'
-    runtimeOnly 'org.nexary:nexary-messaging-redis'
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation 'com.aweimao:nexary-messaging-api'
+    runtimeOnly 'com.aweimao:nexary-messaging-redis'
 }
 ```
 
 Kafka：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation 'org.nexary:nexary-messaging-api'
-    runtimeOnly 'org.nexary:nexary-messaging-kafka'
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation 'com.aweimao:nexary-messaging-api'
+    runtimeOnly 'com.aweimao:nexary-messaging-kafka'
 }
 ```
 
 RocketMQ：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation 'org.nexary:nexary-messaging-api'
-    runtimeOnly 'org.nexary:nexary-messaging-rocketmq'
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation 'com.aweimao:nexary-messaging-api'
+    runtimeOnly 'com.aweimao:nexary-messaging-rocketmq'
 }
 ```
 
 ActiveMQ Classic：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation 'org.nexary:nexary-messaging-api'
-    runtimeOnly 'org.nexary:nexary-messaging-activemq-classic'
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation 'com.aweimao:nexary-messaging-api'
+    runtimeOnly 'com.aweimao:nexary-messaging-activemq-classic'
 }
 ```
 
 Spring Boot 2.7 / Java 8+ 的 SPI/provider 模式当前只验证 Redis-only：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation "org.nexary:nexary-messaging-api:${nexaryVersion}"
-    runtimeOnly "org.nexary:nexary-messaging-redis-spring-boot2:${nexaryVersion}"
+    implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot2:${nexaryVersion}"
 }
 ```
 
 Spring Boot 4.1 / Java 21 主要验证运行时的 SPI/provider 模式：
 
 ```gradle
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation "org.nexary:nexary-messaging-api:${nexaryVersion}"
+    implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
 
-    runtimeOnly "org.nexary:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
 }
 ```
 

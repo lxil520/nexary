@@ -46,23 +46,23 @@ implementation project(':nexary-boot:nexary-job-spring-boot-starter')
 发布到 Maven Central 后，把 `nexaryVersion` 替换为最新 release。Spring Boot 3.3 / Java 17+ starter 入口：
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-implementation 'org.nexary:nexary-job-spring-boot-starter'
+def nexaryVersion = "0.3.1"
+implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+implementation 'com.aweimao:nexary-job-spring-boot-starter'
 ```
 
 Spring Boot 2.7 / Java 8+ starter 入口：
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-spring-boot2-starter:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 主验证运行时 starter 入口：
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-spring-boot4-starter:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
 starter 聚合当前 Job API、local provider 和 XXL-JOB bridge provider。使用者通过配置选择 provider：

@@ -27,7 +27,7 @@ This runnable sample uses the Spring Boot 3.3.x + Java 17+ line. The table below
 | Spring Boot 2.7.x | Java 8+ | Redis single-tier is verified; tiered local cache is not included | `nexary-cache-spring-boot2-starter` |
 | Spring Boot 4.1.x | Java 21 primary validation runtime | Cache Redis provider/starter verified; not whole-repository Boot4 support | `nexary-cache-spring-boot4-starter` |
 
-The current development version is `0.3.0`. After Maven Central publication, replace it with the latest release / tag version. The Boot4 / Java21 wording is only Nexary Cache's primary validation runtime; it is not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+The current development version is `0.3.1`. After Maven Central publication, replace it with the latest release / tag version. The Boot4 / Java21 wording is only Nexary Cache's primary validation runtime; it is not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
 
 Valkey is a v0.3 Redis-protocol deployment target. This sample does not add Valkey-specific business code; it keeps the same starter and the same controller/service code, and switches with `NEXARY_SAMPLE_CACHE_PROVIDER=valkey` plus the Valkey port.
 
@@ -41,11 +41,11 @@ implementation project(':nexary-boot:nexary-cache-spring-boot-starter')
 Copy this in an external Spring Boot 3.3.x / Java 17+ service:
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation "org.nexary:nexary-cache-spring-boot-starter"
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation "com.aweimao:nexary-cache-spring-boot-starter"
 }
 ```
 
@@ -53,7 +53,7 @@ Copy this in an external Spring Boot 2.7.x / Java 8+ Redis single-tier service:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-spring-boot2-starter:0.3.0"
+    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.3.1"
 }
 ```
 
@@ -61,7 +61,7 @@ Copy this in an external Spring Boot 4.1.x / Java 21 primary-validation-runtime 
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-spring-boot4-starter:0.3.0"
+    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.3.1"
 }
 ```
 
@@ -178,12 +178,12 @@ non-starter dependency integration lives in a separate module:
 Its production dependency shape is:
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation "org.nexary:nexary-cache-api"
-    runtimeOnly "org.nexary:nexary-cache-redis"
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation "com.aweimao:nexary-cache-api"
+    runtimeOnly "com.aweimao:nexary-cache-redis"
 }
 ```
 
@@ -191,8 +191,8 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.3.0"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.3.0"
+    implementation "com.aweimao:nexary-cache-api:0.3.1"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.3.1"
 }
 ```
 
@@ -200,8 +200,8 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.3.0"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.3.0"
+    implementation "com.aweimao:nexary-cache-api:0.3.1"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.3.1"
 }
 ```
 

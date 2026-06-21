@@ -5,9 +5,9 @@ plugins {
 dependencies {
     // Main adoption path:
     // - current verified line is Spring Boot 3.3 + Java 17+
-    // - after publication, import org.nexary:nexary-bom:${nexaryVersion}
-    //   and use org.nexary:nexary-messaging-spring-boot-starter
-    // - pre-release naming recommendation: org.nexary:nexary-messaging-spring-boot3-starter
+    // - after publication, import com.aweimao:nexary-bom:${nexaryVersion}
+    //   and use com.aweimao:nexary-messaging-spring-boot-starter
+    // - pre-release naming recommendation: com.aweimao:nexary-messaging-spring-boot3-starter
     // - the starter aggregates Messaging API + provider auto-configuration
     // - choose the active provider with nexary.messaging.provider in application*.yml
     // - keep facade/controller/consumer code on org.nexary.messaging APIs only

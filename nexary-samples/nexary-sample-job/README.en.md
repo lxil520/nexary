@@ -46,23 +46,23 @@ implementation project(':nexary-boot:nexary-job-spring-boot-starter')
 After Maven Central publication, replace `nexaryVersion` with the latest release. Spring Boot 3.3 / Java 17+ starter entry:
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-implementation 'org.nexary:nexary-job-spring-boot-starter'
+def nexaryVersion = "0.3.1"
+implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+implementation 'com.aweimao:nexary-job-spring-boot-starter'
 ```
 
 Spring Boot 2.7 / Java 8+ starter entry:
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-spring-boot2-starter:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime starter entry:
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-spring-boot4-starter:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
 The starter aggregates the current Job API, local provider, and XXL-JOB bridge provider. Users select the provider in configuration:

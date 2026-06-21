@@ -15,25 +15,25 @@ After Maven Central publication, replace `nexaryVersion` with the latest release
 Spring Boot 3.3 / Java 17+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-api:${nexaryVersion}"
-runtimeOnly "org.nexary:nexary-job-scheduler:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
+runtimeOnly "com.aweimao:nexary-job-scheduler:${nexaryVersion}"
 ```
 
 Spring Boot 2.7 / Java 8+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-api:${nexaryVersion}"
-runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
+runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.3.0"
-implementation "org.nexary:nexary-job-api:${nexaryVersion}"
-runtimeOnly "org.nexary:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
+def nexaryVersion = "0.3.1"
+implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
+runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
 
 Business code uses only `org.nexary.job.*` and does not depend on provider types.

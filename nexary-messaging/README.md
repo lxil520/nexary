@@ -7,7 +7,7 @@
 
 ## 版本入口
 
-当前开发版本示例统一使用 `0.3.0`。发布到 Maven Central 后，把示例中的版本替换成最新 release。
+当前开发版本示例统一使用 `0.3.1`。发布到 Maven Central 后，把示例中的版本替换成最新 release。
 
 | Spring Boot | JDK | 状态 | Starter artifactId | SPI/provider artifactId |
 | --- | --- | --- | --- | --- |
@@ -24,11 +24,11 @@
 Spring Boot 3.3 / Java 17+ starter：
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation "org.nexary:nexary-messaging-spring-boot-starter"
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation "com.aweimao:nexary-messaging-spring-boot-starter"
 }
 ```
 
@@ -38,7 +38,7 @@ Spring Boot 2.7 / Java 8+ Redis-only starter：
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-messaging-spring-boot2-starter:0.3.0"
+    implementation "com.aweimao:nexary-messaging-spring-boot2-starter:0.3.1"
 }
 ```
 
@@ -46,21 +46,21 @@ Spring Boot 2.7 / Java 8+ Redis-only SPI/provider：
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-messaging-api:0.3.0"
-    runtimeOnly "org.nexary:nexary-messaging-redis-spring-boot2:0.3.0"
+    implementation "com.aweimao:nexary-messaging-api:0.3.1"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot2:0.3.1"
 }
 ```
 
 Spring Boot 4.1 / Java 21 主要验证运行时的 starter 入口必须显式选择一个 provider。`nexary-messaging-spring-boot4-starter` 只提供 Nexary 层 core 自动配置，不聚合所有 provider：
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation "org.nexary:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
+    implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
 
     // 只选择一个 provider。不要同时把 Kafka 与 RocketMQ 等所有 provider 放进同一个 Boot4 starter classpath。
-    runtimeOnly "org.nexary:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
 }
 ```
 
@@ -69,12 +69,12 @@ dependencies {
 Spring Boot 4.1 / Java 21 主要验证运行时的 SPI/provider：
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation "org.nexary:nexary-messaging-api:${nexaryVersion}"
+    implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
 
-    runtimeOnly "org.nexary:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot4:${nexaryVersion}"
 }
 ```
 

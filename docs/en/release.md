@@ -13,7 +13,7 @@ Before cutting a release:
 - confirm `group`, artifact names, license, SCM, and developer metadata
 - confirm sources and Javadoc jars are generated
 - confirm no real credentials, private endpoints, or private registry settings exist
-- create a SemVer tag such as `v0.3.0`
+- create a SemVer tag such as `v0.3.1`
 
 ## Minimum Maven Central Requirements
 
@@ -38,7 +38,7 @@ The pragmatic path is:
 2. complete namespace verification
 3. add GPG signing and credential handling
 4. lock down one Gradle release pipeline
-5. publish `0.3.0` while keeping Boot2 / Boot4 compatibility gates visible
+5. publish `0.3.1` while keeping Boot2 / Boot4 compatibility gates visible
 
 ## Gradle Release Commands
 
@@ -54,7 +54,7 @@ Before publishing to Maven Central, provide real repository metadata and signing
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.3.0 \
+  -PnexaryVersion=0.3.1 \
   -PprojectWebsite=https://github.com/<owner>/nexary \
   -PprojectScmUrl=https://github.com/<owner>/nexary.git \
   -PprojectScmConnection=scm:git:https://github.com/<owner>/nexary.git \

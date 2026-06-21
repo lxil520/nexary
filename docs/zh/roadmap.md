@@ -179,9 +179,9 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 ## `0.3.x` 治理与新 provider 版
 
-`0.3.0` 已经把治理能力独立成模块，并补齐三类常见替换诉求：Cache 的 Valkey 部署目标、Messaging 的 ActiveMQ Classic provider、Job 的 PowerJob bridge。
+`0.3.x` 已经把治理能力独立成模块，并补齐三类常见替换诉求：Cache 的 Valkey 部署目标、Messaging 的 ActiveMQ Classic provider、Job 的 PowerJob bridge。
 
-`0.3.0` 已纳入：
+`0.3.x` 已纳入：
 
 - Governance：deadline、traffic、rate limit、bulkhead、degradation、retry-stop 等基础语义。
 - Cache：Valkey 作为 Redis 协议兼容部署目标，业务 API 不变。
@@ -192,14 +192,14 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 治理模块必须保持清晰边界：它可以消费 cache / messaging / job 的事件与策略扩展点，但不应让这些能力的主 API 变胖。
 
-`0.3.0` 的代码范围已经收口。后续 `0.3.x` 继续做两件不阻塞 `0.3.0` 的事：
+`0.3.x` 的基础范围已经收口。后续同一小版本线继续做两件事：
 
 - 把更多治理基础语义做成可配置、可运行、可测试的策略，同时保持 cache / messaging / job 主 API 简单。
 - Boot2 / Boot4 继续按 provider 独立验收；只有样例和真实中间件测试都通过，README 才增加支持声明和依赖片段。
 
 ## `0.4.x` 可运行治理策略版
 
-`0.4.x` 的重点不是继续堆 provider，而是把 `0.3.0` 已经落下来的治理语义接到真实调用路径里，让用户可以通过配置启用、通过样例验证、通过指标观察。
+`0.4.x` 的重点不是继续堆 provider，而是把 `0.3.x` 已经落下来的治理语义接到真实调用路径里，让用户可以通过配置启用、通过样例验证、通过指标观察。
 
 计划范围：
 

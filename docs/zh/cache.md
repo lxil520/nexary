@@ -11,7 +11,7 @@ Cache 是 Nexary 当前最独立的一项能力。
 
 ## 版本选择
 
-当前开发版本：`0.3.0`。正式发布后，依赖中的 `${nexary.version}` 使用最新 release / tag 版本。
+当前开发版本：`0.3.1`。正式发布后，依赖中的 `${nexary.version}` 使用最新 release / tag 版本。
 
 | Spring Boot | JDK | Cache 状态 | Starter artifactId | SPI/provider 依赖 |
 | --- | --- | --- | --- | --- |
@@ -32,11 +32,11 @@ Starter 模式适合 Spring Boot 服务直接引入 cache 能力。starter 聚�
 Spring Boot 3.3.x / Java 17+：
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
-    implementation "org.nexary:nexary-cache-spring-boot-starter"
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
+    implementation "com.aweimao:nexary-cache-spring-boot-starter"
 }
 ```
 
@@ -44,7 +44,7 @@ Spring Boot 2.7.x / Java 8+ Redis 单级缓存：
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-spring-boot2-starter:0.3.0"
+    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.3.1"
 }
 ```
 
@@ -52,7 +52,7 @@ Spring Boot 4.1.x / Java 21 主验证运行时：
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-spring-boot4-starter:0.3.0"
+    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.3.1"
 }
 ```
 
@@ -89,15 +89,15 @@ SPI/provider 模式适合希望显式控制 provider 依赖的服务。业务代
 Spring Boot 3.3.x / Java 17+：
 
 ```groovy
-def nexaryVersion = "0.3.0"
+def nexaryVersion = "0.3.1"
 
 dependencies {
-    implementation platform("org.nexary:nexary-bom:${nexaryVersion}")
+    implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 
     // 业务代码只使用 CacheClient / CacheCounterClient 等 Nexary API。
-    implementation "org.nexary:nexary-cache-api"
+    implementation "com.aweimao:nexary-cache-api"
 
-    runtimeOnly "org.nexary:nexary-cache-redis"
+    runtimeOnly "com.aweimao:nexary-cache-redis"
 }
 ```
 
@@ -105,8 +105,8 @@ Spring Boot 2.7.x / Java 8+ Redis 单级缓存：
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.3.0"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot2:0.3.0"
+    implementation "com.aweimao:nexary-cache-api:0.3.1"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.3.1"
 }
 ```
 
@@ -114,8 +114,8 @@ Spring Boot 4.1.x / Java 21 主验证运行时：
 
 ```groovy
 dependencies {
-    implementation "org.nexary:nexary-cache-api:0.3.0"
-    runtimeOnly "org.nexary:nexary-cache-redis-spring-boot4:0.3.0"
+    implementation "com.aweimao:nexary-cache-api:0.3.1"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.3.1"
 }
 ```
 

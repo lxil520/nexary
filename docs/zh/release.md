@@ -13,7 +13,7 @@
 - 校验 `group`、artifact 名称、license、SCM、developer metadata
 - 校验 sources 和 Javadoc jar 能正常产出
 - 确认仓库中没有真实凭证、私有端点或私有仓库配置
-- 按 SemVer 创建 tag，例如 `v0.3.0`
+- 按 SemVer 创建 tag，例如 `v0.3.1`
 
 ## Maven Central 最小要求
 
@@ -38,7 +38,7 @@
 2. 完成 namespace 校验
 3. 补 GPG 签名和发布凭证托管
 4. 固化一个 Gradle 发布流水线
-5. 先发 `0.3.0`，同时保留 Boot2 / Boot4 兼容 gate 的报告入口
+5. 先发 `0.3.1`，同时保留 Boot2 / Boot4 兼容 gate 的报告入口
 
 ## Gradle 发布命令
 
@@ -54,7 +54,7 @@ Maven Central 发布前需要设置真实仓库元数据和签名密钥：
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.3.0 \
+  -PnexaryVersion=0.3.1 \
   -PprojectWebsite=https://github.com/<owner>/nexary \
   -PprojectScmUrl=https://github.com/<owner>/nexary.git \
   -PprojectScmConnection=scm:git:https://github.com/<owner>/nexary.git \

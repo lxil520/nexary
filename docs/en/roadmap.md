@@ -179,9 +179,9 @@ It starts in parallel:
 
 ## `0.3.x` Governance and New Providers
 
-`0.3.0` moves governance into its own module and adds three common replacement paths: Valkey as a cache deployment target, ActiveMQ Classic for messaging, and PowerJob for job triggers.
+`0.3.x` moves governance into its own module and adds three common replacement paths: Valkey as a cache deployment target, ActiveMQ Classic for messaging, and PowerJob for job triggers.
 
-Included in `0.3.0`:
+Included in `0.3.x`:
 
 - Governance: deadline, traffic, rate limit, bulkhead, degradation, and retry-stop primitives.
 - Cache: Valkey as a Redis-protocol-compatible deployment target with unchanged business APIs.
@@ -192,14 +192,14 @@ Included in `0.3.0`:
 
 Governance must keep a clear boundary: it may consume events and policy extension points from cache, messaging, and job, but it should not make their primary APIs heavy.
 
-The `0.3.0` code scope is closed. Later `0.3.x` updates should continue two tracks that do not block `0.3.0`:
+The base `0.3.x` scope is closed. Later updates in the same minor line should continue two tracks:
 
 - turn more governance primitives into configurable, runnable, and testable policies while keeping the primary cache / messaging / job APIs simple.
 - keep validating Boot2 / Boot4 provider entries one by one; README support claims and dependency snippets are added only after samples and real middleware tests pass.
 
 ## `0.4.x` Runnable Governance Policies
 
-`0.4.x` should not keep adding providers for its own sake. The main work is to connect the governance primitives from `0.3.0` to real execution paths so users can enable them through configuration, verify them through samples, and observe them through metrics.
+`0.4.x` should not keep adding providers for its own sake. The main work is to connect the governance primitives from `0.3.x` to real execution paths so users can enable them through configuration, verify them through samples, and observe them through metrics.
 
 Planned scope:
 
