@@ -15,7 +15,7 @@ runtimeOnly project(':nexary-job:nexary-job-powerjob')
 Spring Boot 3.3 / Java 17+ PowerJob bridge provider：
 
 ```groovy
-def nexaryVersion = "0.5.0"
+def nexaryVersion = "0.5.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-powerjob:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "com.aweimao:nexary-job-powerjob:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ PowerJob bridge provider：
 
 ```groovy
-def nexaryVersion = "0.5.0"
+def nexaryVersion = "0.5.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot2:${nexaryVersion}"
 ```
@@ -31,7 +31,7 @@ runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 主验证运行时 PowerJob bridge provider：
 
 ```groovy
-def nexaryVersion = "0.5.0"
+def nexaryVersion = "0.5.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot4:${nexaryVersion}"
 ```

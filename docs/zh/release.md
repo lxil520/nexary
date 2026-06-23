@@ -1,6 +1,6 @@
 # 发布清单
 
-这页是公开发布用的操作清单。示例版本使用 `0.5.0`，实际发布 patch 版本时把命令里的版本号一并替换。
+这页是公开发布用的操作清单。示例版本使用 `0.5.1`，实际发布 patch 版本时把命令里的版本号一并替换。
 
 ## 发布前检查
 
@@ -9,7 +9,7 @@
 - `./gradlew check`
 - `./gradlew verifyReleaseGate`
 - `./gradlew publishToMavenLocal`
-- 按“本地生成 Central bundle”中的完整命令运行 `./gradlew mavenCentralBundle -PnexaryVersion=0.5.0`，并确认 `build/distributions/nexary-0.5.0-central-bundle.zip` 生成
+- 按“本地生成 Central bundle”中的完整命令运行 `./gradlew mavenCentralBundle -PnexaryVersion=0.5.1`，并确认 `build/distributions/nexary-0.5.1-central-bundle.zip` 生成
 - GitHub Actions 里的 build、dependency review 和 secret scan 通过
 - POM 中的 `group`、artifact 名称、license、developer、SCM 信息正确
 - sources jar、Javadoc jar、`.pom`、`.module`、签名文件都在 Central bundle 中
@@ -45,7 +45,7 @@
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.5.0 \
+  -PnexaryVersion=0.5.1 \
   -PprojectWebsite=https://github.com/lxil520/nexary \
   -PprojectScmUrl=https://github.com/lxil520/nexary.git \
   -PprojectScmConnection=scm:git:https://github.com/lxil520/nexary.git \
@@ -57,9 +57,9 @@
 生成后检查：
 
 ```bash
-unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep 'nexary-bom/0.5.0'
-unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.asc'
-unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.sha1'
+unzip -l build/distributions/nexary-0.5.1-central-bundle.zip | grep 'nexary-bom/0.5.1'
+unzip -l build/distributions/nexary-0.5.1-central-bundle.zip | grep '.asc'
+unzip -l build/distributions/nexary-0.5.1-central-bundle.zip | grep '.sha1'
 ```
 
 ## GitHub Actions 发布
@@ -67,21 +67,21 @@ unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.sha1'
 推荐用 tag 触发正式发布：
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.5.1
+git push origin v0.5.1
 ```
 
 `release.yml` 会从 tag 对应的 commit 生成 Central Portal bundle，并上传为 GitHub Actions artifact。只要 Central secrets 存在，tag 触发会继续上传并发布 Central deployment。
 
-如果 Central token 缺失，发布步骤会失败，不会把缺少 Central 发布的 tag run 标成成功。需要只验证 bundle 时，使用 `workflow_dispatch`，填入 `0.5.0` 或 `v0.5.0`，并保持 `publish_to_central=false`。手动发布到 Central 必须从已存在的 tag ref 运行，且输入版本必须匹配选中的 tag；不要从 `main` 分支手动发布 Central deployment。
+如果 Central token 缺失，发布步骤会失败，不会把缺少 Central 发布的 tag run 标成成功。需要只验证 bundle 时，使用 `workflow_dispatch`，填入 `0.5.1` 或 `v0.5.1`，并保持 `publish_to_central=false`。手动发布到 Central 必须从已存在的 tag ref 运行，且输入版本必须匹配选中的 tag；不要从 `main` 分支手动发布 Central deployment。
 
 ## Maven Central 发布后检查
 
 Central Portal 显示 published 后，再检查 Maven Central 是否同步：
 
 ```bash
-curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.5.0/nexary-bom-0.5.0.pom
-curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.5.0/nexary-core-0.5.0.jar
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.5.1/nexary-bom-0.5.1.pom
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.5.1/nexary-core-0.5.1.jar
 ```
 
 同步完成后再更新 GitHub Release 说明和 README 中的版本选择提示。不要在 Central 还没有同步时告诉用户直接复制 Maven Central 版本。

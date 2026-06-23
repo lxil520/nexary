@@ -226,10 +226,10 @@ Later updates in the same minor line should only close two kinds of gaps:
 
 `0.5.x` should make it easier for users to decide how to integrate Nexary, how to verify the integration, and how to debug failures. It should also stabilize release, documentation, samples, and provider validation workflows.
 
-Included in `0.5.0`:
+Included in `0.5.1`:
 
 - Release: document Maven Central namespace, signing, sources, Javadocs, tag publication, and failure handling.
-- Docs: align README, capability docs, and sample docs on `0.5.0`, with dependency snippets, configuration, run commands, and limits for each integration path.
+- Docs: align README, capability docs, and sample docs on `0.5.1`, with dependency snippets, configuration, run commands, and limits for each integration path.
 - Compatibility: keep Boot2 / Boot4 support claims scoped per capability instead of presenting unverified combinations as blanket support.
 - Samples: fix sample ports and run commands so documented curl commands match the actual services.
 - Operations: add a troubleshooting page for versions, dependencies, ports, middleware, providers, Job cron, metrics, and pre-release checks.

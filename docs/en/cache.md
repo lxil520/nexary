@@ -11,7 +11,7 @@ Cache is one of Nexary's clearest standalone capabilities.
 
 ## Version Selection
 
-Current development version: `0.5.0`. After publication, replace `${nexary.version}` with the latest release / tag version.
+Current development version: `0.5.1`. After publication, replace `${nexary.version}` with the latest release / tag version.
 
 | Spring Boot | JDK | Cache Status | Starter artifactId | SPI/provider Dependencies |
 | --- | --- | --- | --- | --- |
@@ -32,7 +32,7 @@ Starter mode is for Spring Boot services that want the cache capability aggregat
 Spring Boot 3.3.x / Java 17+:
 
 ```groovy
-def nexaryVersion = "0.5.0"
+def nexaryVersion = "0.5.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -44,7 +44,7 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.5.0"
+    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.5.1"
 }
 ```
 
@@ -52,7 +52,7 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.5.0"
+    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.5.1"
 }
 ```
 
@@ -89,7 +89,7 @@ SPI/provider mode is for services that want explicit provider dependency control
 Spring Boot 3.3.x / Java 17+:
 
 ```groovy
-def nexaryVersion = "0.5.0"
+def nexaryVersion = "0.5.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -105,8 +105,8 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.5.0"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.5.0"
+    implementation "com.aweimao:nexary-cache-api:0.5.1"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.5.1"
 }
 ```
 
@@ -114,8 +114,8 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.5.0"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.5.0"
+    implementation "com.aweimao:nexary-cache-api:0.5.1"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.5.1"
 }
 ```
 

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version, for example 0.5.0 or v0.5.0'
+        description: 'Release version, for example 0.5.1 or v0.5.1'
         required: true
       publish_to_central:
         description: 'Upload and publish the bundle to Maven Central'
@@ -39,7 +39,7 @@ jobs:
 
           VERSION="${RELEASE_REF_NAME#v}"
           if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release version must look like 0.5.0 or v0.5.0. Received: ${RELEASE_REF_NAME}"
+            echo "Release version must look like 0.5.1 or v0.5.1. Received: ${RELEASE_REF_NAME}"
             exit 1
           fi
 
@@ -122,7 +122,7 @@ jobs:
 
           echo "Central deployment id: ${DEPLOYMENT_ID}"
 
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 90); do
             curl --fail-with-body -sS \
               --request POST \
               --header "Authorization: Bearer ${AUTH_TOKEN}" \
@@ -189,12 +189,18 @@ jobs:
               exit 0
             fi
 
+            if central_version_exists; then
+              echo "Maven Central has nexary-bom ${VERSION}; treating the publish wait as complete."
+              cat central-status.json
+              exit 0
+            fi
+
             if [ "${STATE}" = "FAILED" ]; then
               cat central-status.json
               exit 1
             fi
 
-            if [ "${attempt}" = "60" ]; then
+            if [ "${attempt}" = "90" ]; then
               echo "Timed out waiting for Central publish."
               cat central-status.json
               exit 1

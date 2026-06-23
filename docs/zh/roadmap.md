@@ -226,10 +226,10 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 `0.5.x` 的重点是让用户更容易判断“我该怎么接、接完怎么验证、出问题怎么定位”，并把发布、文档、样例和 provider 验证流程固定下来。
 
-`0.5.0` 已纳入：
+`0.5.1` 已纳入：
 
 - Release：补齐 Maven Central namespace、签名、sources、Javadoc、tag 发布和失败处理说明。
-- Docs：把 README、能力文档、样例文档统一到 `0.5.0`，并补齐每条接入路径的依赖片段、配置、运行命令和限制。
+- Docs：把 README、能力文档、样例文档统一到 `0.5.1`，并补齐每条接入路径的依赖片段、配置、运行命令和限制。
 - Compatibility：继续保留 Boot2 / Boot4 按能力声明的口径，不把未验收组合写成整体支持。
 - Samples：修正样例端口和运行命令，保证文档里的 curl 命令能对应实际服务。
 - Operations：新增常见问题页，覆盖版本、依赖、端口、中间件、provider、Job cron、指标和发布前检查。
