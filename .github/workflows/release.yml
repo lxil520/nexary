@@ -103,10 +103,11 @@ jobs:
 
           AUTH_TOKEN="$(printf '%s:%s' "${CENTRAL_USERNAME}" "${CENTRAL_PASSWORD}" | base64 | tr -d '\n')"
           echo "::add-mask::${AUTH_TOKEN}"
+          CURL_OPTS=(--connect-timeout 10 --max-time 60 --retry 2 --retry-delay 2)
           CENTRAL_BOM_URL="https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/${VERSION}/nexary-bom-${VERSION}.pom"
 
           central_version_exists() {
-            curl --head --fail --silent --show-error "${CENTRAL_BOM_URL}" > /dev/null
+            curl "${CURL_OPTS[@]}" --head --fail --silent --show-error "${CENTRAL_BOM_URL}" > /dev/null
           }
 
           if central_version_exists; then
@@ -114,7 +115,7 @@ jobs:
             exit 0
           fi
 
-          DEPLOYMENT_ID="$(curl --fail-with-body -sS \
+          DEPLOYMENT_ID="$(curl "${CURL_OPTS[@]}" --fail-with-body -sS \
             --request POST \
             --header "Authorization: Bearer ${AUTH_TOKEN}" \
             --form "bundle=@${BUNDLE}" \
@@ -123,7 +124,7 @@ jobs:
           echo "Central deployment id: ${DEPLOYMENT_ID}"
 
           for attempt in $(seq 1 90); do
-            curl --fail-with-body -sS \
+            curl "${CURL_OPTS[@]}" --fail-with-body -sS \
               --request POST \
               --header "Authorization: Bearer ${AUTH_TOKEN}" \
               "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}" \
@@ -132,7 +133,7 @@ jobs:
             echo "Central validation state: ${STATE}"
 
             if [ "${STATE}" = "VALIDATED" ]; then
-              HTTP_STATUS="$(curl -sS \
+              HTTP_STATUS="$(curl "${CURL_OPTS[@]}" -sS \
                 --request POST \
                 --header "Authorization: Bearer ${AUTH_TOKEN}" \
                 --output central-publish-response.txt \
@@ -166,7 +167,7 @@ jobs:
               exit 1
             fi
 
-            if [ "${attempt}" = "60" ]; then
+            if [ "${attempt}" = "90" ]; then
               echo "Timed out waiting for Central validation."
               cat central-status.json
               exit 1
@@ -175,8 +176,8 @@ jobs:
             sleep 10
           done
 
-          for attempt in $(seq 1 60); do
-            curl --fail-with-body -sS \
+          for attempt in $(seq 1 90); do
+            curl "${CURL_OPTS[@]}" --fail-with-body -sS \
               --request POST \
               --header "Authorization: Bearer ${AUTH_TOKEN}" \
               "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}" \
