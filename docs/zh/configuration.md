@@ -123,3 +123,4 @@ nexary:
 - Messaging：见 [messaging.md](messaging.md)
 - Observation：见 [observation.md](observation.md)
 - Governance：见 [governance.md](governance.md)
+- 常见问题：见 [troubleshooting.md](troubleshooting.md)

@@ -1,97 +1,99 @@
 # 发布清单
 
-在完成命名空间校验、GitHub 仓库地址和签名基础设施前，Nexary 还不能直接发到 Maven Central。
+这页是公开发布用的操作清单。示例版本使用 `0.5.0`，实际发布 patch 版本时把命令里的版本号一并替换。
 
-## 先做什么
+## 发布前检查
 
-发布前至少检查：
+发布前至少完成这些检查：
 
-- 执行 `./gradlew check`
-- 执行 `./gradlew verifyReleaseGate`
-- 执行 `./gradlew publishToMavenLocal`
-- 在 GitHub Actions 中通过 dependency review 和 secret scan
-- 校验 `group`、artifact 名称、license、SCM、developer metadata
-- 校验 sources 和 Javadoc jar 能正常产出
-- 确认仓库中没有真实凭证、私有端点或私有仓库配置
-- 按 SemVer 创建 tag，例如 `v0.4.0`
+- `./gradlew check`
+- `./gradlew verifyReleaseGate`
+- `./gradlew publishToMavenLocal`
+- 按“本地生成 Central bundle”中的完整命令运行 `./gradlew mavenCentralBundle -PnexaryVersion=0.5.0`，并确认 `build/distributions/nexary-0.5.0-central-bundle.zip` 生成
+- GitHub Actions 里的 build、dependency review 和 secret scan 通过
+- POM 中的 `group`、artifact 名称、license、developer、SCM 信息正确
+- sources jar、Javadoc jar、`.pom`、`.module`、签名文件都在 Central bundle 中
+- 仓库中没有真实凭证、私有端点或私有仓库配置
+- `nexary-samples` 只作为源码样例和本地验证工程，不进入 Central 发布模块
 
-## Maven Central 最小要求
+## Maven Central 前置条件
 
-按照 Sonatype Central 的公开要求，至少要满足：
+发布到 Maven Central 前，先确认这些外部条件已经完成：
 
-- 拥有并验证 `com.aweimao` namespace
-- 发布带签名的产物
-- POM 中包含 license、developer、SCM 信息
-- 同步提供 sources 和 Javadoc
+- Sonatype Central Portal 中已验证 `com.aweimao` namespace。
+- PGP 公钥已经发布到 Sonatype Central validation 能访问的 keyserver，且私钥只以 GitHub secret 或本地临时环境变量形式使用。
+- Central Portal token 已创建；GitHub secrets 使用 token 的 username 和 password，不使用个人登录密码。
+- GitHub 仓库地址、SCM 地址和开发者连接地址指向 `lxil520/nexary`。
 
-官方参考：
+需要的 GitHub variables：
 
-- [Sonatype Central publishing overview](https://central.sonatype.org/publish/publish-portal/)
-- [Sonatype Central requirements](https://central.sonatype.org/publish/requirements/)
-- [Gradle publishing notes](https://central.sonatype.org/publish/publish-portal-gradle/)
+- `NEXARY_PROJECT_WEBSITE=https://github.com/lxil520/nexary`
+- `NEXARY_PROJECT_SCM_URL=https://github.com/lxil520/nexary.git`
+- `NEXARY_PROJECT_SCM_CONNECTION=scm:git:https://github.com/lxil520/nexary.git`
+- `NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION=scm:git:ssh://git@github.com:lxil520/nexary.git`
 
-## 对 Nexary 的发布路径
+需要的 GitHub secrets：
 
-当前不建议立刻引入复杂发布矩阵。更务实的路径是：
+- `NEXARY_SIGNING_KEY`
+- `NEXARY_SIGNING_PASSWORD`
+- `MAVEN_CENTRAL_USERNAME`
+- `MAVEN_CENTRAL_PASSWORD`
 
-1. 先把 GitHub 仓库公开并稳定当前发布线
-2. 完成 namespace 校验
-3. 补 GPG 签名和发布凭证托管
-4. 固化一个 Gradle 发布流水线
-5. 先发 `0.4.0`，同时保留 Boot2 / Boot4 兼容 gate 的报告入口
+## 本地生成 Central bundle
 
-## Gradle 发布命令
-
-普通开发验证：
-
-```bash
-./gradlew check
-./gradlew verifyReleaseGate
-./gradlew publishToMavenLocal
-```
-
-Maven Central 发布前需要设置真实仓库元数据和签名密钥：
+本地只生成上传包，不会发布到 Central：
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.4.0 \
-  -PprojectWebsite=https://github.com/<owner>/nexary \
-  -PprojectScmUrl=https://github.com/<owner>/nexary.git \
-  -PprojectScmConnection=scm:git:https://github.com/<owner>/nexary.git \
-  -PprojectScmDeveloperConnection=scm:git:ssh://git@github.com:<owner>/nexary.git \
+  -PnexaryVersion=0.5.0 \
+  -PprojectWebsite=https://github.com/lxil520/nexary \
+  -PprojectScmUrl=https://github.com/lxil520/nexary.git \
+  -PprojectScmConnection=scm:git:https://github.com/lxil520/nexary.git \
+  -PprojectScmDeveloperConnection=scm:git:ssh://git@github.com:lxil520/nexary.git \
   -PnexarySigningKey="$NEXARY_SIGNING_KEY" \
   -PnexarySigningPassword="$NEXARY_SIGNING_PASSWORD"
 ```
 
-该命令只生成 `build/distributions/nexary-<version>-central-bundle.zip`，不自动发布到 Central。上传或自动发布前仍需确认 Sonatype namespace、签名、公钥发布和仓库元数据。
+生成后检查：
 
-## GitHub 发布配置
+```bash
+unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep 'nexary-bom/0.5.0'
+unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.asc'
+unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.sha1'
+```
 
-仓库需要配置：
+## GitHub Actions 发布
 
-- Repository variables：`NEXARY_PROJECT_WEBSITE`、`NEXARY_PROJECT_SCM_URL`、`NEXARY_PROJECT_SCM_CONNECTION`、`NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION`
-- Repository secrets：`NEXARY_SIGNING_KEY`、`NEXARY_SIGNING_PASSWORD`
+推荐用 tag 触发正式发布：
 
-CI 会在普通分支运行 `check`、`verifyReleaseGate` 和 `publishToMavenLocal`。tag `v*.*.*` 会生成 Maven Central Portal bundle 作为 GitHub Actions artifact。
+```bash
+git tag v0.5.0
+git push origin v0.5.0
+```
 
-## 中央仓库发布模块
+`release.yml` 会从 tag 对应的 commit 生成 Central Portal bundle，并上传为 GitHub Actions artifact。只要 Central secrets 存在，tag 触发会继续上传并发布 Central deployment。
 
-Maven Central 只发布框架模块、provider、starter 和 BOM，不发布 `nexary-samples`。样例继续作为源码工程和本地验证入口存在。
+如果 Central token 缺失，发布步骤会失败，不会把缺少 Central 发布的 tag run 标成成功。需要只验证 bundle 时，使用 `workflow_dispatch`，填入 `0.5.0` 或 `v0.5.0`，并保持 `publish_to_central=false`。手动发布到 Central 必须从已存在的 tag ref 运行，且输入版本必须匹配选中的 tag；不要从 `main` 分支手动发布 Central deployment。
 
-## 多版本支持策略
+## Maven Central 发布后检查
 
-Nexary 需要规划多版本支持来扩大用户面，但不能把未验证组合写成已支持。
+Central Portal 显示 published 后，再检查 Maven Central 是否同步：
 
-发布策略是：
+```bash
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.5.0/nexary-bom-0.5.0.pom
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.5.0/nexary-core-0.5.0.jar
+```
 
-- 当前 `0.4.x` release 只声明已经通过 gate 的组合；当前已验证组合包括 Spring Boot 3.3 / Java 17+ 主线，以及 Spring Boot 2.7 / Java 8+ 的 Cache Redis/Valkey 单级缓存入口、Messaging Redis-only 入口和 Job local/XXL-JOB/PowerJob bridge 入口。
-- Spring Boot 2.7 / JDK 8+ 已按 Cache、Messaging、Job 分能力进入独立 gate；未验证 provider 不写成支持。
-- Spring Boot 4.1 / Java 21 已按 Cache、Messaging、Job 分能力进入独立 gate；这不等于整个仓库所有模块都完成 Boot4 支持。
-- 通过 gate 后，README 才增加类似大型框架的多版本 dependency 矩阵。
-- 多版本支持优先通过独立 BOM、starter 或兼容分支实现，避免污染主线 API。
+同步完成后再更新 GitHub Release 说明和 README 中的版本选择提示。不要在 Central 还没有同步时告诉用户直接复制 Maven Central 版本。
 
-推荐顺序：
+## 失败处理
 
-- `0.4.x`：Java 17 / Spring Boot 3.3 主线发布，加上 Boot2/JDK8、Boot4/JDK21 和治理策略的可执行 gate。
-- `0.4.x` 后续：继续补齐 Boot2/JDK8 Messaging 的 Disruptor/Kafka/RocketMQ/ActiveMQ Classic provider，并按真实样例和集成测试逐项扩展支持声明。
-- `1.0.0` 前：固定最终兼容策略和维护成本边界。
+- 本地验证失败：修复后重新运行本地命令，不创建 tag。
+- bundle 生成失败：先检查 Gradle 版本、JDK 21、签名 secret、SCM metadata 和 Central 模块列表。
+- Central validation 失败且未发布：在 Central Portal 删除或放弃该 deployment，修复后重新生成 bundle；如果 tag 指向错误 commit，先删除本地和远端 tag，再在正确 commit 上重建 tag。
+- Central 已发布但发现问题：Maven Central 上的已发布版本不能回滚或复用；修复后发布新的 patch 版本，并在 GitHub Release 中说明受影响版本。
+- GitHub Actions 卡在 Central 状态查询：先在 Central Portal 查看 deployment 状态，再决定是否重新运行 workflow。不要在无法确认 Central 状态时重复推同一个 tag。
+
+## 当前支持声明
+
+`0.5.x` 只声明已经通过 gate 的组合。Spring Boot 2.7 / JDK 8+、Spring Boot 3.3 / Java 17+、Spring Boot 4.1 / Java 21 的说明以 README 和各能力文档为准；未验证 provider 不写成已支持。

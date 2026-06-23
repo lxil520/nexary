@@ -10,7 +10,7 @@ Nexary currently ships focused starter selector and SPI provider reference appli
 | --- | --- | --- | --- |
 | `nexary-sample-cache` | `8081` | profile reads and cache warmup | cache-aside, batch fetch, invalidation patterns |
 | `nexary-sample-cache-spi-redis` | `8091` | Cache SPI Redis integration | API + Redis provider only |
-| `nexary-sample-messaging` | `8082` | business event publishing edge | facade/consumer shape; provider switching through `nexary.messaging.provider` |
+| `nexary-sample-messaging` | `8082` | business event publishing edge | sending entry and consumer shape; provider switching through `nexary.messaging.provider` |
 | `nexary-sample-messaging-spi-disruptor` | `8092` | Messaging SPI Disruptor integration | API + Disruptor provider only |
 | `nexary-sample-messaging-spi-redis` | `8093` | Messaging SPI Redis queue integration | API + Redis provider only |
 | `nexary-sample-messaging-spi-kafka` | `8094` | Messaging SPI Kafka integration | API + Kafka provider only |
@@ -19,7 +19,7 @@ Nexary currently ships focused starter selector and SPI provider reference appli
 | `nexary-sample-job` | `8083` | reconciliation and compensation jobs | `NexaryJob`, schedule registration, execution-state tracking |
 | `nexary-sample-job-spi-scheduler` | `8096` | Job SPI local scheduler integration | API + local scheduler provider only |
 | `nexary-sample-job-spi-xxljob` | `8097` | Job SPI XXL-JOB bridge integration | API + XXL-JOB bridge provider only |
-| `nexary-sample-job-spi-powerjob` | `8098` | Job PowerJob trigger integration | API + PowerJob provider only |
+| `nexary-sample-job-spi-powerjob` | no fixed HTTP port | Job PowerJob trigger integration | API + PowerJob provider only |
 
 Full details live in [../../nexary-samples/README.md](../../nexary-samples/README.md).
 

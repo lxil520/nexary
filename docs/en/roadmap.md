@@ -226,16 +226,20 @@ Later updates in the same minor line should only close two kinds of gaps:
 
 `0.5.x` should make it easier for users to decide how to integrate Nexary, how to verify the integration, and how to debug failures. It should also stabilize release, documentation, samples, and provider validation workflows.
 
-Planned scope:
+Included in `0.5.0`:
 
-- Release: stabilize Maven Central namespace, signing, sources, Javadocs, release workflow, and rollback instructions.
-- Docs: keep the public site and README consistent; every capability page should include version choice, dependency snippets, minimal configuration, sample commands, and limits.
-- Compatibility: continue deciding whether Boot2 / Boot4 need dedicated BOMs so users do not have to guess artifactIds.
+- Release: document Maven Central namespace, signing, sources, Javadocs, tag publication, and failure handling.
+- Docs: align README, capability docs, and sample docs on `0.5.0`, with dependency snippets, configuration, run commands, and limits for each integration path.
+- Compatibility: keep Boot2 / Boot4 support claims scoped per capability instead of presenting unverified combinations as blanket support.
+- Samples: fix sample ports and run commands so documented curl commands match the actual services.
+- Operations: add a troubleshooting page for versions, dependencies, ports, middleware, providers, Job cron, metrics, and pre-release checks.
+
+Later updates in the same minor line should continue:
+
 - Cache: after Redis / Valkey are stable, evaluate Dragonfly, Garnet, and Memcached; README claims are added only after samples and real middleware tests pass.
 - Messaging: harden production configuration docs for Kafka, RocketMQ, Redis queue, and ActiveMQ Classic; RabbitMQ or other new providers should start with an issue discussion.
 - Job: continue validating real XXL-JOB / PowerJob platform triggers, worker / executor lifecycle boundaries, and failure callback boundaries. Docs must distinguish "bridge validation passed" from "the external platform owns the full lifecycle."
-- Samples: evolve samples from runnable references into templates that can be copied into application projects.
-- Operations: add common troubleshooting steps, commands, metric explanations, and provider limits.
+- Samples: continue turning samples into templates that can be copied into application projects.
 
 `0.5.x` does not include:
 

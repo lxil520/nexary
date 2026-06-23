@@ -15,7 +15,7 @@
 
 ### 1. 选择版本
 
-当前源码版本是 `0.4.0`。如果 Maven Central 还没有同步到这个版本，可以先从 GitHub tag `v0.4.0` 构建并安装到本地：
+当前源码版本是 `0.5.0`。如果 Maven Central 还没有同步到这个版本，可以先从 GitHub tag `v0.5.0` 构建并安装到本地：
 
 ```bash
 ./gradlew publishToMavenLocal
@@ -24,7 +24,7 @@
 正式发布到 Maven Central 后，版本选择规则和成熟框架一致：
 
 - 优先使用 Maven Central 显示的 Latest Version。
-- 也可以使用 GitHub Releases / Tags 中的版本号，例如 `v0.4.0` 对应依赖版本 `0.4.0`。
+- 也可以使用 GitHub Releases / Tags 中的版本号，例如 `v0.5.0` 对应依赖版本 `0.5.0`。
 
 不要把 `main` 分支提交号当作生产依赖版本。
 
@@ -44,7 +44,7 @@
 
 ```groovy
 // Maven Central 同步后也可以替换为 Latest Version。
-def nexaryVersion = "0.4.0"
+def nexaryVersion = "0.5.0"
 
 dependencies {
     // 使用 BOM 锁定 Nexary 模块版本；正式发布后使用 Latest Version 或 tag 版本。
@@ -65,7 +65,7 @@ dependencies {
 ```xml
 <properties>
   <!-- Maven Central 同步后也可以替换为 Latest Version。 -->
-  <nexary.version>0.4.0</nexary.version>
+  <nexary.version>0.5.0</nexary.version>
 </properties>
 
 <dependencyManagement>
@@ -105,7 +105,7 @@ Boot2 当前只验证 Cache Redis 单级缓存，不包含 tiered local cache。
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-cache-spring-boot2-starter:0.4.0'
+    implementation 'com.aweimao:nexary-cache-spring-boot2-starter:0.5.0'
 }
 ```
 
@@ -114,7 +114,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-cache-spring-boot2-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
   </dependency>
 </dependencies>
 ```
@@ -132,7 +132,7 @@ Boot2 Messaging 当前只验证 Redis-only provider/starter。Disruptor、Kafka�
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-spring-boot2-starter:0.4.0'
+    implementation 'com.aweimao:nexary-messaging-spring-boot2-starter:0.5.0'
 }
 ```
 
@@ -141,7 +141,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-messaging-spring-boot2-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
   </dependency>
 </dependencies>
 ```
@@ -160,7 +160,7 @@ Boot2 Job 当前验证 Job API、本地 scheduler、XXL-JOB 触发映射、Power
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-spring-boot2-starter:0.4.0'
+    implementation 'com.aweimao:nexary-job-spring-boot2-starter:0.5.0'
 }
 ```
 
@@ -169,7 +169,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-job-spring-boot2-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
   </dependency>
 </dependencies>
 ```
@@ -188,7 +188,7 @@ nexary:
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-cache-spring-boot4-starter:0.4.0'
+    implementation 'com.aweimao:nexary-cache-spring-boot4-starter:0.5.0'
 }
 ```
 
@@ -197,7 +197,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-cache-spring-boot4-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
   </dependency>
 </dependencies>
 ```
@@ -208,8 +208,8 @@ Boot4 Messaging starter 只提供 Nexary 消息公共 API 和自动配置入口�
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-spring-boot4-starter:0.4.0'
-    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot4:0.4.0'
+    implementation 'com.aweimao:nexary-messaging-spring-boot4-starter:0.5.0'
+    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot4:0.5.0'
 }
 ```
 
@@ -218,12 +218,12 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-messaging-spring-boot4-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
   </dependency>
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-messaging-redis-spring-boot4</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
     <scope>runtime</scope>
   </dependency>
 </dependencies>
@@ -237,7 +237,7 @@ Boot4 Job 验证本地 scheduler、XXL-JOB 触发映射、PowerJob 触发映射�
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-spring-boot4-starter:0.4.0'
+    implementation 'com.aweimao:nexary-job-spring-boot4-starter:0.5.0'
 }
 ```
 
@@ -246,7 +246,7 @@ dependencies {
   <dependency>
     <groupId>com.aweimao</groupId>
     <artifactId>nexary-job-spring-boot4-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
   </dependency>
 </dependencies>
 ```
@@ -257,7 +257,7 @@ dependencies {
 
 ```groovy
 // Maven Central 同步后也可以替换为 Latest Version。
-def nexaryVersion = "0.4.0"
+def nexaryVersion = "0.5.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -274,8 +274,8 @@ Boot2 / Java8+ 的 Messaging SPI/provider 当前只验证 Redis-only：
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-messaging-api:0.4.0'
-    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot2:0.4.0'
+    implementation 'com.aweimao:nexary-messaging-api:0.5.0'
+    runtimeOnly 'com.aweimao:nexary-messaging-redis-spring-boot2:0.5.0'
 }
 ```
 
@@ -283,8 +283,8 @@ Boot2 / Java8+ 的 Job 不用 starter 时，当前验证本地 scheduler、XXL-J
 
 ```groovy
 dependencies {
-    implementation 'com.aweimao:nexary-job-api:0.4.0'
-    runtimeOnly 'com.aweimao:nexary-job-scheduler-spring-boot2:0.4.0'
+    implementation 'com.aweimao:nexary-job-api:0.5.0'
+    runtimeOnly 'com.aweimao:nexary-job-scheduler-spring-boot2:0.5.0'
 }
 ```
 
@@ -292,9 +292,9 @@ dependencies {
 
 ```groovy
 dependencies {
-    runtimeOnly 'com.aweimao:nexary-job-xxljob-spring-boot2:0.4.0'
-    runtimeOnly 'com.aweimao:nexary-job-powerjob-spring-boot2:0.4.0'
-    runtimeOnly 'com.aweimao:nexary-job-execution-store-redis-spring-boot2:0.4.0'
+    runtimeOnly 'com.aweimao:nexary-job-xxljob-spring-boot2:0.5.0'
+    runtimeOnly 'com.aweimao:nexary-job-powerjob-spring-boot2:0.5.0'
+    runtimeOnly 'com.aweimao:nexary-job-execution-store-redis-spring-boot2:0.5.0'
 }
 ```
 

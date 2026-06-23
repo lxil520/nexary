@@ -226,16 +226,20 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 `0.5.x` 的重点是让用户更容易判断“我该怎么接、接完怎么验证、出问题怎么定位”，并把发布、文档、样例和 provider 验证流程固定下来。
 
-计划范围：
+`0.5.0` 已纳入：
 
-- Release：Maven Central namespace、签名、sources、Javadoc、release workflow 和回滚说明稳定。
-- Docs：公开站点和 README 保持一致；每个能力页都给出版本选择、依赖片段、最小配置、样例命令和限制。
-- Compatibility：继续收敛 Boot2 / Boot4 专用 BOM 是否需要发布；不让用户在 artifactId 上猜。
+- Release：补齐 Maven Central namespace、签名、sources、Javadoc、tag 发布和失败处理说明。
+- Docs：把 README、能力文档、样例文档统一到 `0.5.0`，并补齐每条接入路径的依赖片段、配置、运行命令和限制。
+- Compatibility：继续保留 Boot2 / Boot4 按能力声明的口径，不把未验收组合写成整体支持。
+- Samples：修正样例端口和运行命令，保证文档里的 curl 命令能对应实际服务。
+- Operations：新增常见问题页，覆盖版本、依赖、端口、中间件、provider、Job cron、指标和发布前检查。
+
+同一小版本线后续继续做：
+
 - Cache：在 Redis / Valkey 稳定后，再评估 Dragonfly、Garnet、Memcached；只有通过样例和真实中间件测试才写进 README。
 - Messaging：继续加固 Kafka、RocketMQ、Redis queue、ActiveMQ Classic 的生产配置说明；是否新增 RabbitMQ 等 provider 先走 issue 讨论。
 - Job：继续验证 XXL-JOB / PowerJob 的真实平台触发、worker / executor 生命周期边界和失败回调边界，文档必须区分“bridge 验证通过”和“平台完整生命周期由外部系统负责”。
-- Samples：把样例从“能跑”整理成“能复制到业务工程”的接入模板。
-- Operations：补齐常见问题、排查命令、指标解释和 provider 限制。
+- Samples：继续把样例整理成可以复制到业务工程的接入模板。
 
 `0.5.x` 不包含：
 

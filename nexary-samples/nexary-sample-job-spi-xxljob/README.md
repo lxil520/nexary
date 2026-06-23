@@ -15,7 +15,7 @@ runtimeOnly project(':nexary-job:nexary-job-xxljob')
 Spring Boot 3.3 / Java 17+ XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.3.1"
+def nexaryVersion = "0.5.0"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-xxljob:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "com.aweimao:nexary-job-xxljob:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.3.1"
+def nexaryVersion = "0.5.0"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 ```
@@ -31,7 +31,7 @@ runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 主验证运行时 XXL-JOB bridge provider：
 
 ```groovy
-def nexaryVersion = "0.3.1"
+def nexaryVersion = "0.5.0"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
 ```

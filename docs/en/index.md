@@ -11,6 +11,7 @@
 - [Governance Guide](governance.md)
 - [Observation and Micrometer](observation.md)
 - [Local Validation Guide](verification.md)
+- [Troubleshooting](troubleshooting.md)
 
 ## Start Here
 
@@ -18,7 +19,7 @@
 - [Architecture](architecture.md)
 - [Coding and Contribution Standards](standards.md)
 - [Core Concepts](concepts.md)
-- [Showcase and Samples](samples.md)
+- [Samples](samples.md)
 - [Roadmap](roadmap.md)
 
 ## Reference

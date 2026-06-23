@@ -11,6 +11,7 @@
 - [Governance 指南](governance.md)
 - [Observation 与 Micrometer](observation.md)
 - [本地验证指南](verification.md)
+- [常见问题](troubleshooting.md)
 
 ## 建议先读
 
@@ -18,7 +19,7 @@
 - [架构说明](architecture.md)
 - [编码规范与贡献规则](standards.md)
 - [核心概念](concepts.md)
-- [Showcase 与样例说明](samples.md)
+- [样例说明](samples.md)
 - [版本路线图](roadmap.md)
 
 ## 参考说明

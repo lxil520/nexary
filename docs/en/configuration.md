@@ -123,3 +123,4 @@ nexary:
 - Messaging: see [messaging.md](messaging.md)
 - Observation: see [observation.md](observation.md)
 - Governance: see [governance.md](governance.md)
+- Troubleshooting: see [troubleshooting.md](troubleshooting.md)

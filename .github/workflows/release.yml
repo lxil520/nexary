@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version, for example 0.3.1 or v0.3.1'
+        description: 'Release version, for example 0.5.0 or v0.5.0'
         required: true
       publish_to_central:
         description: 'Upload and publish the bundle to Maven Central'
         required: true
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
@@ -28,6 +28,31 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Validate release input
+        env:
+          RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          PUBLISH_TO_CENTRAL: ${{ github.event_name == 'push' || inputs.publish_to_central }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${RELEASE_REF_NAME#v}"
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release version must look like 0.5.0 or v0.5.0. Received: ${RELEASE_REF_NAME}"
+            exit 1
+          fi
+
+          if [ "${PUBLISH_TO_CENTRAL}" = "true" ] && [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "Central publish must run from an existing Git tag. Use workflow_dispatch with publish_to_central=false for bundle-only checks."
+            exit 1
+          fi
+
+          REF_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${PUBLISH_TO_CENTRAL}" = "true" ] && [ "${VERSION}" != "${REF_VERSION}" ]; then
+            echo "Central publish version ${VERSION} must match the selected tag ${GITHUB_REF_NAME}."
+            exit 1
+          fi
       - name: Build Maven Central Portal bundle
         env:
           RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
@@ -39,6 +64,8 @@ jobs:
           ORG_GRADLE_PROJECT_projectScmConnection: ${{ vars.NEXARY_PROJECT_SCM_CONNECTION }}
           ORG_GRADLE_PROJECT_projectScmDeveloperConnection: ${{ vars.NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION }}
         run: |
+          set -euo pipefail
+
           VERSION="${RELEASE_REF_NAME#v}"
           ./gradlew mavenCentralBundle -PnexaryVersion="${VERSION}"
       - uses: actions/upload-artifact@v4
@@ -60,8 +87,8 @@ jobs:
           fi
 
           if [ -z "${CENTRAL_USERNAME}" ] || [ -z "${CENTRAL_PASSWORD}" ]; then
-            echo "Maven Central publish skipped because MAVEN_CENTRAL_USERNAME or MAVEN_CENTRAL_PASSWORD is not configured."
-            exit 0
+            echo "Maven Central publish requires MAVEN_CENTRAL_USERNAME and MAVEN_CENTRAL_PASSWORD."
+            exit 1
           fi
 
           echo "::add-mask::${CENTRAL_USERNAME}"

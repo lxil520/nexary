@@ -7,7 +7,7 @@ spring:
       port: ${NEXARY_SAMPLE_REDIS_PORT:16379}
 
 server:
-  port: 8082
+  port: 8091
 
 nexary:
   cache:

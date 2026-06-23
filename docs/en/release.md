@@ -1,104 +1,99 @@
 # Release Checklist
 
-Nexary is not ready for Maven Central until namespace ownership, GitHub repository metadata, and signing infrastructure are configured.
+This page is the public release runbook. Examples use `0.5.0`; replace the version everywhere when cutting another patch release.
 
-## What Must Happen First
+## Pre-Release Checks
 
-Before cutting a release:
+Before a release, complete at least these checks:
 
-- verify `./gradlew check`
-- verify `./gradlew verifyReleaseGate`
-- verify `./gradlew publishToMavenLocal`
-- run dependency review and secret scanning in GitHub Actions
-- confirm `group`, artifact names, license, SCM, and developer metadata
-- confirm sources and Javadoc jars are generated
-- confirm no real credentials, private endpoints, or private registry settings exist
-- create a SemVer tag such as `v0.4.0`
+- `./gradlew check`
+- `./gradlew verifyReleaseGate`
+- `./gradlew publishToMavenLocal`
+- run the full command from "Build a Central Bundle Locally" with `./gradlew mavenCentralBundle -PnexaryVersion=0.5.0`, then confirm `build/distributions/nexary-0.5.0-central-bundle.zip` exists
+- build, dependency review, and secret scan pass in GitHub Actions
+- POM `group`, artifact names, license, developer, and SCM metadata are correct
+- sources jars, Javadoc jars, `.pom`, `.module`, and signature files are present in the Central bundle
+- the repository contains no real credentials, private endpoints, or private registry settings
+- `nexary-samples` remains source examples and local validation projects, not Central-published modules
 
-## Minimum Maven Central Requirements
+## Maven Central Prerequisites
 
-According to Sonatype Central's public guidance, at minimum the project needs:
+Before publishing to Maven Central, confirm these external prerequisites:
 
-- verified ownership of the `com.aweimao` namespace
-- signed published artifacts
-- POM metadata for license, developers, and SCM
-- sources and Javadoc artifacts
+- The `com.aweimao` namespace is verified in Sonatype Central Portal.
+- The PGP public key is published to a keyserver reachable by Sonatype Central validation, and the private key is used only through GitHub secrets or temporary local environment variables.
+- A Central Portal token has been created; GitHub secrets use the token username and password, not a personal login password.
+- GitHub repository, SCM URL, and developer connection metadata point to `lxil520/nexary`.
 
-Official references:
+Required GitHub variables:
 
-- [Sonatype Central publishing overview](https://central.sonatype.org/publish/publish-portal/)
-- [Sonatype Central requirements](https://central.sonatype.org/publish/requirements/)
-- [Gradle publishing notes](https://central.sonatype.org/publish/publish-portal-gradle/)
+- `NEXARY_PROJECT_WEBSITE=https://github.com/lxil520/nexary`
+- `NEXARY_PROJECT_SCM_URL=https://github.com/lxil520/nexary.git`
+- `NEXARY_PROJECT_SCM_CONNECTION=scm:git:https://github.com/lxil520/nexary.git`
+- `NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION=scm:git:ssh://git@github.com:lxil520/nexary.git`
 
-## Nexary Publishing Path
+Required GitHub secrets:
 
-The pragmatic path is:
+- `NEXARY_SIGNING_KEY`
+- `NEXARY_SIGNING_PASSWORD`
+- `MAVEN_CENTRAL_USERNAME`
+- `MAVEN_CENTRAL_PASSWORD`
 
-1. make the GitHub repository public and stabilize the current release line
-2. complete namespace verification
-3. add GPG signing and credential handling
-4. lock down one Gradle release pipeline
-5. publish `0.4.0` while keeping Boot2 / Boot4 compatibility gates visible
+## Build a Central Bundle Locally
 
-## Gradle Release Commands
-
-Regular development validation:
-
-```bash
-./gradlew check
-./gradlew verifyReleaseGate
-./gradlew publishToMavenLocal
-```
-
-Before publishing to Maven Central, provide real repository metadata and signing keys:
+This local command creates the upload bundle only. It does not publish to Central:
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.4.0 \
-  -PprojectWebsite=https://github.com/<owner>/nexary \
-  -PprojectScmUrl=https://github.com/<owner>/nexary.git \
-  -PprojectScmConnection=scm:git:https://github.com/<owner>/nexary.git \
-  -PprojectScmDeveloperConnection=scm:git:ssh://git@github.com:<owner>/nexary.git \
+  -PnexaryVersion=0.5.0 \
+  -PprojectWebsite=https://github.com/lxil520/nexary \
+  -PprojectScmUrl=https://github.com/lxil520/nexary.git \
+  -PprojectScmConnection=scm:git:https://github.com/lxil520/nexary.git \
+  -PprojectScmDeveloperConnection=scm:git:ssh://git@github.com:lxil520/nexary.git \
   -PnexarySigningKey="$NEXARY_SIGNING_KEY" \
   -PnexarySigningPassword="$NEXARY_SIGNING_PASSWORD"
 ```
 
-This command creates `build/distributions/nexary-<version>-central-bundle.zip` only. It does not automatically publish to Central. Confirm the Sonatype namespace, signatures, public key publication, and repository metadata before uploading or automating publication.
+After the bundle is generated, inspect it:
 
-## GitHub Release Configuration
+```bash
+unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep 'nexary-bom/0.5.0'
+unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.asc'
+unzip -l build/distributions/nexary-0.5.0-central-bundle.zip | grep '.sha1'
+```
 
-Configure these repository variables:
+## GitHub Actions Release
 
-- `NEXARY_PROJECT_WEBSITE`
-- `NEXARY_PROJECT_SCM_URL`
-- `NEXARY_PROJECT_SCM_CONNECTION`
-- `NEXARY_PROJECT_SCM_DEVELOPER_CONNECTION`
+Use a tag for the real release:
 
-Configure these repository secrets:
+```bash
+git tag v0.5.0
+git push origin v0.5.0
+```
 
-- `NEXARY_SIGNING_KEY`
-- `NEXARY_SIGNING_PASSWORD`
+`release.yml` builds the Central Portal bundle from the tagged commit and uploads it as a GitHub Actions artifact. When Central secrets are configured, a tag push also uploads and publishes the Central deployment.
 
-Normal branch CI runs `check`, `verifyReleaseGate`, and `publishToMavenLocal`. Tags matching `v*.*.*` create a Maven Central Portal bundle as a GitHub Actions artifact.
+If the Central token is missing, the publish step fails instead of marking a tag run successful without publishing to Central. For a bundle-only check, run `workflow_dispatch`, enter `0.5.0` or `v0.5.0`, and keep `publish_to_central=false`. Manual Central publication must run from an existing tag ref, and the entered version must match the selected tag; do not publish a Central deployment manually from the `main` branch.
 
-## Central-Published Modules
+## Check Maven Central After Publication
 
-Maven Central should publish framework modules, providers, starters, and the BOM only. `nexary-samples` stays as source examples and local validation projects.
+After Central Portal shows published, check Maven Central sync:
 
-## Multi-Version Policy
+```bash
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.5.0/nexary-bom-0.5.0.pom
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.5.0/nexary-core-0.5.0.jar
+```
 
-Nexary should plan multi-version support to reach more users, but unverified combinations must not be documented as supported.
+Update the GitHub Release notes and README version guidance only after Maven Central has synced. Do not tell users to copy a Maven Central version before it is visible there.
 
-Release policy:
+## Failure Handling
 
-- The current `0.4.x` release claims only combinations that have passed gates. Verified combinations currently include the Spring Boot 3.3 / Java 17+ mainline, the Spring Boot 2.7 / Java 8+ Cache Redis/Valkey single-tier entry, the Spring Boot 2.7 / Java 8+ Messaging Redis-only entry, and the Spring Boot 2.7 / Java 8+ Job local/XXL-JOB/PowerJob bridge entry.
-- Spring Boot 2.7 / JDK 8+ now has independent gates by capability. Providers that have not passed those gates are not documented as supported.
-- Spring Boot 4.1 / Java 21 now has independent gates by capability. This is not a claim that every repository module has full Boot4 support.
-- The README dependency matrix is expanded only after those gates pass.
-- Multi-version support should prefer independent BOMs, starters, or compatibility branches instead of polluting the mainline API.
+- Local validation failed: fix the issue and rerun local commands before creating a tag.
+- Bundle generation failed: check Gradle, JDK 21, signing secrets, SCM metadata, and the Central module list.
+- Central validation failed before publication: drop or delete the deployment in Central Portal, fix the issue, and rebuild the bundle; if the tag points to the wrong commit, delete the local and remote tag before recreating it on the correct commit.
+- Central already published but a problem was found: published Maven Central versions cannot be rolled back or reused; release a new patch version and document the affected version in GitHub Releases.
+- GitHub Actions is stuck while polling Central status: check the deployment in Central Portal before rerunning the workflow. Do not push the same tag again without confirming Central state.
 
-Recommended sequence:
+## Current Support Claims
 
-- `0.4.x`: Java 17 / Spring Boot 3.3 mainline release plus Boot2/JDK8, Boot4/JDK21, and governance policy gates.
-- Later `0.4.x`: continue Boot2/JDK8 Messaging Disruptor/Kafka/RocketMQ/ActiveMQ Classic providers and expand support claims only after samples and integration tests pass.
-- Before `1.0.0`: lock the final compatibility policy and maintenance boundary.
+`0.5.x` claims only combinations that have passed gates. Spring Boot 2.7 / JDK 8+, Spring Boot 3.3 / Java 17+, and Spring Boot 4.1 / Java 21 support statements come from the README and capability docs; providers that have not been verified are not documented as supported.
