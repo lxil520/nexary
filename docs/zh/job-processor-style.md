@@ -2,7 +2,7 @@
 
 Processor-style 是面向生产任务执行进程的接入形态。它和 focused 接入 sample 不同：
 
-- focused sample 帮助使用者理解本地调度和 bridge 触发
+- sample 帮助使用者理解本地调度和 bridge 触发
 - processor-style 以非 Web 进程运行，更接近真实任务执行器
 
 ## 目标形态
@@ -29,16 +29,16 @@ nexary-samples/nexary-sample-job/src/main/java/org/nexary/samples/job/processor/
 - `JobProcessorSampleApplication`：非 Web 启动入口
 - `ProcessorBusinessJob`：component-scanned job handler
 
-## 与 focused sample 的关系
+## 与 sample 的关系
 
 `nexary-sample-job` 现在有两条清晰路径：
 
-- starter selector focused sample：通过 `nexary.job.provider` 在本地调度和 XXL-JOB 触发映射 provider 间切换
+- starter selector sample：通过 `nexary.job.provider` 在本地调度和 XXL-JOB 触发映射 provider 间切换
 - `processor`：非 Web 生产式任务进程 skeleton
 
 两者共享 `NexaryJob` 抽象，但使用场景不同。不要把 starter selector sample 当成 processor 生产形态，也不要把 processor skeleton 当成完整外部平台集成证明。
 
-focused sample 的 `business/SampleBusinessJob` 展示了更明确的 接入 形态：业务 handler 只实现 `NexaryJob`，切换本地调度和 XXL-JOB bridge 不修改业务代码。
+sample 的 `business/SampleBusinessJob` 展示了更明确的 接入 形态：业务 handler 只实现 `NexaryJob`，切换本地调度和 XXL-JOB bridge 不修改业务代码。
 
 ## 运行方式
 

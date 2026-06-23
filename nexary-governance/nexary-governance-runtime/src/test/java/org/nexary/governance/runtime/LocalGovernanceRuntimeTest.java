@@ -84,7 +84,7 @@ class LocalGovernanceRuntimeTest {
     void enforcesConcurrencyLimit() throws Exception {
         GovernanceResource resource = GovernanceResource.http("inventory-api", "reserve");
         RecordingPublisher publisher = new RecordingPublisher();
-        GovernanceRuntime runtime = runtime(
+        LocalGovernanceRuntime runtime = runtime(
                 LocalGovernancePolicyRegistry.builder()
                         .policy(resource, GovernancePolicy.builder().maxConcurrency(1).build())
                         .build(),
@@ -101,7 +101,14 @@ class LocalGovernanceRuntimeTest {
         worker.start();
         entered.await();
 
+        GovernanceRuntimeSnapshot running = runtime.snapshots().get(0);
+        assertThat(running.activeConcurrency()).isEqualTo(1);
+        assertThat(running.maxConcurrency()).isEqualTo(1);
         assertThat(runtime.execute(context, () -> "second", () -> "fallback")).isEqualTo("fallback");
+        GovernanceRuntimeSnapshot rejected = runtime.snapshots().get(0);
+        assertThat(rejected.lastOutcome()).isEqualTo(GovernanceCallOutcome.REJECTED);
+        assertThat(rejected.lastOutcomeAt()).isPresent();
+        assertThat(rejected.lastRejectionReason()).isEqualTo(GovernanceRejectionReason.CONCURRENCY_LIMITED);
         release.countDown();
         assertThat(first.get()).isEqualTo("first");
         assertThat(publisher.operations()).contains("governance.bulkhead.rejected", "governance.retry.stopped");
@@ -203,6 +210,9 @@ class LocalGovernanceRuntimeTest {
         assertThat(snapshot.windowCalls()).isEqualTo(2);
         assertThat(snapshot.windowFailures()).isEqualTo(2);
         assertThat(snapshot.lastRejectionReason()).isEqualTo(GovernanceRejectionReason.CIRCUIT_OPEN);
+        assertThat(snapshot.lastOutcome()).isEqualTo(GovernanceCallOutcome.REJECTED);
+        assertThat(snapshot.lastOutcomeAt()).isPresent();
+        assertThat(snapshot.lastStateTransitionAt()).isPresent();
     }
 
     @Test
@@ -249,12 +259,29 @@ class LocalGovernanceRuntimeTest {
             throw new IllegalStateException("down");
         })).isInstanceOf(IllegalStateException.class);
         assertThat(runtime.execute(context, () -> "main", () -> "fallback")).isEqualTo("fallback");
+        GovernanceRuntimeSnapshot open = runtime.snapshots().get(0);
+        assertThat(open.circuitState()).isEqualTo(GovernanceCircuitState.OPEN);
+        assertThat(open.openUntil()).isPresent();
+        assertThat(open.lastOutcome()).isEqualTo(GovernanceCallOutcome.REJECTED);
+        assertThat(open.lastRejectionReason()).isEqualTo(GovernanceRejectionReason.CIRCUIT_OPEN);
+        Instant openedAt = open.lastStateTransitionAt().orElseThrow(AssertionError::new);
 
         Thread.sleep(40);
 
+        GovernanceRuntimeSnapshot halfOpen = runtime.snapshots().get(0);
+        assertThat(halfOpen.circuitState()).isEqualTo(GovernanceCircuitState.HALF_OPEN);
+        assertThat(halfOpen.lastStateTransitionAt())
+                .hasValueSatisfying(transition -> assertThat(transition).isAfterOrEqualTo(openedAt));
+        Instant halfOpenedAt = halfOpen.lastStateTransitionAt().orElseThrow(AssertionError::new);
+
         assertThat(runtime.execute(context, () -> "recovered")).isEqualTo("recovered");
+        GovernanceRuntimeSnapshot closed = runtime.snapshots().get(0);
+        assertThat(closed.circuitState()).isEqualTo(GovernanceCircuitState.CLOSED);
+        assertThat(closed.openUntil()).isEmpty();
+        assertThat(closed.lastOutcome()).isEqualTo(GovernanceCallOutcome.SUCCESS);
+        assertThat(closed.lastStateTransitionAt())
+                .hasValueSatisfying(transition -> assertThat(transition).isAfterOrEqualTo(halfOpenedAt));
         assertThat(runtime.execute(context, () -> "after")).isEqualTo("after");
-        assertThat(runtime.snapshots().get(0).circuitState()).isEqualTo(GovernanceCircuitState.CLOSED);
     }
 
     @Test
@@ -314,7 +341,20 @@ class LocalGovernanceRuntimeTest {
         GovernanceResource resource = GovernanceResource.http("catalog-api", "list");
         LocalGovernanceRuntime runtime = runtime(
                 LocalGovernancePolicyRegistry.builder()
-                        .policy(resource, GovernancePolicy.allowAll())
+                        .policy(resource, GovernancePolicy.builder()
+                                .maxRequestsPerWindow(5)
+                                .rateLimitWindow(Duration.ofSeconds(10))
+                                .maxConcurrency(3)
+                                .minimumRequests(2)
+                                .failureRateThreshold(75.0)
+                                .slowCallThreshold(80.0)
+                                .slowCallDuration(Duration.ofMillis(250))
+                                .openStateDuration(Duration.ofSeconds(3))
+                                .halfOpenMaxCalls(2)
+                                .slidingWindowSize(4)
+                                .slidingWindowDuration(Duration.ofSeconds(20))
+                                .consecutiveFailureThreshold(3)
+                                .build())
                         .build(),
                 new RecordingPublisher());
         GovernanceContext context = GovernanceContext.builder()
@@ -334,7 +374,71 @@ class LocalGovernanceRuntimeTest {
         assertThat(snapshot.priority()).isEqualTo("high");
         assertThat(snapshot.windowCalls()).isEqualTo(1);
         assertThat(snapshot.lastRejectionReason()).isEqualTo(GovernanceRejectionReason.NONE);
+        assertThat(snapshot.lastOutcome()).isEqualTo(GovernanceCallOutcome.SUCCESS);
+        assertThat(snapshot.lastOutcomeAt()).isPresent();
+        assertThat(snapshot.activeConcurrency()).isZero();
+        assertThat(snapshot.maxConcurrency()).isEqualTo(3);
+        assertThat(snapshot.maxRequestsPerWindow()).isEqualTo(5);
+        assertThat(snapshot.rateLimitWindow()).isEqualTo(Duration.ofSeconds(10));
+        assertThat(snapshot.minimumRequests()).isEqualTo(2);
+        assertThat(snapshot.failureRateThreshold()).isEqualTo(75.0);
+        assertThat(snapshot.slowCallThreshold()).isEqualTo(80.0);
+        assertThat(snapshot.slowCallDuration()).hasValue(Duration.ofMillis(250));
+        assertThat(snapshot.openStateDuration()).isEqualTo(Duration.ofSeconds(3));
+        assertThat(snapshot.halfOpenMaxCalls()).isEqualTo(2);
+        assertThat(snapshot.slidingWindowSize()).isEqualTo(4);
+        assertThat(snapshot.slidingWindowDuration()).isEqualTo(Duration.ofSeconds(20));
+        assertThat(snapshot.consecutiveFailureThreshold()).isEqualTo(3);
+        assertThat(snapshot.lastStateTransitionAt()).isPresent();
+        assertThat(snapshot.resourceKey()).doesNotContain("tenant-1", "user-123", "abc");
+        assertThat(snapshot.priority()).doesNotContain("tenant-1", "user-123", "abc");
+        assertThat(snapshot.lastOutcome().name()).doesNotContain("tenant-1", "user-123", "abc");
         assertThat(snapshot.toString()).doesNotContain("tenant-1", "user-123", "abc");
+    }
+
+    @Test
+    void snapshotsTrackSuccessFailureAndCircuitTransitions() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("orders-api", "submit");
+        LocalGovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(resource, GovernancePolicy.builder()
+                                .maxConcurrency(2)
+                                .consecutiveFailureThreshold(2)
+                                .openStateDuration(Duration.ofSeconds(5))
+                                .build())
+                        .build(),
+                new RecordingPublisher());
+        GovernanceContext context = GovernanceContext.builder().resource(resource).build();
+
+        assertThat(runtime.execute(context, () -> "ok")).isEqualTo("ok");
+        GovernanceRuntimeSnapshot success = runtime.snapshots().get(0);
+        assertThat(success.lastOutcome()).isEqualTo(GovernanceCallOutcome.SUCCESS);
+        assertThat(success.lastOutcomeAt()).isPresent();
+        Instant initialTransition = success.lastStateTransitionAt().orElseThrow(AssertionError::new);
+
+        assertThatThrownBy(() -> runtime.execute(context, () -> {
+            throw new IllegalStateException("first");
+        })).isInstanceOf(IllegalStateException.class);
+        GovernanceRuntimeSnapshot firstFailure = runtime.snapshots().get(0);
+        assertThat(firstFailure.lastOutcome()).isEqualTo(GovernanceCallOutcome.FAILURE);
+        assertThat(firstFailure.circuitState()).isEqualTo(GovernanceCircuitState.CLOSED);
+        assertThat(firstFailure.lastStateTransitionAt()).hasValue(initialTransition);
+
+        assertThatThrownBy(() -> runtime.execute(context, () -> {
+            throw new IllegalStateException("second");
+        })).isInstanceOf(IllegalStateException.class);
+        GovernanceRuntimeSnapshot open = runtime.snapshots().get(0);
+        assertThat(open.lastOutcome()).isEqualTo(GovernanceCallOutcome.FAILURE);
+        assertThat(open.circuitState()).isEqualTo(GovernanceCircuitState.OPEN);
+        assertThat(open.openUntil()).isPresent();
+        assertThat(open.lastStateTransitionAt())
+                .hasValueSatisfying(transition -> assertThat(transition).isAfterOrEqualTo(initialTransition));
+
+        assertThat(runtime.execute(context, () -> "main", () -> "fallback")).isEqualTo("fallback");
+        GovernanceRuntimeSnapshot rejected = runtime.snapshots().get(0);
+        assertThat(rejected.lastOutcome()).isEqualTo(GovernanceCallOutcome.REJECTED);
+        assertThat(rejected.lastRejectionReason()).isEqualTo(GovernanceRejectionReason.CIRCUIT_OPEN);
+        assertThat(rejected.totalRejections()).isEqualTo(1);
     }
 
     private static LocalGovernanceRuntime runtime(GovernancePolicyRegistry registry, RecordingPublisher publisher) {

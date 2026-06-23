@@ -159,6 +159,49 @@ The second response has `circuitState=OPEN`, `windowSlowCalls=2`, and `outcome=s
 
 These fields are local in-process policy settings. They are not pushed from a remote console, and their windows are not shared across service instances.
 
+## Inspect the Runtime Diagnostic Snapshot
+
+The sample exposes a read-only endpoint for local circuit and rejection state:
+
+```bash
+curl -s http://localhost:8080/governance/circuit/state
+```
+
+Useful fields:
+
+| Field | Meaning |
+| --- | --- |
+| `resourceKey` | Stable resource key; the sample uses a profile downstream call. |
+| `priority` | Priority bucket used for local policy accounting. |
+| `circuitState` | `CLOSED`, `OPEN`, or `HALF_OPEN`. |
+| `windowCalls` / `windowFailures` / `windowSlowCalls` | Completed, failed, and slow calls in the sliding window. |
+| `totalRejections` | Total local governance rejections seen in this JVM. |
+| `lastRejectionReason` | Most recent rejection reason, for example `CIRCUIT_OPEN`, `RATE_LIMITED`, or `BULKHEAD_FULL`. |
+| `activeConcurrency` / `maxConcurrency` | Current concurrency and configured limit. |
+| `maxRequestsPerWindow` / `rateLimitWindow` | Rate-limit window settings. |
+| `lastOutcome` | Most recent local governance result, commonly `SUCCESS`, `FAILURE`, or `REJECTED`. |
+
+The snapshot is intentionally low-cardinality. It does not include user ids, order ids, message ids, cache keys, exception text, or stack traces.
+
+## Messaging Publish Policy
+
+When a service already uses the messaging starter, add a local policy for the publish resource:
+
+```yaml
+nexary:
+  governance:
+    resources:
+      message-publish:
+        kind: messaging
+        name: message-publish
+        operation: publish
+        max-requests-per-window: 50
+        rate-limit-window: 1s
+        max-concurrency: 16
+```
+
+This policy only affects publish calls made by the current JVM. Check the result in the messaging sample: `result.status` from `POST /app-error-logs`, and `published[].publishStatus`, `published[].providerMessageId`, `published[].detail`, and `consumed[]` from `GET /app-error-logs`.
+
 ## Integrated Paths
 
 | Path | Behavior |
@@ -190,7 +233,7 @@ These fields are local in-process policy settings. They are not pushed from a re
 | `circuit-breaker.sliding-window-size` | `100` | Maximum completed calls retained in the circuit window. |
 | `circuit-breaker.consecutive-failure-threshold` | `0` | Consecutive failed calls that open the circuit; `0` disables this trigger. |
 
-## Current Boundaries
+## Limits
 
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.

@@ -15,7 +15,7 @@ After Maven Central publication, replace `nexaryVersion` with the latest release
 Spring Boot 3.3 / Java 17+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-scheduler:${nexaryVersion}"
 ```
@@ -23,7 +23,7 @@ runtimeOnly "com.aweimao:nexary-job-scheduler:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 ```
@@ -31,7 +31,7 @@ runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```

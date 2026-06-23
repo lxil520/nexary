@@ -159,6 +159,49 @@ curl "http://localhost:8080/governance/circuit/profiles/u-7?mode=slow"
 
 这些字段是本地进程内策略，不会从远程控制台下发，也不会在多个实例之间共享窗口。
 
+## 查看 runtime 诊断快照
+
+样例提供一个只读接口，用来确认本地熔断和拒绝状态：
+
+```bash
+curl -s http://localhost:8080/governance/circuit/state
+```
+
+常用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `resourceKey` | 稳定资源 key，样例里是 profile 下游调用。 |
+| `priority` | 本地策略按哪个优先级桶计数。 |
+| `circuitState` | `CLOSED`、`OPEN` 或 `HALF_OPEN`。 |
+| `windowCalls` / `windowFailures` / `windowSlowCalls` | 滑动窗口内已完成调用、失败调用、慢调用数量。 |
+| `totalRejections` | 当前 JVM 内被本地治理拒绝的总数。 |
+| `lastRejectionReason` | 最近一次拒绝原因，例如 `CIRCUIT_OPEN`、`RATE_LIMITED`、`BULKHEAD_FULL`。 |
+| `activeConcurrency` / `maxConcurrency` | 当前并发和策略上限。 |
+| `maxRequestsPerWindow` / `rateLimitWindow` | 限流窗口配置。 |
+| `lastOutcome` | 最近一次本地治理结果，常见值有 `SUCCESS`、`FAILURE`、`REJECTED`。 |
+
+这些字段是诊断用的低数量字段，不包含 userId、订单号、messageId、cache key、异常全文或堆栈。
+
+## Messaging publish 策略
+
+如果服务已经接入 messaging starter，可以给 publish 资源加本地策略：
+
+```yaml
+nexary:
+  governance:
+    resources:
+      message-publish:
+        kind: messaging
+        name: message-publish
+        operation: publish
+        max-requests-per-window: 50
+        rate-limit-window: 1s
+        max-concurrency: 16
+```
+
+这个策略只作用在当前 JVM 发起的 publish 调用上。发送结果在 messaging 样例里看：`POST /app-error-logs` 的 `result.status`，以及 `GET /app-error-logs` 的 `published[].publishStatus`、`published[].providerMessageId`、`published[].detail`、`consumed[]`。
+
 ## 已接入路径
 
 | 路径 | 行为 |

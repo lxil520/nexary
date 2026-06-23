@@ -11,9 +11,9 @@ Cache is one of Nexary's clearest standalone capabilities.
 
 ## Version Selection
 
-Current development version: `0.6.0`. After publication, replace `${nexary.version}` with the latest release / tag version.
+Current development version: `0.7.0`. After publication, replace `${nexary.version}` with the latest release / tag version.
 
-| Spring Boot | JDK | Cache Status | Starter artifactId | SPI/provider Dependencies |
+| Spring Boot | JDK | Cache Status | Starter artifactId | Single-provider Dependencies |
 | --- | --- | --- | --- | --- |
 | Spring Boot 3.3.x | Java 17+ | currently verified | `nexary-cache-spring-boot-starter` | `nexary-cache-api` + `nexary-cache-redis` |
 | Spring Boot 2.7.x | Java 8+ | Redis single-tier is verified; tiered local cache is not included | `nexary-cache-spring-boot2-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
@@ -32,7 +32,7 @@ Starter mode is for Spring Boot services that want the cache capability aggregat
 Spring Boot 3.3.x / Java 17+:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -44,7 +44,7 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.6.0"
+    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.7.0"
 }
 ```
 
@@ -52,7 +52,7 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.6.0"
+    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.7.0"
 }
 ```
 
@@ -82,14 +82,14 @@ spring:
       port: 16380
 ```
 
-### SPI/provider Dependency Mode
+### Single-provider Dependency Mode
 
-SPI/provider mode is for services that want explicit provider dependency control. Business code compiles against `nexary-cache-api`; the Redis provider is loaded by the runtime dependency and `nexary.cache.provider` configuration.
+Single-provider mode is for services that want explicit provider dependency control. Business code compiles against `nexary-cache-api`; the Redis provider is loaded by the runtime dependency and `nexary.cache.provider` configuration.
 
 Spring Boot 3.3.x / Java 17+:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -105,8 +105,8 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.6.0"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.6.0"
+    implementation "com.aweimao:nexary-cache-api:0.7.0"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.7.0"
 }
 ```
 
@@ -114,12 +114,12 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.6.0"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.6.0"
+    implementation "com.aweimao:nexary-cache-api:0.7.0"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.7.0"
 }
 ```
 
-## Current Scope
+## Supported Pieces
 
 - `nexary-cache-api`
 - `nexary-cache-redis`
@@ -131,7 +131,7 @@ dependencies {
 - atomic counter abstractions separate from ordinary `CacheClient#get/put`
 - owner-token locks and optional fencing tokens
 
-## Current Boundaries
+## Limits
 
 - Redis is the primary implementation
 - Valkey reuses the Redis-protocol provider path; it does not add business APIs or expose Valkey, Redis, Lettuce, or Spring Data Redis native types to business code
@@ -192,7 +192,7 @@ Dashboard suggestions:
 
 Non-goals: Nexary does not ship a built-in governance dashboard here, does not expose Micrometer types in the core/cache API, does not claim exactly-once events, and does not use observation events as audit logs or consistency mechanisms.
 
-## Recommended Adoption Order
+## Recommended Order
 
 1. read the module entry and API boundaries
 2. inspect the cache-dedicated sample

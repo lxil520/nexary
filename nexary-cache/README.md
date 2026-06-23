@@ -7,7 +7,7 @@
 
 ## 版本与接入入口
 
-当前开发版本：`0.5.1`。发布到 Maven Central 后，请把 `${nexary.version}` 替换为最新 release / tag 版本。
+当前示例版本：`0.7.0`。Maven Central 同步后，也可以替换为最新 release / tag 版本。
 
 | Spring Boot | JDK | Cache 状态 | Starter artifactId | SPI/provider 依赖 |
 | --- | --- | --- | --- | --- |
@@ -26,7 +26,7 @@ Valkey 是 v0.3 的 Redis 协议兼容部署目标。业务代码仍使用同一
 Spring Boot 3.3.x / Java 17+：
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -38,7 +38,7 @@ Spring Boot 2.7.x / Java 8+ Redis 单级缓存：
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.5.1"
+    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.7.0"
 }
 ```
 
@@ -46,7 +46,7 @@ Spring Boot 4.1.x / Java 21 主验证运行时：
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.5.1"
+    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.7.0"
 }
 ```
 
@@ -82,7 +82,7 @@ spring:
 Spring Boot 3.3.x / Java 17+：
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -98,8 +98,8 @@ Spring Boot 2.7.x / Java 8+ Redis 单级缓存：
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.5.1"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.5.1"
+    implementation "com.aweimao:nexary-cache-api:0.7.0"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.7.0"
 }
 ```
 
@@ -107,8 +107,8 @@ Spring Boot 4.1.x / Java 21 主验证运行时：
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.5.1"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.5.1"
+    implementation "com.aweimao:nexary-cache-api:0.7.0"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.7.0"
 }
 ```
 

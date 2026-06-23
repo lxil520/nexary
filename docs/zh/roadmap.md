@@ -84,7 +84,7 @@
 
 ### `0.2.0-alpha.3`
 
-第三批补齐 Spring Boot 指标桥接，让 `alpha.2` 的 Nexary 层 observation events 能直接接入常见指标体系。
+第三批补齐 Spring Boot 指标桥接，让 `alpha.2` 的 Nexary 层 observation events 能直接接入常见指标后端。
 
 - Boot：新增独立 Micrometer bridge starter，把 `NexaryObservationEvent` 转换成 Micrometer counter / timer。
 - Core / capability API：保持不依赖 Micrometer、Actuator 或具体监控后端。
@@ -274,6 +274,27 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 对 cache / messaging / job 主 API 的侵入式改造。
 - messaging publish 的统一 runtime-backed 熔断。
 - 未经样例和测试验证的 README 支持声明。
+
+## `0.7.x` Messaging publish 治理和命令级样例
+
+`0.7.x` 的目标是把已经形成的本地治理边界讲清楚，并让用户能用命令看到 messaging 样例的发送结果、消费结果和真实中间件差异。它仍然是 Java SDK 内的治理能力，不是控制台、sidecar、agent 或远程配置。
+
+已纳入范围：
+
+- Messaging：说明 publish 路径的本地治理资源名：`kind=messaging`、`name=message-publish`、`operation=publish`，provider 使用 `disruptor`、`redis`、`kafka`、`rocketmq` 或 `activemq_classic`。
+- Messaging：说明 provider publisher 会写入 `nexary-deadline-epoch-millis`，过期 publish 会返回 `MessagePublishResult.failed("message publish deadline exceeded", RetrySignal.stop("deadline_exceeded"))`。
+- Messaging：说明 `GovernedMessagePublisher` 只保护当前 JVM 的 publish 调用；它不提供跨实例窗口、broker 级熔断或自动切换 provider。
+- Samples：`nexary-sample-messaging` 文档补齐 `POST /app-error-logs` 和 `GET /app-error-logs`，让用户能看 `result.status`、`published[].publishStatus`、`published[].providerMessageId`、`published[].detail`、`consumed[]`。
+- Samples：补齐 Disruptor、Redis、Kafka、RocketMQ、ActiveMQ Classic 的启动命令和 curl 命令；真实 broker 仍由 `./scripts/middleware/up.sh` 或用户本地 broker 提供。
+- Governance docs：补充 messaging publish 策略 YAML，说明只有 publish 路径接入 `GovernanceExecution` 时这些字段才会生效。
+
+`0.7.x` 不包含：
+
+- 控制台、sidecar、agent、远程动态配置或策略下发。
+- 跨进程熔断窗口、全局限流、跨实例状态同步。
+- broker 高可用、fallback chain、自动创建生产 topic、自动创建生产 queue。
+- exactly-once、全局有序或跨 provider 事务一致性承诺。
+- 未经过样例和真实中间件验证的 README 支持声明。
 
 ## `1.0.0` 稳定版目标
 

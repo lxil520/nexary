@@ -275,6 +275,27 @@ Later `0.6.x` work should close only two gaps:
 - runtime-backed circuit breaking for messaging publish.
 - README support claims that have not passed sample and test verification.
 
+## `0.7.x` Messaging Publish Governance And Command-Level Samples
+
+`0.7.x` explains the local governance boundary more clearly and makes the messaging sample inspectable with real commands. Users should be able to see publish results, consumed messages, and provider differences without reading Java code first. This remains Java SDK-level governance, not a console, sidecar, agent, or remote configuration platform.
+
+Included scope:
+
+- Messaging: document the publish governance resource as `kind=messaging`, `name=message-publish`, `operation=publish`, with provider set to `disruptor`, `redis`, `kafka`, `rocketmq`, or `activemq_classic`.
+- Messaging: document that provider publishers transport `nexary-deadline-epoch-millis`; expired publish calls return `MessagePublishResult.failed("message publish deadline exceeded", RetrySignal.stop("deadline_exceeded"))`.
+- Messaging: document that `GovernedMessagePublisher` protects publish calls in the current JVM only; it does not provide cross-instance windows, broker-level circuit breaking, or automatic provider switching.
+- Samples: expand `nexary-sample-messaging` docs for `POST /app-error-logs` and `GET /app-error-logs`, including `result.status`, `published[].publishStatus`, `published[].providerMessageId`, `published[].detail`, and `consumed[]`.
+- Samples: add startup and curl commands for Disruptor, Redis, Kafka, RocketMQ, and ActiveMQ Classic; real brokers still come from `./scripts/middleware/up.sh` or a user-provided local broker.
+- Governance docs: add copyable messaging publish policy YAML and state that it applies only when publish goes through `GovernanceExecution`.
+
+`0.7.x` does not include:
+
+- consoles, sidecars, agents, remote dynamic config, or policy push.
+- cross-process circuit windows, global rate limits, or cross-instance state sharing.
+- broker high availability, fallback chains, production topic creation, or production queue creation.
+- exactly-once, global ordering, or cross-provider transaction guarantees.
+- README support claims that have not passed sample and real-middleware verification.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

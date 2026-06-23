@@ -75,6 +75,29 @@ Never use these values as metric tags:
 - Job: chart scheduling, execution, and skip behavior by `provider`, `trigger`, `status`, `skip_reason`, and `shard_presence`.
 - Governance: chart rate limit, bulkhead, deadline, degradation, and retry-stop events by `resource_kind`, `governance_action`, `traffic_channel`, `traffic_priority`, and `retry_decision`.
 
+## Verify the Fields
+
+Run the governance sample first:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run
+curl -s http://localhost:8080/governance/circuit/state
+```
+
+Inspect `circuitState`, `windowCalls`, `windowFailures`, `windowSlowCalls`, `totalRejections`, `lastRejectionReason`, `activeConcurrency`, `maxConcurrency`, and `lastOutcome`. These map to bounded governance tags such as `category=governance`, `resource_kind`, `governance_action`, `traffic_channel`, and `traffic_priority`.
+
+Then run the messaging sample:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-messaging:run
+curl -s -X POST http://localhost:8082/app-error-logs \
+  -H 'Content-Type: application/json' \
+  -d '{"appId":"billing","messageId":"m-1001","level":"ERROR","message":"payment timeout"}'
+curl -s http://localhost:8082/app-error-logs
+```
+
+Inspect `result.status`, `published[].publishStatus`, `published[].providerMessageId`, `published[].detail`, and `consumed[]`. Metric tags must not include `messageId`, payload, raw topic, exception text, or stack traces.
+
 ## Non-Goals
 
 - No tracing, audit log, or security audit implementation.

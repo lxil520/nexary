@@ -7,7 +7,7 @@ spring:
 
 nexary:
   messaging:
-    # Switch to Redis queue by config. Business code stays provider-neutral.
+    # Switch to Redis queue by config. Business code still calls Nexary APIs.
     provider: redis
     disruptor:
       enabled: false

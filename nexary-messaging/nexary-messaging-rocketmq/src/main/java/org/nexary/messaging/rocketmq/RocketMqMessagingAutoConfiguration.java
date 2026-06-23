@@ -66,11 +66,13 @@ public class RocketMqMessagingAutoConfiguration {
     public MessagePublisher rocketMqMessagePublisher(
             @Qualifier("rocketMQTemplate") Object rocketMqTemplate,
             ObjectProvider<MessageSerializer> serializer,
-            ObjectProvider<NexaryObservationPublisher> observationPublisher) {
+            ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution) {
         return new RocketMqMessagePublisher(
                 rocketMqTemplate,
                 serializer.getIfAvailable(DefaultStringMessageSerializer::new),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct));
     }
 
     @Bean

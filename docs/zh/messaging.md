@@ -17,18 +17,18 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 
 ## 版本与接入入口
 
-先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.6.0`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
+先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.7.0`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
 
-| Spring Boot | JDK | Messaging 状态 | Starter 模式 | SPI/provider 模式 |
+| Spring Boot | JDK | Messaging 状态 | Starter 模式 | 单 provider 模式 |
 | --- | --- | --- | --- | --- |
 | Spring Boot 3.3 | Java 17+ | 当前已验证主线 | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` + 一个 provider runtime 依赖 |
 | Spring Boot 2.7 | Java 8+ | Redis-only provider / starter 当前已验证；Disruptor/Kafka/RocketMQ/ActiveMQ Classic 待独立验证 | `nexary-messaging-spring-boot2-starter` | `nexary-messaging-api` + `nexary-messaging-redis-spring-boot2` |
-| Spring Boot 4.1 | Java 21 作为 Nexary 主要验证运行时 | provider-by-provider 已验证；starter 仅 Nexary 层 core | `nexary-messaging-spring-boot4-starter` + 恰好一个 Boot4 provider | `nexary-messaging-api` + 一个 Boot4 provider runtime 依赖 |
+| Spring Boot 4.1 | Java 21 作为 Nexary 主要验证运行时 | 按 provider 已验证；starter 仅 Nexary 层 core | `nexary-messaging-spring-boot4-starter` + 恰好一个 Boot4 provider | `nexary-messaging-api` + 一个 Boot4 provider runtime 依赖 |
 
 Spring Boot 3.3 / Java 17+ starter 模式：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     // 使用 Nexary BOM 锁定当前已验证的 Boot3 / Java17+ Messaging 依赖版本。
@@ -46,7 +46,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ 当前只验证 Redis-only Messaging starter：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
@@ -66,7 +66,7 @@ nexary:
 Spring Boot 4.1 的 Messaging starter 只提供 Nexary 层 core 自动配置。使用时必须显式增加一个 provider artifact；不要把四个 provider 都放进同一个 Boot4 starter classpath：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -80,9 +80,9 @@ dependencies {
 
 Spring Boot 4 官方最低 JDK 以 Spring 官方文档为准；这里的 Java 21 是 Nexary 对 Boot4 线的主要验证运行时。Boot4 Messaging 不声明 all-provider aggregate starter readiness。
 
-SPI/provider 模式适合不想引入聚合 starter、只想引入一个具体 provider 的服务。业务代码仍只依赖 Nexary messaging API，不直接 import Kafka、RocketMQ、Redis、Disruptor、JMS 或 ActiveMQ 原生类型。
+单 provider 模式适合不想引入聚合 starter、只想引入一个具体 provider 的服务。业务代码仍只依赖 Nexary messaging API，不直接 import Kafka、RocketMQ、Redis、Disruptor、JMS 或 ActiveMQ 原生类型。
 
-Spring Boot 3.3 / Java 17+ SPI/provider 模式按 provider 选择。每个代码块都是可直接复制的完整依赖入口。
+Spring Boot 3.3 / Java 17+ 单 provider 模式按 provider 选择。每个代码块都是可直接复制的完整依赖入口。
 
 | Provider | ArtifactId |
 | --- | --- |
@@ -95,7 +95,7 @@ Spring Boot 3.3 / Java 17+ SPI/provider 模式按 provider 选择。每个代码
 Disruptor：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -107,7 +107,7 @@ dependencies {
 Redis queue：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -119,7 +119,7 @@ dependencies {
 Kafka：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -131,7 +131,7 @@ dependencies {
 RocketMQ：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -143,7 +143,7 @@ dependencies {
 ActiveMQ Classic：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -152,10 +152,10 @@ dependencies {
 }
 ```
 
-Spring Boot 2.7 / Java 8+ 的 SPI/provider 模式当前只验证 Redis-only：
+Spring Boot 2.7 / Java 8+ 的单 provider 模式当前只验证 Redis-only：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -163,10 +163,10 @@ dependencies {
 }
 ```
 
-Spring Boot 4.1 / Java 21 主要验证运行时的 SPI/provider 模式：
+Spring Boot 4.1 / Java 21 主要验证运行时的单 provider 模式：
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -182,15 +182,65 @@ Provider 运行时选择：
 | Disruptor | `nexary-messaging-disruptor` | `nexary.messaging.provider=disruptor` | 无 | 进程内 ring-buffer，适合本地事件分发 |
 | Redis queue | `nexary-messaging-redis` | `nexary.messaging.provider=redis` | Redis + Spring Redis 连接工厂 | 轻量 ready / processing / ack queue，不等同 Kafka/RocketMQ |
 | Redis queue for Boot2 / Java8+ | `nexary-messaging-redis-spring-boot2` | `nexary.messaging.provider=redis` | Redis + Spring Data Redis 2.7 连接工厂 | Boot2/JDK8 当前唯一已验证 Messaging provider |
-| Disruptor for Boot4 / Java21 validation runtime | `nexary-messaging-disruptor-spring-boot4` | `nexary.messaging.provider=disruptor` | 无 | Boot4 线按 provider 独立引入 |
-| Redis queue for Boot4 / Java21 validation runtime | `nexary-messaging-redis-spring-boot4` | `nexary.messaging.provider=redis` | Redis + Spring Data Redis 4.1 连接工厂 | Boot4 线按 provider 独立引入 |
-| Kafka for Boot4 / Java21 validation runtime | `nexary-messaging-kafka-spring-boot4` | `nexary.messaging.provider=kafka` | Kafka broker | Boot4 线按 provider 独立引入 |
-| RocketMQ for Boot4 / Java21 validation runtime | `nexary-messaging-rocketmq-spring-boot4` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Boot4 线按 provider 独立引入 |
+| Disruptor for Boot4 / Java21 validation runtime | `nexary-messaging-disruptor-spring-boot4` | `nexary.messaging.provider=disruptor` | 无 | Boot4 线每次只引入一个 provider |
+| Redis queue for Boot4 / Java21 validation runtime | `nexary-messaging-redis-spring-boot4` | `nexary.messaging.provider=redis` | Redis + Spring Data Redis 4.1 连接工厂 | Boot4 线每次只引入一个 provider |
+| Kafka for Boot4 / Java21 validation runtime | `nexary-messaging-kafka-spring-boot4` | `nexary.messaging.provider=kafka` | Kafka broker | Boot4 线每次只引入一个 provider |
+| RocketMQ for Boot4 / Java21 validation runtime | `nexary-messaging-rocketmq-spring-boot4` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Boot4 线每次只引入一个 provider |
 | Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary 负责 Nexary 层 publish/consume/retry/dedup 映射 |
 | RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary 负责 Nexary 层 publish/consume/retry/dedup 映射 |
 | ActiveMQ Classic | `nexary-messaging-activemq-classic` | `nexary.messaging.provider=activemq-classic` | ActiveMQ Classic broker | Nexary topic 映射为 JMS queue 名称；Artemis 不包含在这个 artifact 里 |
 
-## 当前边界
+## Messaging publish 治理
+
+`0.7.x` 给 publish 路径补齐本地治理说明。接入 starter 后，publish 使用稳定资源：
+
+| 字段 | 值 |
+| --- | --- |
+| `kind` | `messaging` |
+| `name` | `message-publish` |
+| `operation` | `publish` |
+| `provider` | `disruptor` / `redis` / `kafka` / `rocketmq` / `activemq_classic` |
+
+可以先用下面的策略限制 publish 启动次数和并发：
+
+```yaml
+nexary:
+  governance:
+    resources:
+      message-publish:
+        kind: messaging
+        name: message-publish
+        operation: publish
+        max-requests-per-window: 50
+        rate-limit-window: 1s
+        max-concurrency: 16
+```
+
+publish 会传递 `nexary-deadline-epoch-millis`。如果调用进入 provider 前 deadline 已经过期，返回会是失败的 `MessagePublishResult`，`result.status` 为 `FAILED`，`result.detail` 会说明 publish deadline 已过期。
+
+用样例确认：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-messaging:run
+curl -s -X POST http://localhost:8082/app-error-logs \
+  -H 'Content-Type: application/json' \
+  -d '{"appId":"billing","messageId":"m-1001","level":"ERROR","message":"payment timeout"}'
+curl -s http://localhost:8082/app-error-logs
+```
+
+先看 POST 返回的 `result.status`；再看 GET 返回的 `published[].publishStatus`、`published[].providerMessageId`、`published[].detail`、`consumed[]`。切到 Redis / Kafka / RocketMQ / ActiveMQ Classic 时，curl 不变，只换启动 profile：
+
+```bash
+./scripts/middleware/up.sh
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=redis'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=kafka'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=rocketmq'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=activemq-classic'
+```
+
+这只保护当前 JVM 发起的 publish 调用，不共享跨实例窗口，不做 broker 级熔断，也不会自动切换 provider。
+
+## 限制
 
 - 每个服务在 `0.1.x` 建议只启用一个出站 provider
 - starter selector sample 是主要参考方向，综合演示 只负责展示 API 手感

@@ -70,13 +70,15 @@ public class RedisMessagingAutoConfiguration {
             MessageSerializer serializer,
             MessageConsumeExecutor consumeExecutor,
             RedisMessagingProperties properties,
-            ObjectProvider<NexaryObservationPublisher> observationPublisher) {
+            ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution) {
         return new RedisMessageQueue(
                 stringRedisTemplate,
                 serializer,
                 consumeExecutor,
                 properties,
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct));
     }
 
 }

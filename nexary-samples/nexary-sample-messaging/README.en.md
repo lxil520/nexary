@@ -1,6 +1,6 @@
 # nexary-sample-messaging
 
-Starter selector integration sample for Nexary messaging, focused on simple business usage.
+Messaging sample for publishing and consuming through the same Nexary API while switching Disruptor, Redis queue, Kafka, RocketMQ, and ActiveMQ Classic by configuration.
 
 ## Runnable profiles
 
@@ -12,22 +12,22 @@ Starter selector integration sample for Nexary messaging, focused on simple busi
 
 ## Version Selection
 
-The sample business code uses only the Nexary messaging API, so Boot3, Boot2 Redis-only, and Boot4 provider-by-provider differences are dependency and configuration entry choices. Examples use the current development version `0.6.0`; after Maven Central publication, replace it with the latest release.
+The sample business code uses only the Nexary messaging API, so Boot3, Boot2 Redis-only, and Boot4 single-provider entries differ only in dependencies and configuration. Examples use development version `0.7.0`; after Maven Central publication, replace it with the latest release.
 
 | Spring Boot | JDK | Sample dependency entry | Provider boundary |
 | --- | --- | --- | --- |
 | Spring Boot 3.3 | Java 17+ | `nexary-messaging-spring-boot-starter` | starter selector chooses `disruptor` / `redis` / `kafka` / `rocketmq` / `activemq-classic` |
 | Spring Boot 2.7 | Java 8+ | `nexary-messaging-spring-boot2-starter` | Redis-only verified |
-| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | `nexary-messaging-spring-boot4-starter` + exactly one `*-spring-boot4` provider | provider-by-provider; no all-provider aggregate starter |
+| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | `nexary-messaging-spring-boot4-starter` + exactly one `*-spring-boot4` provider | one provider at a time; no all-provider aggregate starter |
 
-## Main Adoption Mode: Starter Selector
+## Main Setup: Starter Selector
 
 Business code depends only on the Nexary messaging API. Switching providers means changing `nexary.messaging.provider`, provider settings, and dependency entry, not facade, controller, or consumer code.
 
 Spring Boot 3.3 / Java 17+ main dependency:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     // After publication, use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging versions.
@@ -42,7 +42,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ Redis-only starter:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
@@ -52,7 +52,7 @@ dependencies {
 Spring Boot 4.1 / Java 21 primary validation runtime starter:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -110,7 +110,7 @@ This is not an exactly-once, global ordering, or distributed transaction guarant
 
 Redis queue remains a lightweight queue. `application-redis.yml` exposes `queue-prefix`, `processing-prefix`, `processing-lease-prefix`, `visibility-timeout`, `processing-recovery-interval`, and `deduplication-*` to make the ready / processing / ack / stale recovery boundary explicit for local validation.
 
-## SPI / Provider Isolation Mode
+## Setup Without the Starter Selector
 
 If you do not want the starter selector, use the provider-split SPI samples:
 
@@ -120,16 +120,16 @@ If you do not want the starter selector, use the provider-split SPI samples:
 - `nexary-sample-messaging-spi-rocketmq`
 - `nexary-sample-messaging-spi-activemq-classic`
 
-Those modules depend on `nexary-messaging-api` plus exactly one provider module. Business code still uses only the Nexary messaging API; switching providers means changing the provider dependency and configuration, not facade/controller/consumer code. SPI sample packages are provider-scoped, for example `org.nexary.samples.messaging.spi.kafka.*`.
+Those modules depend on `nexary-messaging-api` plus exactly one provider module. Business code still uses only the Nexary messaging API; switching providers means changing the provider dependency and configuration, not facade/controller/consumer code. Sample packages are provider-scoped, for example `org.nexary.samples.messaging.spi.kafka.*`.
 
-After publication, SPI/provider dependencies look like:
+After publication, dependencies without the selector look like this:
 
-Spring Boot 3.3 / Java 17+ SPI/provider dependencies are one-provider choices. Every block is copyable as-is.
+Spring Boot 3.3 / Java 17+ chooses one provider. Every block is copyable as-is.
 
 Disruptor:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -141,7 +141,7 @@ dependencies {
 Redis queue:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -153,7 +153,7 @@ dependencies {
 Kafka:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -165,7 +165,7 @@ dependencies {
 RocketMQ:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -177,7 +177,7 @@ dependencies {
 ActiveMQ Classic:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -186,10 +186,10 @@ dependencies {
 }
 ```
 
-Spring Boot 4.1 / Java 21 primary validation runtime SPI/provider shape:
+Spring Boot 4.1 / Java 21 primary validation runtime with one provider:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -225,6 +225,50 @@ NEXARY_INFRA_ROCKETMQ_NAMESRV=127.0.0.1:19876 \
 ```
 
 All four profiles are single-provider modes.
+
+## Inspect Publish and Consume Fields
+
+Start the default Disruptor profile:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-messaging:run
+```
+
+In another terminal, publish one business error log:
+
+```bash
+curl -s -X POST http://localhost:8082/app-error-logs \
+  -H 'Content-Type: application/json' \
+  -d '{"appId":"billing","messageId":"m-1001","level":"ERROR","message":"payment timeout"}'
+```
+
+Check `result.status` first. `SUCCESS` means the provider accepted the message. `FAILED` puts the short reason in `result.detail` and `result.retrySignal`, for example when the publish deadline has already expired.
+
+Then inspect the sample inbox:
+
+```bash
+curl -s http://localhost:8082/app-error-logs
+```
+
+Fields to check:
+
+| Field | Meaning |
+| --- | --- |
+| `published[].messageId` | Business message id passed by the caller or generated by the facade. |
+| `published[].publishStatus` | Publish result, usually `SUCCESS` or `FAILED`. |
+| `published[].providerMessageId` | Message id returned by the provider; some providers may leave it empty. |
+| `published[].detail` | Short failure or provider detail. |
+| `consumed[]` | Messages consumed in the current process, including payload and `consumedAt`. |
+
+Real middleware profiles use the same curl commands; change only the run command:
+
+```bash
+./scripts/middleware/up.sh
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=redis'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=kafka'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=rocketmq'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=activemq-classic'
+```
 
 The built-in consumer subscribes to the business constant `MessagingSampleTopics.APP_ERROR_LOG`, not to a provider setting. The topic uses the RocketMQ-safe value `sample_messaging_app_error_log`, so switching Kafka / RocketMQ / Redis / Disruptor does not change business code.
 

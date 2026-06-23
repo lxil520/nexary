@@ -45,7 +45,7 @@
 - business job handlers depend only on Nexary job API, not on `mode.local`, `mode.xxljob`, or provider wiring.
 - switching from local scheduler to the XXL-JOB bridge does not change business job code.
 - starter selector mode chooses the provider through `nexary.job.provider` and profile configuration.
-- SPI/provider samples are split into one module per provider instead of mixing multiple providers into one SPI module.
+- Single-provider samples are split into one module per provider instead of mixing multiple providers into one SPI module.
 - `nexary-sample-job-spi-scheduler` shows only API + local provider integration.
 - `nexary-sample-job-spi-xxljob` shows only API + XXL-JOB bridge provider integration.
 - `nexary-sample-job-spi-powerjob` shows only API + PowerJob trigger provider integration.

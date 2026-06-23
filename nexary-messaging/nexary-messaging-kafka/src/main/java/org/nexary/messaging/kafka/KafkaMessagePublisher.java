@@ -5,9 +5,10 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import org.nexary.core.observation.NexaryObservationPublisher;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.messaging.MessageEnvelope;
 import org.nexary.messaging.MessageGovernanceSupport;
@@ -21,6 +22,7 @@ public class KafkaMessagePublisher implements MessagePublisher {
     private final Object kafkaTemplate;
     private final MessageSerializer serializer;
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceExecution governanceExecution;
 
     public KafkaMessagePublisher(Object kafkaTemplate, MessageSerializer serializer) {
         this(kafkaTemplate, serializer, NexaryObservationPublisher.noop());
@@ -30,18 +32,27 @@ public class KafkaMessagePublisher implements MessagePublisher {
             Object kafkaTemplate,
             MessageSerializer serializer,
             NexaryObservationPublisher observationPublisher) {
+        this(kafkaTemplate, serializer, observationPublisher, GovernanceExecution.direct());
+    }
+
+    public KafkaMessagePublisher(
+            Object kafkaTemplate,
+            MessageSerializer serializer,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution) {
         this.kafkaTemplate = kafkaTemplate;
         this.serializer = serializer;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
     }
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
-        java.util.Optional<MessagePublishResult> expired =
-                MessageGovernanceSupport.rejectExpiredPublish(envelope, "kafka", observationPublisher);
-        if (expired.isPresent()) {
-            return CompletableFuture.completedFuture(expired.get());
-        }
+        return MessageGovernanceSupport.executeGovernedPublish(
+                envelope, "kafka", observationPublisher, governanceExecution, () -> publishDirect(envelope));
+    }
+
+    private CompletionStage<MessagePublishResult> publishDirect(MessageEnvelope<?> envelope) {
         try {
             ProducerRecord<String, byte[]> record = createRecord(envelope);
             Method send = kafkaTemplate.getClass().getMethod("send", ProducerRecord.class);

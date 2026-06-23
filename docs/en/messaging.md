@@ -9,7 +9,7 @@ Messaging has the most provider variation and the highest risk of blurred bounda
 - acceptance checklist: [messaging-acceptance.md](messaging-acceptance.md)
 - sample guide: [samples.md](samples.md)
 
-## Current Scope
+## Supported Pieces
 
 - `nexary-messaging-api`
 - Kafka / RocketMQ / Redis queue / Disruptor / ActiveMQ Classic
@@ -17,18 +17,18 @@ Messaging has the most provider variation and the highest risk of blurred bounda
 
 ## Version And Adoption Entry
 
-Choose the entry point from your Spring Boot and JDK line first. Examples use the current development version `0.6.0`; after Maven Central publication, replace it with the latest release.
+Choose the entry point from your Spring Boot and JDK line first. Examples use the current development version `0.7.0`; after Maven Central publication, replace it with the latest release.
 
-| Spring Boot | JDK | Messaging Status | Starter Mode | SPI/provider Mode |
+| Spring Boot | JDK | Messaging Status | Starter Mode | Single-provider Mode |
 | --- | --- | --- | --- | --- |
 | Spring Boot 3.3 | Java 17+ | currently verified mainline | `nexary-messaging-spring-boot-starter` | `nexary-messaging-api` plus one provider runtime dependency |
 | Spring Boot 2.7 | Java 8+ | Redis-only provider / starter is currently verified; Disruptor/Kafka/RocketMQ/ActiveMQ Classic still require independent verification | `nexary-messaging-spring-boot2-starter` | `nexary-messaging-api` + `nexary-messaging-redis-spring-boot2` |
-| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | provider-by-provider verified; starter is Nexary-level core only | `nexary-messaging-spring-boot4-starter` + exactly one Boot4 provider | `nexary-messaging-api` + one Boot4 provider runtime dependency |
+| Spring Boot 4.1 | Java 21 as Nexary's primary validation runtime | verified one provider at a time; starter is Nexary-level core only | `nexary-messaging-spring-boot4-starter` + exactly one Boot4 provider | `nexary-messaging-api` + one Boot4 provider runtime dependency |
 
 Spring Boot 3.3 / Java 17+ starter mode:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     // Use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging dependency versions.
@@ -46,7 +46,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ currently verifies only the Redis-only Messaging starter:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
@@ -66,7 +66,7 @@ nexary:
 The Spring Boot 4.1 Messaging starter provides Nexary-level core auto-configuration only. Add exactly one provider artifact explicitly; do not put all four providers into the same Boot4 starter classpath:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -80,9 +80,9 @@ Available Boot4 provider artifactIds: `nexary-messaging-disruptor-spring-boot4`,
 
 The official minimum JDK for Spring Boot 4 is defined by Spring's own documentation. Java 21 here is Nexary's primary validation runtime for the Boot4 line. Messaging Boot4 does not claim all-provider aggregate starter readiness.
 
-SPI/provider mode is for services that do not want the starter selector and want to bring exactly one concrete provider. Business code still depends only on the Nexary messaging API and must not import Kafka, RocketMQ, Redis, Disruptor, JMS, or ActiveMQ native types.
+Single-provider mode is for services that do not want the starter selector and want to bring exactly one concrete provider. Business code still depends only on the Nexary messaging API and must not import Kafka, RocketMQ, Redis, Disruptor, JMS, or ActiveMQ native types.
 
-Spring Boot 3.3 / Java 17+ SPI/provider mode is selected per provider. Every block below is copyable as-is.
+Spring Boot 3.3 / Java 17+ single-provider mode is selected per provider. Every block below is copyable as-is.
 
 | Provider | ArtifactId |
 | --- | --- |
@@ -95,7 +95,7 @@ Spring Boot 3.3 / Java 17+ SPI/provider mode is selected per provider. Every blo
 Disruptor:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -107,7 +107,7 @@ dependencies {
 Redis queue:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -119,7 +119,7 @@ dependencies {
 Kafka:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -131,7 +131,7 @@ dependencies {
 RocketMQ:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -143,7 +143,7 @@ dependencies {
 ActiveMQ Classic:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -152,10 +152,10 @@ dependencies {
 }
 ```
 
-Spring Boot 2.7 / Java 8+ SPI/provider mode is currently verified only for Redis-only:
+Spring Boot 2.7 / Java 8+ single-provider mode is currently verified only for Redis-only:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -163,10 +163,10 @@ dependencies {
 }
 ```
 
-Spring Boot 4.1 / Java 21 primary validation runtime SPI/provider mode:
+Spring Boot 4.1 / Java 21 primary validation runtime single-provider mode:
 
 ```gradle
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -182,15 +182,65 @@ Provider runtime selection:
 | Disruptor | `nexary-messaging-disruptor` | `nexary.messaging.provider=disruptor` | none | in-process ring buffer for local event dispatch |
 | Redis queue | `nexary-messaging-redis` | `nexary.messaging.provider=redis` | Redis plus a Spring Redis connection factory | lightweight ready / processing / ack queue, not a Kafka/RocketMQ equivalent |
 | Redis queue for Boot2 / Java8+ | `nexary-messaging-redis-spring-boot2` | `nexary.messaging.provider=redis` | Redis plus a Spring Data Redis 2.7 connection factory | currently the only verified Messaging provider for Boot2/JDK8 |
-| Disruptor for Boot4 / Java21 validation runtime | `nexary-messaging-disruptor-spring-boot4` | `nexary.messaging.provider=disruptor` | none | Boot4 line is provider-by-provider |
-| Redis queue for Boot4 / Java21 validation runtime | `nexary-messaging-redis-spring-boot4` | `nexary.messaging.provider=redis` | Redis plus a Spring Data Redis 4.1 connection factory | Boot4 line is provider-by-provider |
-| Kafka for Boot4 / Java21 validation runtime | `nexary-messaging-kafka-spring-boot4` | `nexary.messaging.provider=kafka` | Kafka broker | Boot4 line is provider-by-provider |
-| RocketMQ for Boot4 / Java21 validation runtime | `nexary-messaging-rocketmq-spring-boot4` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Boot4 line is provider-by-provider |
+| Disruptor for Boot4 / Java21 validation runtime | `nexary-messaging-disruptor-spring-boot4` | `nexary.messaging.provider=disruptor` | none | Boot4 brings one provider at a time |
+| Redis queue for Boot4 / Java21 validation runtime | `nexary-messaging-redis-spring-boot4` | `nexary.messaging.provider=redis` | Redis plus a Spring Data Redis 4.1 connection factory | Boot4 brings one provider at a time |
+| Kafka for Boot4 / Java21 validation runtime | `nexary-messaging-kafka-spring-boot4` | `nexary.messaging.provider=kafka` | Kafka broker | Boot4 brings one provider at a time |
+| RocketMQ for Boot4 / Java21 validation runtime | `nexary-messaging-rocketmq-spring-boot4` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Boot4 brings one provider at a time |
 | Kafka | `nexary-messaging-kafka` | `nexary.messaging.provider=kafka` | Kafka broker | Nexary maps Nexary-level publish/consume/retry/dedup behavior |
 | RocketMQ | `nexary-messaging-rocketmq` | `nexary.messaging.provider=rocketmq` | RocketMQ NameServer/Broker | Nexary maps Nexary-level publish/consume/retry/dedup behavior |
 | ActiveMQ Classic | `nexary-messaging-activemq-classic` | `nexary.messaging.provider=activemq-classic` | ActiveMQ Classic broker | Nexary topics map to JMS queue names; Artemis is not included in this artifact |
 
-## Current Boundaries
+## Messaging Publish Governance
+
+`0.7.x` documents local governance for the publish path. After the starter is wired, publish uses this stable resource:
+
+| Field | Value |
+| --- | --- |
+| `kind` | `messaging` |
+| `name` | `message-publish` |
+| `operation` | `publish` |
+| `provider` | `disruptor` / `redis` / `kafka` / `rocketmq` / `activemq_classic` |
+
+Start with this policy when you want to limit publish starts and concurrency:
+
+```yaml
+nexary:
+  governance:
+    resources:
+      message-publish:
+        kind: messaging
+        name: message-publish
+        operation: publish
+        max-requests-per-window: 50
+        rate-limit-window: 1s
+        max-concurrency: 16
+```
+
+Publish carries `nexary-deadline-epoch-millis`. If the deadline is already expired before the provider call starts, the response is a failed `MessagePublishResult`: `result.status` is `FAILED`, and `result.detail` explains that the publish deadline was exceeded.
+
+Verify with the sample:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-messaging:run
+curl -s -X POST http://localhost:8082/app-error-logs \
+  -H 'Content-Type: application/json' \
+  -d '{"appId":"billing","messageId":"m-1001","level":"ERROR","message":"payment timeout"}'
+curl -s http://localhost:8082/app-error-logs
+```
+
+Check `result.status` in the POST response first; then inspect `published[].publishStatus`, `published[].providerMessageId`, `published[].detail`, and `consumed[]` in the GET response. Redis / Kafka / RocketMQ / ActiveMQ Classic use the same curl commands; change only the active profile:
+
+```bash
+./scripts/middleware/up.sh
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=redis'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=kafka'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=rocketmq'
+./gradlew :nexary-samples:nexary-sample-messaging:run --args='--spring.profiles.active=activemq-classic'
+```
+
+This protects publish calls made by the current JVM only. It does not share windows across service instances, open broker-level circuits, or switch providers automatically.
+
+## Limits
 
 - in `0.1.x`, one outbound provider per service is the recommended default
 - starter selector samples are the main reference direction; the demo is only for API feel
@@ -314,7 +364,7 @@ non-starter dependency samples are split by provider:
 - `nexary-sample-messaging-spi-rocketmq`
 - `nexary-sample-messaging-spi-activemq-classic`
 
-## Recommended Adoption Order
+## Recommended Order
 
 1. understand the API and provider boundaries
 2. inspect the starter selector sample direction

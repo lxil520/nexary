@@ -45,7 +45,7 @@
 - 业务 job handler 只依赖 Nexary job API，不依赖 `mode.local`、`mode.xxljob` 或 provider wiring。
 - local scheduler 切到 XXL-JOB bridge 时，不修改业务 job 代码。
 - starter selector 通过 `nexary.job.provider` 和 profile 配置选择 provider。
-- SPI/provider 样例按 provider 独立模块拆分，不把多个 provider 放进一个 SPI 样例模块。
+- 单 provider 样例按 provider 独立模块拆分，不把多个 provider 放进一个 SPI 样例模块。
 - `nexary-sample-job-spi-scheduler` 只展示 API + local provider。
 - `nexary-sample-job-spi-xxljob` 只展示 API + XXL-JOB bridge provider。
 - `nexary-sample-job-spi-powerjob` 只展示 API + PowerJob 触发 provider。

@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.messaging.MessageEnvelope;
@@ -21,6 +22,7 @@ public class RocketMqMessagePublisher implements MessagePublisher {
     private final Object rocketMqTemplate;
     private final MessageSerializer serializer;
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceExecution governanceExecution;
 
     public RocketMqMessagePublisher(Object rocketMqTemplate, MessageSerializer serializer) {
         this(rocketMqTemplate, serializer, NexaryObservationPublisher.noop());
@@ -30,18 +32,27 @@ public class RocketMqMessagePublisher implements MessagePublisher {
             Object rocketMqTemplate,
             MessageSerializer serializer,
             NexaryObservationPublisher observationPublisher) {
+        this(rocketMqTemplate, serializer, observationPublisher, GovernanceExecution.direct());
+    }
+
+    public RocketMqMessagePublisher(
+            Object rocketMqTemplate,
+            MessageSerializer serializer,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution) {
         this.rocketMqTemplate = rocketMqTemplate;
         this.serializer = serializer;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
     }
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
-        java.util.Optional<MessagePublishResult> expired =
-                MessageGovernanceSupport.rejectExpiredPublish(envelope, "rocketmq", observationPublisher);
-        if (expired.isPresent()) {
-            return CompletableFuture.completedFuture(expired.get());
-        }
+        return MessageGovernanceSupport.executeGovernedPublish(
+                envelope, "rocketmq", observationPublisher, governanceExecution, () -> publishDirect(envelope));
+    }
+
+    private CompletionStage<MessagePublishResult> publishDirect(MessageEnvelope<?> envelope) {
         try {
             Message<byte[]> message = createMessage(envelope);
             Method syncSend = rocketMqTemplate.getClass().getMethod("syncSend", String.class, Object.class);

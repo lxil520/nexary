@@ -8,7 +8,7 @@
 | Primary runtime target | 21, verified |
 | Spring Boot | 3.3.x, verified |
 | Spring Boot 2.7 + Java 8+ | Cache Redis single-tier is verified; Messaging Redis-only provider / starter is verified; Job provider / starter is verified with a bounded scope; Messaging Disruptor/Kafka/RocketMQ still require independent compatibility gates |
-| Spring Boot 4.1 + Java 21 | Cache Redis provider / starter is verified; Messaging is verified provider-by-provider and the starter provides Nexary-level core only; Job provider / starter is verified with a bounded scope; this is not whole-repository Boot4 support; Spring documentation remains the source for the official minimum JDK |
+| Spring Boot 4.1 + Java 21 | Cache Redis provider / starter is verified; Messaging is verified per provider and the starter provides Nexary-level core only; Job provider / starter is verified with a bounded scope; this is not whole-repository Boot4 support; Spring documentation remains the source for the official minimum JDK |
 
 ## Compatibility Line Strategy
 
@@ -28,7 +28,7 @@ Nexary should reach more users like mature frameworks do, but each compatibility
 1. Run `./gradlew compatibilityAudit` and record the current Java 8 / Boot 2 blockers.
 2. Decide the Java 8 compatibility strategy by capability: migrate the current public APIs or split a Java 8-compatible API / adapter. A capability cannot declare Java 8 support while its public APIs still expose `record`.
 3. Cache Boot 2.7 / Java 8+ Redis single-tier starter / provider gates have passed, the Messaging Boot 2.7 / Java 8+ Redis-only provider / starter gate has passed, and the Job Boot 2.7 / Java 8+ provider / starter bounded-scope gate has passed.
-4. Messaging Disruptor/Kafka/RocketMQ Boot2/JDK8 providers still require independent gates. Boot4/JDK21 has verified Cache Redis, Messaging provider-by-provider, and bounded Job entries, but a dedicated Boot4 BOM, samples, and release closeout still need to progress.
+4. Messaging Disruptor/Kafka/RocketMQ Boot2/JDK8 providers still require independent gates. Boot4/JDK21 has verified Cache Redis, Messaging per provider, and bounded Job entries, but a dedicated Boot4 BOM, samples, and release closeout still need to progress.
 5. Add Maven / Gradle dependency snippets to README only after the corresponding gate passes. Boot4 Messaging must be documented as starter plus exactly one provider artifact, not as an aggregate-all-provider starter.
 
 `compatibilityAudit` prints blocker counts to the console and writes `build/reports/nexary/compatibility-audit.md`. This report is compatibility-gap evidence, not a support declaration.

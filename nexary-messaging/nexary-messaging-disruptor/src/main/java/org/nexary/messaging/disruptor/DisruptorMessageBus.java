@@ -17,6 +17,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageConsumer;
@@ -27,7 +29,6 @@ import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessagePublisher;
 import org.nexary.messaging.MessageSubscriber;
 import org.nexary.messaging.MessageSubscription;
-import org.nexary.core.observation.NexaryObservationPublisher;
 
 /** In-process ring-buffer message bus for low-latency local event dispatch. */
 public class DisruptorMessageBus implements MessagePublisher, MessageSubscriber, AutoCloseable {
@@ -40,6 +41,7 @@ public class DisruptorMessageBus implements MessagePublisher, MessageSubscriber,
     private final ScheduledExecutorService retryScheduler;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceExecution governanceExecution;
 
     public DisruptorMessageBus(int capacity, MessageConsumeExecutor consumeExecutor) {
         this(capacity, consumeExecutor, NexaryObservationPublisher.noop());
@@ -49,8 +51,17 @@ public class DisruptorMessageBus implements MessagePublisher, MessageSubscriber,
             int capacity,
             MessageConsumeExecutor consumeExecutor,
             NexaryObservationPublisher observationPublisher) {
+        this(capacity, consumeExecutor, observationPublisher, GovernanceExecution.direct());
+    }
+
+    public DisruptorMessageBus(
+            int capacity,
+            MessageConsumeExecutor consumeExecutor,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution) {
         this.consumeExecutor = Objects.requireNonNull(consumeExecutor, "consumeExecutor");
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
         this.disruptor = new Disruptor<>(
                 EventSlot.EVENT_FACTORY,
                 normalizeCapacity(capacity),
@@ -72,11 +83,11 @@ public class DisruptorMessageBus implements MessagePublisher, MessageSubscriber,
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
-        java.util.Optional<MessagePublishResult> expired =
-                MessageGovernanceSupport.rejectExpiredPublish(envelope, "disruptor", observationPublisher);
-        if (expired.isPresent()) {
-            return CompletableFuture.completedFuture(expired.get());
-        }
+        return MessageGovernanceSupport.executeGovernedPublish(
+                envelope, "disruptor", observationPublisher, governanceExecution, () -> publishDirect(envelope));
+    }
+
+    private CompletionStage<MessagePublishResult> publishDirect(MessageEnvelope<?> envelope) {
         if (!running.get()) {
             MessageObservationSupport.publish(observationPublisher, "publish", "disruptor", "failure");
             return CompletableFuture.completedFuture(MessagePublishResult.failed("disruptor is closed", null));

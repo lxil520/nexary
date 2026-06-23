@@ -80,13 +80,15 @@ public class RedisBoot2MessagingAutoConfiguration {
             MessageSerializer serializer,
             MessageConsumeExecutor consumeExecutor,
             RedisBoot2MessagingProperties properties,
-            ObjectProvider<NexaryObservationPublisher> observationPublisher) {
+            ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution) {
         return new RedisBoot2MessageQueue(
                 stringRedisTemplate,
                 serializer,
                 consumeExecutor,
                 properties,
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct));
     }
 
     @Bean

@@ -1,5 +1,6 @@
 package org.nexary.governance.runtime;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,7 +17,25 @@ public final class GovernanceRuntimeSnapshot {
     private final long totalRejections;
     private final GovernanceRejectionReason lastRejectionReason;
     private final Instant openUntil;
+    private final int activeConcurrency;
+    private final int maxConcurrency;
+    private final int maxRequestsPerWindow;
+    private final Duration rateLimitWindow;
+    private final boolean degraded;
+    private final int minimumRequests;
+    private final double failureRateThreshold;
+    private final double slowCallThreshold;
+    private final Duration slowCallDuration;
+    private final Duration openStateDuration;
+    private final int halfOpenMaxCalls;
+    private final int slidingWindowSize;
+    private final Duration slidingWindowDuration;
+    private final int consecutiveFailureThreshold;
+    private final Instant lastStateTransitionAt;
+    private final GovernanceCallOutcome lastOutcome;
+    private final Instant lastOutcomeAt;
 
+    /** Creates a snapshot with runtime counters and default policy diagnostic values. */
     public GovernanceRuntimeSnapshot(
             String resourceKey,
             String priority,
@@ -28,6 +47,65 @@ public final class GovernanceRuntimeSnapshot {
             long totalRejections,
             GovernanceRejectionReason lastRejectionReason,
             Instant openUntil) {
+        this(
+                resourceKey,
+                priority,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                openUntil,
+                0,
+                Integer.MAX_VALUE,
+                Integer.MAX_VALUE,
+                Duration.ofSeconds(1),
+                false,
+                100,
+                Double.POSITIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                null,
+                Duration.ofSeconds(60),
+                1,
+                100,
+                Duration.ofSeconds(60),
+                Integer.MAX_VALUE,
+                null,
+                GovernanceCallOutcome.NONE,
+                null);
+    }
+
+    /** Creates a snapshot with runtime counters, policy diagnostic values, and recent outcome timestamps. */
+    public GovernanceRuntimeSnapshot(
+            String resourceKey,
+            String priority,
+            GovernanceCircuitState circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            GovernanceRejectionReason lastRejectionReason,
+            Instant openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            Duration rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            double failureRateThreshold,
+            double slowCallThreshold,
+            Duration slowCallDuration,
+            Duration openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            Duration slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            Instant lastStateTransitionAt,
+            GovernanceCallOutcome lastOutcome,
+            Instant lastOutcomeAt) {
         this.resourceKey = resourceKey == null ? "default:default" : resourceKey;
         this.priority = priority == null ? "normal" : priority;
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
@@ -38,6 +116,23 @@ public final class GovernanceRuntimeSnapshot {
         this.totalRejections = Math.max(0L, totalRejections);
         this.lastRejectionReason = lastRejectionReason == null ? GovernanceRejectionReason.NONE : lastRejectionReason;
         this.openUntil = openUntil;
+        this.activeConcurrency = Math.max(0, activeConcurrency);
+        this.maxConcurrency = Math.max(1, maxConcurrency);
+        this.maxRequestsPerWindow = Math.max(1, maxRequestsPerWindow);
+        this.rateLimitWindow = rateLimitWindow == null ? Duration.ofSeconds(1) : rateLimitWindow;
+        this.degraded = degraded;
+        this.minimumRequests = Math.max(1, minimumRequests);
+        this.failureRateThreshold = normalizeThreshold(failureRateThreshold);
+        this.slowCallThreshold = normalizeThreshold(slowCallThreshold);
+        this.slowCallDuration = slowCallDuration;
+        this.openStateDuration = openStateDuration == null ? Duration.ofSeconds(60) : openStateDuration;
+        this.halfOpenMaxCalls = Math.max(1, halfOpenMaxCalls);
+        this.slidingWindowSize = Math.max(1, slidingWindowSize);
+        this.slidingWindowDuration = slidingWindowDuration == null ? Duration.ofSeconds(60) : slidingWindowDuration;
+        this.consecutiveFailureThreshold = Math.max(1, consecutiveFailureThreshold);
+        this.lastStateTransitionAt = lastStateTransitionAt;
+        this.lastOutcome = lastOutcome == null ? GovernanceCallOutcome.NONE : lastOutcome;
+        this.lastOutcomeAt = lastOutcomeAt;
     }
 
     /** Returns the stable governed resource key. */
@@ -90,6 +185,91 @@ public final class GovernanceRuntimeSnapshot {
         return Optional.ofNullable(openUntil);
     }
 
+    /** Returns the number of currently running calls for this local resource state. */
+    public int activeConcurrency() {
+        return activeConcurrency;
+    }
+
+    /** Returns the configured maximum concurrent calls. */
+    public int maxConcurrency() {
+        return maxConcurrency;
+    }
+
+    /** Returns the configured rate-limit allowance per window. */
+    public int maxRequestsPerWindow() {
+        return maxRequestsPerWindow;
+    }
+
+    /** Returns the configured rate-limit accounting window. */
+    public Duration rateLimitWindow() {
+        return rateLimitWindow;
+    }
+
+    /** Returns whether the current policy routes calls to fallback without running the action. */
+    public boolean degraded() {
+        return degraded;
+    }
+
+    /** Returns the configured minimum completed calls before circuit percentage checks run. */
+    public int minimumRequests() {
+        return minimumRequests;
+    }
+
+    /** Returns the configured failure-rate threshold percentage, or infinity when disabled. */
+    public double failureRateThreshold() {
+        return failureRateThreshold;
+    }
+
+    /** Returns the configured slow-call-rate threshold percentage, or infinity when disabled. */
+    public double slowCallThreshold() {
+        return slowCallThreshold;
+    }
+
+    /** Returns the configured duration after which a completed call counts as slow, if enabled. */
+    public Optional<Duration> slowCallDuration() {
+        return Optional.ofNullable(slowCallDuration);
+    }
+
+    /** Returns how long an open circuit stays open before half-open probing. */
+    public Duration openStateDuration() {
+        return openStateDuration;
+    }
+
+    /** Returns the configured maximum concurrent half-open probe calls. */
+    public int halfOpenMaxCalls() {
+        return halfOpenMaxCalls;
+    }
+
+    /** Returns the configured maximum number of completed calls retained in the sliding window. */
+    public int slidingWindowSize() {
+        return slidingWindowSize;
+    }
+
+    /** Returns the configured maximum age of completed calls retained in the sliding window. */
+    public Duration slidingWindowDuration() {
+        return slidingWindowDuration;
+    }
+
+    /** Returns the configured consecutive failed-call count that opens the circuit. */
+    public int consecutiveFailureThreshold() {
+        return consecutiveFailureThreshold;
+    }
+
+    /** Returns when the local circuit state last changed, if known. */
+    public Optional<Instant> lastStateTransitionAt() {
+        return Optional.ofNullable(lastStateTransitionAt);
+    }
+
+    /** Returns the low-cardinality outcome for the most recent local governance attempt. */
+    public GovernanceCallOutcome lastOutcome() {
+        return lastOutcome;
+    }
+
+    /** Returns when the most recent local governance attempt completed or was rejected, if known. */
+    public Optional<Instant> lastOutcomeAt() {
+        return Optional.ofNullable(lastOutcomeAt);
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -104,11 +284,28 @@ public final class GovernanceRuntimeSnapshot {
                 && windowSlowCalls == that.windowSlowCalls
                 && consecutiveFailures == that.consecutiveFailures
                 && totalRejections == that.totalRejections
+                && activeConcurrency == that.activeConcurrency
+                && maxConcurrency == that.maxConcurrency
+                && maxRequestsPerWindow == that.maxRequestsPerWindow
+                && degraded == that.degraded
+                && minimumRequests == that.minimumRequests
+                && Double.compare(failureRateThreshold, that.failureRateThreshold) == 0
+                && Double.compare(slowCallThreshold, that.slowCallThreshold) == 0
+                && halfOpenMaxCalls == that.halfOpenMaxCalls
+                && slidingWindowSize == that.slidingWindowSize
+                && consecutiveFailureThreshold == that.consecutiveFailureThreshold
                 && resourceKey.equals(that.resourceKey)
                 && priority.equals(that.priority)
                 && circuitState == that.circuitState
                 && lastRejectionReason == that.lastRejectionReason
-                && Objects.equals(openUntil, that.openUntil);
+                && Objects.equals(openUntil, that.openUntil)
+                && rateLimitWindow.equals(that.rateLimitWindow)
+                && Objects.equals(slowCallDuration, that.slowCallDuration)
+                && openStateDuration.equals(that.openStateDuration)
+                && slidingWindowDuration.equals(that.slidingWindowDuration)
+                && Objects.equals(lastStateTransitionAt, that.lastStateTransitionAt)
+                && lastOutcome == that.lastOutcome
+                && Objects.equals(lastOutcomeAt, that.lastOutcomeAt);
     }
 
     @Override
@@ -123,6 +320,27 @@ public final class GovernanceRuntimeSnapshot {
                 consecutiveFailures,
                 totalRejections,
                 lastRejectionReason,
-                openUntil);
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    private static double normalizeThreshold(double threshold) {
+        return threshold <= 0.0 || threshold > 100.0 ? Double.POSITIVE_INFINITY : threshold;
     }
 }

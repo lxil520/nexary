@@ -5,12 +5,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.messaging.ConcurrentMapMessageDeduplicationStore;
 import org.nexary.messaging.InMemoryMessageDeadLetterPublisher;
@@ -18,6 +22,7 @@ import org.nexary.messaging.MessageBackoffStrategy;
 import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageDeadLetterPublisher;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessageRetryPolicy;
 
 class DisruptorMessageBusTest {
@@ -89,12 +94,50 @@ class DisruptorMessageBusTest {
             bus.publish(MessageEnvelope.of("raw-user-topic", "payload"));
 
             assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+            waitUntil(() -> events.stream().anyMatch(event -> "consume".equals(event.operation())), Duration.ofSeconds(2));
             assertThat(events).extracting(NexaryObservationEvent::operation)
                     .contains("publish", "dispatch", "consume", "handler");
             assertThat(events).anySatisfy(event -> {
                 assertThat(event.operation()).isEqualTo("publish");
                 assertThat(event.tags()).containsEntry("provider", "disruptor").containsEntry("outcome", "success");
             });
+            assertNoHighCardinalityTags(events);
+        }
+    }
+
+    @Test
+    void governanceRejectionStopsBeforePublishingToRingBuffer() throws Exception {
+        List<NexaryObservationEvent> events = new CopyOnWriteArrayList<>();
+        MessageConsumeExecutor executor = new MessageConsumeExecutor(
+                Optional.of(new ConcurrentMapMessageDeduplicationStore()),
+                Duration.ofMinutes(5),
+                List.of(),
+                new MessageRetryPolicy(2, Duration.ZERO, MessageBackoffStrategy.FIXED, 1.0d, Duration.ZERO),
+                MessageDeadLetterPublisher.inMemory(),
+                events::add);
+        try (DisruptorMessageBus bus = new DisruptorMessageBus(
+                8,
+                executor,
+                events::add,
+                new RejectingGovernanceExecution("rate_limited"))) {
+            CountDownLatch latch = new CountDownLatch(1);
+            bus.subscribe("raw-user-topic", "raw-user-group", String.class, envelope -> latch.countDown());
+
+            MessagePublishResult result = bus.publish(MessageEnvelope.of("raw-user-topic", "payload"))
+                    .toCompletableFuture()
+                    .join();
+
+            assertThat(result.status()).isEqualTo(MessagePublishResult.PublishStatus.FAILED);
+            assertThat(result.retrySignal()).isNotNull();
+            assertThat(result.retrySignal().decision().name()).isEqualTo("STOP");
+            assertThat(latch.await(200, TimeUnit.MILLISECONDS)).isFalse();
+            assertThat(events).extracting(NexaryObservationEvent::operation)
+                    .contains("publish", "governance.retry.stopped")
+                    .doesNotContain("dispatch");
+            assertThat(events).anySatisfy(event -> assertThat(event.tags())
+                    .containsEntry("provider", "disruptor")
+                    .containsEntry("operation", "publish")
+                    .containsEntry("boundary", "rate_limited"));
             assertNoHighCardinalityTags(events);
         }
     }
@@ -125,5 +168,31 @@ class DisruptorMessageBusTest {
     @FunctionalInterface
     private interface BooleanSupplier {
         boolean getAsBoolean();
+    }
+
+    private static final class RejectingGovernanceExecution implements GovernanceExecution {
+        private final String reason;
+
+        private RejectingGovernanceExecution(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) {
+            throw new GovernanceRejected(reason);
+        }
+    }
+
+    private static final class GovernanceRejected extends RuntimeException implements GovernanceRejection {
+        private final String reason;
+
+        private GovernanceRejected(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public String governanceRejectionReason() {
+            return reason;
+        }
     }
 }

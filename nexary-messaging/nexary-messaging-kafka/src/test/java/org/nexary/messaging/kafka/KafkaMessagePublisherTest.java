@@ -6,10 +6,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.messaging.DefaultStringMessageSerializer;
 import org.nexary.messaging.MessageEnvelope;
@@ -19,7 +24,13 @@ class KafkaMessagePublisherTest {
     @Test
     void propagatesMessageIdAndHeadersToKafkaRecord() {
         CapturingKafkaTemplate template = new CapturingKafkaTemplate();
-        KafkaMessagePublisher publisher = new KafkaMessagePublisher(template, new DefaultStringMessageSerializer());
+        CapturingGovernanceExecution governanceExecution = new CapturingGovernanceExecution();
+        KafkaMessagePublisher publisher = new KafkaMessagePublisher(
+                template,
+                new DefaultStringMessageSerializer(),
+                event -> {
+                },
+                governanceExecution);
         Instant deadline = Instant.ofEpochMilli(Instant.now().plusSeconds(30).toEpochMilli());
         MessageEnvelope<String> envelope = new MessageEnvelope<>(
                 "orders.events",
@@ -32,6 +43,10 @@ class KafkaMessagePublisherTest {
         publisher.publish(envelope).toCompletableFuture().join();
 
         assertThat(template.record).isNotNull();
+        assertThat(governanceExecution.context.get().resource().kind().name()).isEqualTo("MESSAGING");
+        assertThat(governanceExecution.context.get().resource().name()).isEqualTo("message-publish");
+        assertThat(governanceExecution.context.get().resource().provider()).isEqualTo("kafka");
+        assertThat(governanceExecution.context.get().resource().operation()).isEqualTo("publish");
         assertThat(template.record.topic()).isEqualTo("orders.events");
         assertThat(template.record.key()).isEqualTo("42");
         assertThat(new String(template.record.value(), StandardCharsets.UTF_8)).isEqualTo("payload");
@@ -39,6 +54,42 @@ class KafkaMessagePublisherTest {
         assertThat(headerValue(template.record, MessageEnvelope.DEADLINE_HEADER))
                 .isEqualTo(Long.toString(deadline.toEpochMilli()));
         assertThat(headerValue(template.record, "tenant")).isEqualTo("demo");
+    }
+
+    @Test
+    void governanceRejectionStopsBeforeCallingKafkaTemplate() {
+        List<NexaryObservationEvent> events = new CopyOnWriteArrayList<>();
+        CapturingKafkaTemplate template = new CapturingKafkaTemplate();
+        KafkaMessagePublisher publisher = new KafkaMessagePublisher(
+                template,
+                new DefaultStringMessageSerializer(),
+                events::add,
+                new RejectingGovernanceExecution("rate_limited"));
+        MessageEnvelope<String> envelope = new MessageEnvelope<>(
+                "raw-user-topic-should-not-be-a-tag",
+                "42",
+                "payload",
+                Map.of(MessageEnvelope.MESSAGE_ID_HEADER, "message-governance-rejected"),
+                null,
+                null);
+
+        MessagePublishResult result = publisher.publish(envelope).toCompletableFuture().join();
+
+        assertThat(result.status()).isEqualTo(MessagePublishResult.PublishStatus.FAILED);
+        assertThat(result.retrySignal()).isNotNull();
+        assertThat(result.retrySignal().decision().name()).isEqualTo("STOP");
+        assertThat(template.record).isNull();
+        assertThat(events).extracting(NexaryObservationEvent::operation)
+                .contains("publish", "governance.retry.stopped");
+        assertThat(events).anySatisfy(event -> {
+            assertThat(event.operation()).isEqualTo("publish");
+            assertThat(event.tags())
+                    .containsEntry("provider", "kafka")
+                    .containsEntry("operation", "publish")
+                    .containsEntry("outcome", "failure")
+                    .containsEntry("boundary", "rate_limited");
+        });
+        assertNoHighCardinalityTags(events);
     }
 
     @Test
@@ -100,6 +151,42 @@ class KafkaMessagePublisherTest {
         public CompletableFuture<Void> send(ProducerRecord<String, byte[]> record) {
             this.record = record;
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private static final class CapturingGovernanceExecution implements GovernanceExecution {
+        private final AtomicReference<GovernanceContext> context = new AtomicReference<>();
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) throws Exception {
+            this.context.set(context);
+            return GovernanceContext.callWithContext(context, action);
+        }
+    }
+
+    private static final class RejectingGovernanceExecution implements GovernanceExecution {
+        private final String reason;
+
+        private RejectingGovernanceExecution(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) {
+            throw new GovernanceRejected(reason);
+        }
+    }
+
+    private static final class GovernanceRejected extends RuntimeException implements GovernanceRejection {
+        private final String reason;
+
+        private GovernanceRejected(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public String governanceRejectionReason() {
+            return reason;
         }
     }
 }

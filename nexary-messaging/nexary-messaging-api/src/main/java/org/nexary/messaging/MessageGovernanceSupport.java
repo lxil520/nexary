@@ -5,10 +5,16 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeoutException;
 import org.nexary.core.context.DeadlineContext;
 import org.nexary.core.context.TrafficTag;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.governance.GovernanceObservationEvents;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.GovernanceResource.ResourceKind;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -18,6 +24,48 @@ import org.nexary.core.retry.RetrySignal.RetryDecision;
 /** Internal helpers for messaging governance events that stay provider-neutral. */
 public final class MessageGovernanceSupport {
     private MessageGovernanceSupport() {
+    }
+
+    /**
+     * Executes provider publish work through governance and returns a failed publish result
+     * when governance rejects before the provider should be called.
+     */
+    @SuppressWarnings("unchecked")
+    public static CompletionStage<MessagePublishResult> executeGovernedPublish(
+            MessageEnvelope<?> envelope,
+            String provider,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution,
+            Callable<CompletionStage<MessagePublishResult>> action) {
+        Optional<MessagePublishResult> expired = rejectExpiredPublish(envelope, provider, observationPublisher);
+        if (expired.isPresent()) {
+            return CompletableFuture.completedFuture(expired.get());
+        }
+        GovernanceExecution safeGovernanceExecution =
+                governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
+        try {
+            Object result = safeGovernanceExecution.execute(
+                    governanceContext(envelope, provider, "publish"),
+                    () -> {
+                        CompletionStage<MessagePublishResult> stage = action.call();
+                        if (stage == null) {
+                            return CompletableFuture.completedFuture(MessagePublishResult.failed(
+                                    "message publish returned no result",
+                                    RetrySignal.stop("publish_no_result")));
+                        }
+                        return stage;
+                    });
+            return (CompletionStage<MessagePublishResult>) result;
+        } catch (Exception ex) {
+            if (ex instanceof GovernanceRejection) {
+                return CompletableFuture.completedFuture(rejectedPublishResult(
+                        envelope, provider, observationPublisher, (GovernanceRejection) ex, ex));
+            }
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new IllegalStateException("message publish governance execution failed", ex);
+        }
     }
 
     /** Returns a failed publish result when the envelope or current deadline has expired. */
@@ -37,7 +85,7 @@ public final class MessageGovernanceSupport {
                 "publish",
                 provider,
                 "failure",
-                MessageObservationSupport.boundaryTags("deadline"),
+                boundaryTags("deadline", "publish"),
                 new TimeoutException("deadline exceeded"));
         return Optional.of(MessagePublishResult.failed("message publish deadline exceeded", retrySignal));
     }
@@ -59,9 +107,32 @@ public final class MessageGovernanceSupport {
                 "handler",
                 provider,
                 "failure",
-                MessageObservationSupport.boundaryTags("deadline"),
+                boundaryTags("deadline", "consume"),
                 new TimeoutException("deadline exceeded"));
         return Optional.of(MessageConsumeResult.failed("message consume deadline exceeded"));
+    }
+
+    private static MessagePublishResult rejectedPublishResult(
+            MessageEnvelope<?> envelope,
+            String provider,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceRejection rejection,
+            Exception error) {
+        String reason = normalize(rejection.governanceRejectionReason());
+        RetrySignal retrySignal = RetrySignal.stop(reason);
+        MessageObservationSupport.publish(
+                observationPublisher,
+                "publish",
+                provider,
+                "failure",
+                boundaryTags(reason, "publish"),
+                error);
+        publishRetryStoppedIfStop(envelope, provider, "publish", retrySignal, observationPublisher);
+        String detail = error.getMessage();
+        if (detail == null || detail.trim().isEmpty()) {
+            detail = "message publish governance rejected: " + reason;
+        }
+        return MessagePublishResult.failed(detail, retrySignal);
     }
 
     /** Publishes a governance retry-stopped event when a returned retry signal is terminal. */
@@ -174,8 +245,34 @@ public final class MessageGovernanceSupport {
                 safeOperation);
     }
 
+    private static GovernanceContext governanceContext(
+            MessageEnvelope<?> envelope,
+            String provider,
+            String operation) {
+        GovernanceContext.Builder builder = GovernanceContext.builder()
+                .resource(resource(envelope, provider, operation));
+        if (envelope != null) {
+            builder.trafficTag(envelope.trafficTag());
+        }
+        effectiveDeadlineForContext(envelope).ifPresent(builder::deadline);
+        return builder.build();
+    }
+
     private static TrafficTag trafficTag(MessageEnvelope<?> envelope) {
         return envelope == null ? TrafficTag.defaults() : envelope.trafficTag();
+    }
+
+    private static Optional<Instant> effectiveDeadlineForContext(MessageEnvelope<?> envelope) {
+        Instant envelopeDeadline = envelope == null ? null : envelope.deadline();
+        Optional<Instant> currentDeadline = GovernanceContext.current().flatMap(GovernanceContext::deadline);
+        if (envelopeDeadline == null) {
+            return currentDeadline;
+        }
+        if (!currentDeadline.isPresent()) {
+            return Optional.of(envelopeDeadline);
+        }
+        Instant inherited = currentDeadline.get();
+        return Optional.of(envelopeDeadline.isBefore(inherited) ? envelopeDeadline : inherited);
     }
 
     private static NexaryObservationPublisher safePublisher(NexaryObservationPublisher observationPublisher) {
@@ -184,5 +281,12 @@ public final class MessageGovernanceSupport {
 
     private static String normalize(String value) {
         return value == null || value.trim().isEmpty() ? "unknown" : value.trim();
+    }
+
+    private static Map<String, String> boundaryTags(String boundary, String operation) {
+        Map<String, String> tags = new LinkedHashMap<>();
+        tags.put("boundary", boundary);
+        tags.put("operation", operation);
+        return tags;
     }
 }

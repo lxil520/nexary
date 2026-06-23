@@ -46,7 +46,7 @@ implementation project(':nexary-boot:nexary-job-spring-boot-starter')
 发布到 Maven Central 后，把 `nexaryVersion` 替换为最新 release。Spring Boot 3.3 / Java 17+ starter 入口：
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-spring-boot-starter'
 ```
@@ -54,14 +54,14 @@ implementation 'com.aweimao:nexary-job-spring-boot-starter'
 Spring Boot 2.7 / Java 8+ starter 入口：
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 主验证运行时 starter 入口：
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
@@ -159,7 +159,7 @@ processor 样例只展示非 Web 启动和组件扫描 job。用户参考重点�
 这样用户可以清楚看到两种引入方式：
 
 - starter selector：引入 starter，通过 `nexary.job.provider` 选择 provider
-- SPI/provider：引入 API 和一个具体 provider 模块
+- 单 provider：引入 API 和一个具体 provider 模块
 
 版本矩阵：
 

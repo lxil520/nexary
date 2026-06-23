@@ -7,7 +7,7 @@
 
 ## 版本入口
 
-当前开发版本示例统一使用 `0.5.1`。发布到 Maven Central 后，把示例中的版本替换成最新 release。
+当前示例版本统一使用 `0.7.0`。Maven Central 同步后，也可以替换成最新 release。
 
 | Spring Boot | JDK | 状态 | Starter artifactId | SPI/provider artifactId |
 | --- | --- | --- | --- | --- |
@@ -24,7 +24,7 @@
 Spring Boot 3.3 / Java 17+ starter：
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -38,7 +38,7 @@ Spring Boot 2.7 / Java 8+ Redis-only starter：
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-messaging-spring-boot2-starter:0.5.1"
+    implementation "com.aweimao:nexary-messaging-spring-boot2-starter:0.7.0"
 }
 ```
 
@@ -46,15 +46,15 @@ Spring Boot 2.7 / Java 8+ Redis-only SPI/provider：
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-messaging-api:0.5.1"
-    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot2:0.5.1"
+    implementation "com.aweimao:nexary-messaging-api:0.7.0"
+    runtimeOnly "com.aweimao:nexary-messaging-redis-spring-boot2:0.7.0"
 }
 ```
 
 Spring Boot 4.1 / Java 21 主要验证运行时的 starter 入口必须显式选择一个 provider。`nexary-messaging-spring-boot4-starter` 只提供 Nexary 层 core 自动配置，不聚合所有 provider：
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -69,7 +69,7 @@ dependencies {
 Spring Boot 4.1 / Java 21 主要验证运行时的 SPI/provider：
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.7.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"

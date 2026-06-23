@@ -65,11 +65,13 @@ public class ActiveMqClassicMessagingAutoConfiguration {
     public MessagePublisher activeMqClassicMessagePublisher(
             ConnectionFactory connectionFactory,
             ObjectProvider<MessageSerializer> serializer,
-            ObjectProvider<NexaryObservationPublisher> observationPublisher) {
+            ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution) {
         return new ActiveMqClassicMessagePublisher(
                 connectionFactory,
                 serializer.getIfAvailable(DefaultStringMessageSerializer::new),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct));
     }
 
     @Bean

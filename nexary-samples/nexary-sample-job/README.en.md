@@ -46,7 +46,7 @@ implementation project(':nexary-boot:nexary-job-spring-boot-starter')
 After Maven Central publication, replace `nexaryVersion` with the latest release. Spring Boot 3.3 / Java 17+ starter entry:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-spring-boot-starter'
 ```
@@ -54,14 +54,14 @@ implementation 'com.aweimao:nexary-job-spring-boot-starter'
 Spring Boot 2.7 / Java 8+ starter entry:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime starter entry:
 
 ```groovy
-def nexaryVersion = "0.6.0"
+def nexaryVersion = "0.7.0"
 implementation "com.aweimao:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
@@ -159,7 +159,7 @@ non-starter dependency mode is not mixed into this module. Each provider has its
 This keeps the two integration modes clear:
 
 - starter selector: depend on the starter and select a provider through `nexary.job.provider`
-- SPI/provider: depend on the API and exactly one concrete provider module
+- single-provider: depend on the API and exactly one concrete provider module
 
 Version matrix:
 

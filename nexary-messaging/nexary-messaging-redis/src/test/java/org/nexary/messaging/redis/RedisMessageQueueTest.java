@@ -8,11 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.messaging.ConcurrentMapMessageDeduplicationStore;
 import org.nexary.messaging.DefaultStringMessageSerializer;
@@ -141,6 +145,47 @@ class RedisMessageQueueTest {
         assertNoHighCardinalityTags(events);
     }
 
+    @Test
+    void governanceRejectionStopsBeforeEnqueueingReadyMessage() {
+        InMemoryProcessingStore store = new InMemoryProcessingStore();
+        List<NexaryObservationEvent> events = new CopyOnWriteArrayList<>();
+        RedisMessagingProperties properties = new RedisMessagingProperties();
+        MessageConsumeExecutor executor = new MessageConsumeExecutor(
+                Optional.of(new ConcurrentMapMessageDeduplicationStore()),
+                Duration.ofSeconds(30),
+                List.of(),
+                new MessageRetryPolicy(2, Duration.ZERO, MessageBackoffStrategy.FIXED, 1.0d, Duration.ZERO),
+                MessageDeadLetterPublisher.inMemory(),
+                events::add);
+        RedisMessageQueue queue = new RedisMessageQueue(
+                store,
+                new DefaultStringMessageSerializer(),
+                executor,
+                properties,
+                events::add,
+                new RejectingGovernanceExecution("bulkhead_full"));
+        String topic = "raw-user-topic-should-not-be-a-tag";
+
+        try {
+            org.nexary.messaging.MessagePublishResult result =
+                    queue.publish(envelope(topic, "message-governance-rejected")).toCompletableFuture().join();
+
+            assertThat(result.status()).isEqualTo(org.nexary.messaging.MessagePublishResult.PublishStatus.FAILED);
+            assertThat(result.retrySignal()).isNotNull();
+            assertThat(result.retrySignal().decision().name()).isEqualTo("STOP");
+            assertThat(store.readySize(topic)).isZero();
+            assertThat(events).extracting(NexaryObservationEvent::operation)
+                    .contains("publish", "governance.retry.stopped");
+            assertThat(events).anySatisfy(event -> assertThat(event.tags())
+                    .containsEntry("provider", "redis")
+                    .containsEntry("operation", "publish")
+                    .containsEntry("boundary", "bulkhead_full"));
+            assertNoHighCardinalityTags(events);
+        } finally {
+            queue.close();
+        }
+    }
+
     private static RedisMessageQueue newQueue(
             RedisQueueProcessingStore store,
             MessageDeadLetterPublisher deadLetterPublisher) {
@@ -199,13 +244,19 @@ class RedisMessageQueueTest {
     }
 
     private static void assertNoHighCardinalityTags(List<NexaryObservationEvent> events) {
-        events.forEach(event -> assertThat(event.tags()).doesNotContainKeys(
-                "message_id",
-                "payload",
-                "topic",
-                "consumer_group",
-                "exception_message",
-                "stack_trace"));
+        events.forEach(event -> {
+            assertThat(event.tags()).doesNotContainKeys(
+                    "message_id",
+                    "payload",
+                    "topic",
+                    "consumer_group",
+                    "exception_message",
+                    "stack_trace");
+            assertThat(event.tags().values()).doesNotContain(
+                    "raw-user-topic-should-not-be-a-tag",
+                    "message-governance-rejected",
+                    "payload");
+        });
     }
 
     private static final class InMemoryProcessingStore implements RedisQueueProcessingStore {
@@ -312,6 +363,32 @@ class RedisMessageQueueTest {
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    private static final class RejectingGovernanceExecution implements GovernanceExecution {
+        private final String reason;
+
+        private RejectingGovernanceExecution(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) {
+            throw new GovernanceRejected(reason);
+        }
+    }
+
+    private static final class GovernanceRejected extends RuntimeException implements GovernanceRejection {
+        private final String reason;
+
+        private GovernanceRejected(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public String governanceRejectionReason() {
+            return reason;
         }
     }
 }

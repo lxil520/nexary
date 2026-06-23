@@ -10,6 +10,7 @@ import jakarta.jms.Session;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.messaging.MessageEnvelope;
@@ -24,6 +25,7 @@ public class ActiveMqClassicMessagePublisher implements MessagePublisher {
     private final ConnectionFactory connectionFactory;
     private final MessageSerializer serializer;
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceExecution governanceExecution;
 
     public ActiveMqClassicMessagePublisher(ConnectionFactory connectionFactory, MessageSerializer serializer) {
         this(connectionFactory, serializer, NexaryObservationPublisher.noop());
@@ -33,18 +35,27 @@ public class ActiveMqClassicMessagePublisher implements MessagePublisher {
             ConnectionFactory connectionFactory,
             MessageSerializer serializer,
             NexaryObservationPublisher observationPublisher) {
+        this(connectionFactory, serializer, observationPublisher, GovernanceExecution.direct());
+    }
+
+    public ActiveMqClassicMessagePublisher(
+            ConnectionFactory connectionFactory,
+            MessageSerializer serializer,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution) {
         this.connectionFactory = connectionFactory;
         this.serializer = serializer;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
     }
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
-        java.util.Optional<MessagePublishResult> expired =
-                MessageGovernanceSupport.rejectExpiredPublish(envelope, "activemq_classic", observationPublisher);
-        if (expired.isPresent()) {
-            return CompletableFuture.completedFuture(expired.get());
-        }
+        return MessageGovernanceSupport.executeGovernedPublish(
+                envelope, "activemq_classic", observationPublisher, governanceExecution, () -> publishDirect(envelope));
+    }
+
+    private CompletionStage<MessagePublishResult> publishDirect(MessageEnvelope<?> envelope) {
         try (Connection connection = connectionFactory.createConnection();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
                 MessageProducer producer = session.createProducer(queue(session, envelope.topic()))) {

@@ -66,11 +66,13 @@ public class KafkaMessagingAutoConfiguration {
     public MessagePublisher kafkaMessagePublisher(
             @Qualifier("kafkaTemplate") Object kafkaTemplate,
             ObjectProvider<MessageSerializer> serializer,
-            ObjectProvider<NexaryObservationPublisher> observationPublisher) {
+            ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution) {
         return new KafkaMessagePublisher(
                 kafkaTemplate,
                 serializer.getIfAvailable(DefaultStringMessageSerializer::new),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct));
     }
 
     @Bean

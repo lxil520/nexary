@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageConsumer;
@@ -38,6 +39,7 @@ public class RedisMessageQueue implements MessagePublisher, MessageSubscriber, M
     private final MessageConsumeExecutor consumeExecutor;
     private final RedisMessagingProperties properties;
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceExecution governanceExecution;
     private final List<Subscription<?>> subscriptions = new CopyOnWriteArrayList<>();
     private final ScheduledExecutorService retryScheduler = Executors.newSingleThreadScheduledExecutor(task -> {
         Thread thread = new Thread(task, "nexary-redis-queue-retry-" + UUID.randomUUID());
@@ -59,12 +61,23 @@ public class RedisMessageQueue implements MessagePublisher, MessageSubscriber, M
             MessageConsumeExecutor consumeExecutor,
             RedisMessagingProperties properties,
             NexaryObservationPublisher observationPublisher) {
+        this(stringRedisTemplate, serializer, consumeExecutor, properties, observationPublisher, GovernanceExecution.direct());
+    }
+
+    public RedisMessageQueue(
+            StringRedisTemplate stringRedisTemplate,
+            MessageSerializer serializer,
+            MessageConsumeExecutor consumeExecutor,
+            RedisMessagingProperties properties,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution) {
         this(
                 new RedisStringTemplateQueueProcessingStore(stringRedisTemplate, properties),
                 serializer,
                 consumeExecutor,
                 properties,
-                observationPublisher);
+                observationPublisher,
+                governanceExecution);
     }
 
     RedisMessageQueue(
@@ -81,20 +94,31 @@ public class RedisMessageQueue implements MessagePublisher, MessageSubscriber, M
             MessageConsumeExecutor consumeExecutor,
             RedisMessagingProperties properties,
             NexaryObservationPublisher observationPublisher) {
+        this(processingStore, serializer, consumeExecutor, properties, observationPublisher, GovernanceExecution.direct());
+    }
+
+    RedisMessageQueue(
+            RedisQueueProcessingStore processingStore,
+            MessageSerializer serializer,
+            MessageConsumeExecutor consumeExecutor,
+            RedisMessagingProperties properties,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution) {
         this.processingStore = processingStore;
         this.serializer = serializer;
         this.consumeExecutor = consumeExecutor;
         this.properties = properties;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
     }
 
     @Override
     public CompletionStage<MessagePublishResult> publish(MessageEnvelope<?> envelope) {
-        java.util.Optional<MessagePublishResult> expired =
-                MessageGovernanceSupport.rejectExpiredPublish(envelope, "redis", observationPublisher);
-        if (expired.isPresent()) {
-            return CompletableFuture.completedFuture(expired.get());
-        }
+        return MessageGovernanceSupport.executeGovernedPublish(
+                envelope, "redis", observationPublisher, governanceExecution, () -> publishDirect(envelope));
+    }
+
+    private CompletionStage<MessagePublishResult> publishDirect(MessageEnvelope<?> envelope) {
         String encoded = encode(envelope);
         boolean accepted = processingStore.enqueueReady(envelope.topic(), encoded);
         MessageObservationSupport.publish(

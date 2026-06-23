@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import jakarta.jms.BytesMessage;
 import jakarta.jms.Connection;
 import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.Session;
 import java.time.Duration;
@@ -13,10 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.messaging.ConcurrentMapMessageDeduplicationStore;
 import org.nexary.messaging.DefaultStringMessageSerializer;
@@ -26,6 +31,7 @@ import org.nexary.messaging.MessageConsumeExecutor;
 import org.nexary.messaging.MessageConsumeResult;
 import org.nexary.messaging.MessageDeadLetterPublisher;
 import org.nexary.messaging.MessageEnvelope;
+import org.nexary.messaging.MessagePublishResult;
 import org.nexary.messaging.MessageRetryPolicy;
 
 class ActiveMqClassicMessageListenerAdapterTest {
@@ -108,6 +114,39 @@ class ActiveMqClassicMessageListenerAdapterTest {
         assertNoHighCardinalityTags(events);
     }
 
+    @Test
+    void governanceRejectionStopsBeforeOpeningActiveMqConnection() {
+        List<NexaryObservationEvent> events = new CopyOnWriteArrayList<>();
+        CountingConnectionFactory connectionFactory = new CountingConnectionFactory(
+                "vm://nexary-activemq-governance?broker.persistent=false");
+        ActiveMqClassicMessagePublisher publisher = new ActiveMqClassicMessagePublisher(
+                connectionFactory,
+                new DefaultStringMessageSerializer(),
+                events::add,
+                new RejectingGovernanceExecution("rate_limited"));
+        MessageEnvelope<String> envelope = new MessageEnvelope<>(
+                "raw-user-topic-should-not-be-a-tag",
+                "app-42",
+                "payload",
+                Map.of(MessageEnvelope.MESSAGE_ID_HEADER, "message-governance-rejected"),
+                null,
+                null);
+
+        MessagePublishResult result = publisher.publish(envelope).toCompletableFuture().join();
+
+        assertThat(result.status()).isEqualTo(MessagePublishResult.PublishStatus.FAILED);
+        assertThat(result.retrySignal()).isNotNull();
+        assertThat(result.retrySignal().decision().name()).isEqualTo("STOP");
+        assertThat(connectionFactory.calls).hasValue(0);
+        assertThat(events).extracting(NexaryObservationEvent::operation)
+                .contains("publish", "governance.retry.stopped");
+        assertThat(events).anySatisfy(event -> assertThat(event.tags())
+                .containsEntry("provider", "activemq_classic")
+                .containsEntry("operation", "publish")
+                .containsEntry("boundary", "rate_limited"));
+        assertNoHighCardinalityTags(events);
+    }
+
     private static MessageConsumeExecutor executor(
             MessageDeadLetterPublisher deadLetterPublisher,
             List<NexaryObservationEvent> events) {
@@ -148,7 +187,53 @@ class ActiveMqClassicMessageListenerAdapterTest {
                     "exception_message",
                     "stack_trace");
             assertThat(event.tags().values())
-                    .doesNotContain("active-deadletter-1", "app.error.log", "app-error-log-consumer", "payload");
+                    .doesNotContain(
+                            "active-deadletter-1",
+                            "app.error.log",
+                            "app-error-log-consumer",
+                            "raw-user-topic-should-not-be-a-tag",
+                            "message-governance-rejected",
+                            "payload");
         });
+    }
+
+    private static final class CountingConnectionFactory extends ActiveMQConnectionFactory {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        private CountingConnectionFactory(String brokerUrl) {
+            super(brokerUrl);
+        }
+
+        @Override
+        public Connection createConnection() throws JMSException {
+            calls.incrementAndGet();
+            return super.createConnection();
+        }
+    }
+
+    private static final class RejectingGovernanceExecution implements GovernanceExecution {
+        private final String reason;
+
+        private RejectingGovernanceExecution(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) {
+            throw new GovernanceRejected(reason);
+        }
+    }
+
+    private static final class GovernanceRejected extends RuntimeException implements GovernanceRejection {
+        private final String reason;
+
+        private GovernanceRejected(String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public String governanceRejectionReason() {
+            return reason;
+        }
     }
 }

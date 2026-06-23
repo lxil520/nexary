@@ -224,8 +224,22 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private int consecutiveFailures;
         private long totalRejections;
         private GovernanceRejectionReason lastRejectionReason = GovernanceRejectionReason.NONE;
+        private Instant lastStateTransitionAt = Instant.now();
+        private GovernanceCallOutcome lastOutcome = GovernanceCallOutcome.NONE;
+        private Instant lastOutcomeAt;
+        private int lastMaxRequestsPerWindow = Integer.MAX_VALUE;
+        private Duration lastRateLimitWindow = Duration.ofSeconds(1);
+        private boolean lastDegraded;
+        private int lastMinimumRequests = 100;
+        private double lastFailureRateThreshold = Double.POSITIVE_INFINITY;
+        private double lastSlowCallThreshold = Double.POSITIVE_INFINITY;
+        private Duration lastSlowCallDuration;
+        private Duration lastOpenStateDuration = Duration.ofSeconds(60);
+        private int lastHalfOpenMaxCalls = 1;
         private int lastSlidingWindowSize = 100;
+        private Duration lastSlidingWindowDuration = Duration.ofSeconds(60);
         private long lastSlidingWindowNanos = Duration.ofSeconds(60).toNanos();
+        private int lastConsecutiveFailureThreshold = Integer.MAX_VALUE;
 
         private State(String resourceKey, String priority, int maxConcurrency) {
             this.resourceKey = resourceKey;
@@ -235,14 +249,25 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         }
 
         private synchronized void touchPolicy(GovernancePolicy policy) {
+            lastMaxRequestsPerWindow = policy.maxRequestsPerWindow();
+            lastRateLimitWindow = policy.rateLimitWindow();
+            lastDegraded = policy.degraded();
+            lastMinimumRequests = policy.minimumRequests();
+            lastFailureRateThreshold = policy.failureRateThreshold();
+            lastSlowCallThreshold = policy.slowCallThreshold();
+            lastSlowCallDuration = policy.slowCallDuration().orElse(null);
+            lastOpenStateDuration = policy.openStateDuration();
+            lastHalfOpenMaxCalls = policy.halfOpenMaxCalls();
             lastSlidingWindowSize = policy.slidingWindowSize();
-            lastSlidingWindowNanos = policy.slidingWindowDuration().toNanos();
+            lastSlidingWindowDuration = policy.slidingWindowDuration();
+            lastSlidingWindowNanos = lastSlidingWindowDuration.toNanos();
+            lastConsecutiveFailureThreshold = policy.consecutiveFailureThreshold();
             pruneCalls(System.nanoTime());
         }
 
         private synchronized CircuitPermit tryEnterCircuit(GovernancePolicy policy) {
             if (!policy.circuitBreakerEnabled()) {
-                circuitState = GovernanceCircuitState.CLOSED;
+                transitionTo(GovernanceCircuitState.CLOSED, Instant.now());
                 halfOpenInFlight = 0;
                 halfOpenSuccesses = 0;
                 openUntil = null;
@@ -252,7 +277,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             pruneCalls(now);
             if (circuitState == GovernanceCircuitState.OPEN
                     && now - openedAtNanos >= policy.openStateDuration().toNanos()) {
-                circuitState = GovernanceCircuitState.HALF_OPEN;
+                transitionTo(GovernanceCircuitState.HALF_OPEN, Instant.now());
                 halfOpenInFlight = 0;
                 halfOpenSuccesses = 0;
             }
@@ -311,6 +336,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             calls.addLast(new CallRecord(endedNanos, failed, slow));
             pruneCalls(endedNanos);
             consecutiveFailures = failed ? consecutiveFailures + 1 : 0;
+            lastOutcome = failed ? GovernanceCallOutcome.FAILURE : GovernanceCallOutcome.SUCCESS;
+            lastOutcomeAt = Instant.now();
             if (!policy.circuitBreakerEnabled()) {
                 return;
             }
@@ -354,6 +381,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private synchronized void recordRejection(GovernanceRejectionReason reason) {
             totalRejections++;
             lastRejectionReason = reason == null ? GovernanceRejectionReason.NONE : reason;
+            lastOutcome = GovernanceCallOutcome.REJECTED;
+            lastOutcomeAt = Instant.now();
         }
 
         private synchronized GovernanceRuntimeSnapshot snapshot() {
@@ -370,27 +399,46 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     consecutiveFailures,
                     totalRejections,
                     lastRejectionReason,
-                    openUntil);
+                    openUntil,
+                    activeConcurrency(),
+                    maxConcurrency,
+                    lastMaxRequestsPerWindow,
+                    lastRateLimitWindow,
+                    lastDegraded,
+                    lastMinimumRequests,
+                    lastFailureRateThreshold,
+                    lastSlowCallThreshold,
+                    lastSlowCallDuration,
+                    lastOpenStateDuration,
+                    lastHalfOpenMaxCalls,
+                    lastSlidingWindowSize,
+                    lastSlidingWindowDuration,
+                    lastConsecutiveFailureThreshold,
+                    lastStateTransitionAt,
+                    lastOutcome,
+                    lastOutcomeAt);
         }
 
         private void transitionOpenToHalfOpenIfReady() {
-            if (circuitState == GovernanceCircuitState.OPEN && openUntil != null && !Instant.now().isBefore(openUntil)) {
-                circuitState = GovernanceCircuitState.HALF_OPEN;
+            Instant now = Instant.now();
+            if (circuitState == GovernanceCircuitState.OPEN && openUntil != null && !now.isBefore(openUntil)) {
+                transitionTo(GovernanceCircuitState.HALF_OPEN, now);
                 halfOpenInFlight = 0;
                 halfOpenSuccesses = 0;
             }
         }
 
         private void openCircuit(GovernancePolicy policy, long nowNanos) {
-            circuitState = GovernanceCircuitState.OPEN;
+            Instant now = Instant.now();
+            transitionTo(GovernanceCircuitState.OPEN, now);
             openedAtNanos = nowNanos;
-            openUntil = Instant.now().plus(policy.openStateDuration());
+            openUntil = now.plus(policy.openStateDuration());
             halfOpenInFlight = 0;
             halfOpenSuccesses = 0;
         }
 
         private void closeCircuit() {
-            circuitState = GovernanceCircuitState.CLOSED;
+            transitionTo(GovernanceCircuitState.CLOSED, Instant.now());
             openUntil = null;
             halfOpenInFlight = 0;
             halfOpenSuccesses = 0;
@@ -419,6 +467,17 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 }
             }
             return new WindowCounts(calls.size(), failures, slowCalls);
+        }
+
+        private int activeConcurrency() {
+            return Math.max(0, maxConcurrency - semaphore.availablePermits());
+        }
+
+        private void transitionTo(GovernanceCircuitState nextState, Instant transitionAt) {
+            if (circuitState != nextState) {
+                circuitState = nextState;
+                lastStateTransitionAt = transitionAt;
+            }
         }
 
         private static double percentage(int part, int total) {
