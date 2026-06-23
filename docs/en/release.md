@@ -6,6 +6,7 @@ This page is the public release runbook. Examples use `0.5.1`; replace the versi
 
 Before a release, complete at least these checks:
 
+- `scripts/release/preflight.sh 0.5.1`
 - `./gradlew check`
 - `./gradlew verifyReleaseGate`
 - `./gradlew publishToMavenLocal`
@@ -73,6 +74,12 @@ git push origin v0.5.1
 
 `release.yml` builds the Central Portal bundle from the tagged commit and uploads it as a GitHub Actions artifact. When Central secrets are configured, a tag push also uploads and publishes the Central deployment.
 
+After the release run is created, use the script for a compact summary instead of repeatedly refreshing browser logs:
+
+```bash
+scripts/release/watch-github-run.sh <run-id>
+```
+
 If the Central token is missing, the publish step fails instead of marking a tag run successful without publishing to Central. For a bundle-only check, run `workflow_dispatch`, enter `0.5.1` or `v0.5.1`, and keep `publish_to_central=false`. Manual Central publication must run from an existing tag ref, and the entered version must match the selected tag; do not publish a Central deployment manually from the `main` branch.
 
 ## Check Maven Central After Publication
@@ -82,6 +89,12 @@ After Central Portal shows published, check Maven Central sync:
 ```bash
 curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.5.1/nexary-bom-0.5.1.pom
 curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.5.1/nexary-core-0.5.1.jar
+```
+
+Or run:
+
+```bash
+scripts/release/check-central.sh 0.5.1
 ```
 
 Update the GitHub Release notes and README version guidance only after Maven Central has synced. Do not tell users to copy a Maven Central version before it is visible there.

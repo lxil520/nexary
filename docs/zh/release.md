@@ -6,6 +6,7 @@
 
 发布前至少完成这些检查：
 
+- `scripts/release/preflight.sh 0.5.1`
 - `./gradlew check`
 - `./gradlew verifyReleaseGate`
 - `./gradlew publishToMavenLocal`
@@ -73,6 +74,12 @@ git push origin v0.5.1
 
 `release.yml` 会从 tag 对应的 commit 生成 Central Portal bundle，并上传为 GitHub Actions artifact。只要 Central secrets 存在，tag 触发会继续上传并发布 Central deployment。
 
+发布 run 创建后，用脚本查看摘要，不要靠浏览器日志页反复刷新：
+
+```bash
+scripts/release/watch-github-run.sh <run-id>
+```
+
 如果 Central token 缺失，发布步骤会失败，不会把缺少 Central 发布的 tag run 标成成功。需要只验证 bundle 时，使用 `workflow_dispatch`，填入 `0.5.1` 或 `v0.5.1`，并保持 `publish_to_central=false`。手动发布到 Central 必须从已存在的 tag ref 运行，且输入版本必须匹配选中的 tag；不要从 `main` 分支手动发布 Central deployment。
 
 ## Maven Central 发布后检查
@@ -82,6 +89,12 @@ Central Portal 显示 published 后，再检查 Maven Central 是否同步：
 ```bash
 curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.5.1/nexary-bom-0.5.1.pom
 curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.5.1/nexary-core-0.5.1.jar
+```
+
+也可以直接运行：
+
+```bash
+scripts/release/check-central.sh 0.5.1
 ```
 
 同步完成后再更新 GitHub Release 说明和 README 中的版本选择提示。不要在 Central 还没有同步时告诉用户直接复制 Maven Central 版本。
