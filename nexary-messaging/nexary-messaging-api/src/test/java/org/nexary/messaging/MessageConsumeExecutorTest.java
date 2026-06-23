@@ -6,9 +6,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationPublisher;
 
@@ -289,6 +293,37 @@ class MessageConsumeExecutorTest {
     }
 
     @Test
+    void slowHandlerCallCanOpenCircuitThroughGovernanceExecution() {
+        CircuitOpeningGovernanceExecution governanceExecution =
+                new CircuitOpeningGovernanceExecution(Duration.ofMillis(1));
+        InMemoryMessageDeadLetterPublisher deadLetters = MessageDeadLetterPublisher.inMemory();
+        MessageConsumeExecutor executor = new MessageConsumeExecutor(
+                Optional.empty(),
+                Duration.ofMinutes(5),
+                List.of(),
+                new MessageRetryPolicy(3, Duration.ZERO, MessageBackoffStrategy.FIXED, 1.0d, Duration.ZERO),
+                deadLetters,
+                NexaryObservationPublisher.noop(),
+                governanceExecution,
+                "core");
+        AtomicInteger calls = new AtomicInteger();
+        MessageEnvelope<String> envelope = MessageEnvelope.of("events", "payload");
+
+        MessageConsumeResult first = executor.consume(envelope, ignored -> {
+            calls.incrementAndGet();
+            Thread.sleep(20);
+        });
+        MessageConsumeResult second = executor.consume(envelope, ignored -> calls.incrementAndGet());
+
+        assertThat(first.status()).isEqualTo(MessageConsumeResult.ConsumeStatus.SUCCESS);
+        assertThat(second.status()).isEqualTo(MessageConsumeResult.ConsumeStatus.FAILED);
+        assertThat(second.retrySignal().decision().name()).isEqualTo("STOP");
+        assertThat(calls).hasValue(1);
+        assertThat(governanceExecution.executions).isEqualTo(1);
+        assertThat(deadLetters.records()).isEmpty();
+    }
+
+    @Test
     void dropsUnsafeObservationTags() {
         List<NexaryObservationEvent> events = new CopyOnWriteArrayList<>();
 
@@ -327,5 +362,41 @@ class MessageConsumeExecutorTest {
                     "raw-user-group-should-not-be-a-tag",
                     "boom with private details");
         });
+    }
+
+    private static final class CircuitOpeningGovernanceExecution implements GovernanceExecution {
+        private final Duration slowThreshold;
+        private boolean open;
+        private int executions;
+
+        private CircuitOpeningGovernanceExecution(Duration slowThreshold) {
+            this.slowThreshold = slowThreshold;
+        }
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) throws Exception {
+            if (open) {
+                throw new CircuitOpenException();
+            }
+            executions++;
+            long started = System.nanoTime();
+            try {
+                return GovernanceContext.callWithContext(context, action);
+            } catch (Exception ex) {
+                open = true;
+                throw ex;
+            } finally {
+                if (Duration.ofNanos(System.nanoTime() - started).compareTo(slowThreshold) > 0) {
+                    open = true;
+                }
+            }
+        }
+    }
+
+    private static final class CircuitOpenException extends RuntimeException implements GovernanceRejection {
+        @Override
+        public String governanceRejectionReason() {
+            return "circuit_open";
+        }
     }
 }

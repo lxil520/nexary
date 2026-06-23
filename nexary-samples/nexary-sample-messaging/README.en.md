@@ -12,7 +12,7 @@ Starter selector integration sample for Nexary messaging, focused on simple busi
 
 ## Version Selection
 
-The sample business code uses only the Nexary messaging API, so Boot3, Boot2 Redis-only, and Boot4 provider-by-provider differences are dependency and configuration entry choices. Examples use the current development version `0.5.1`; after Maven Central publication, replace it with the latest release.
+The sample business code uses only the Nexary messaging API, so Boot3, Boot2 Redis-only, and Boot4 provider-by-provider differences are dependency and configuration entry choices. Examples use the current development version `0.6.0`; after Maven Central publication, replace it with the latest release.
 
 | Spring Boot | JDK | Sample dependency entry | Provider boundary |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ Business code depends only on the Nexary messaging API. Switching providers mean
 Spring Boot 3.3 / Java 17+ main dependency:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     // After publication, use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging versions.
@@ -42,7 +42,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ Redis-only starter:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
@@ -52,7 +52,7 @@ dependencies {
 Spring Boot 4.1 / Java 21 primary validation runtime starter:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -129,7 +129,7 @@ Spring Boot 3.3 / Java 17+ SPI/provider dependencies are one-provider choices. E
 Disruptor:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -141,7 +141,7 @@ dependencies {
 Redis queue:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -153,7 +153,7 @@ dependencies {
 Kafka:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -165,7 +165,7 @@ dependencies {
 RocketMQ:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -177,7 +177,7 @@ dependencies {
 ActiveMQ Classic:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -189,7 +189,7 @@ dependencies {
 Spring Boot 4.1 / Java 21 primary validation runtime SPI/provider shape:
 
 ```gradle
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"

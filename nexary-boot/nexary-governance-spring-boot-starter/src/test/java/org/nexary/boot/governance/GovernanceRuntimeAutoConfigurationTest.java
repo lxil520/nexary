@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.governance.runtime.GovernanceRuntime;
 import org.nexary.governance.runtime.GovernancePolicy;
@@ -19,6 +20,11 @@ class GovernanceRuntimeAutoConfigurationTest {
     @Test
     void createsLocalRuntimeByDefault() {
         contextRunner.run(context -> assertThat(context).hasSingleBean(GovernanceRuntime.class));
+    }
+
+    @Test
+    void createsRuntimeBackedGovernanceExecutionByDefault() {
+        contextRunner.run(context -> assertThat(context).hasSingleBean(GovernanceExecution.class));
     }
 
     @Test
@@ -77,6 +83,57 @@ class GovernanceRuntimeAutoConfigurationTest {
                             .build());
 
                     assertThat(defaultPolicy.maxConcurrency()).isEqualTo(3);
+                });
+    }
+
+    @Test
+    void bindsCircuitBreakerPolicyConfiguration() {
+        contextRunner
+                .withPropertyValues(
+                        "nexary.governance.resources.cache.kind=cache",
+                        "nexary.governance.resources.cache.name=cache-client",
+                        "nexary.governance.resources.cache.provider=redis",
+                        "nexary.governance.resources.cache.operation=cache.get",
+                        "nexary.governance.resources.cache.circuit-breaker.enabled=true",
+                        "nexary.governance.resources.cache.circuit-breaker.window=20s",
+                        "nexary.governance.resources.cache.circuit-breaker.minimum-calls=4",
+                        "nexary.governance.resources.cache.circuit-breaker.failure-rate-threshold=25.5",
+                        "nexary.governance.resources.cache.circuit-breaker.slow-call-threshold=150ms",
+                        "nexary.governance.resources.cache.circuit-breaker.slow-call-rate-threshold=75.0",
+                        "nexary.governance.resources.cache.circuit-breaker.half-open-probe-calls=2",
+                        "nexary.governance.resources.cache.circuit-breaker.open-state-duration=5s",
+                        "nexary.governance.resources.cache.circuit-breaker.sliding-window-size=8",
+                        "nexary.governance.resources.cache.circuit-breaker.consecutive-failure-threshold=3")
+                .run(context -> {
+                    GovernanceRuntimeProperties properties = context.getBean(GovernanceRuntimeProperties.class);
+                    GovernanceRuntimeProperties.CircuitBreaker circuitBreaker =
+                            properties.getResources().get("cache").getCircuitBreaker();
+                    GovernancePolicyRegistry registry = context.getBean(GovernancePolicyRegistry.class);
+                    GovernancePolicy policy = registry.policyFor(GovernanceContext.builder()
+                            .resource(GovernanceResource.cache("cache-client", "redis", "cache.get"))
+                            .build());
+
+                    assertThat(circuitBreaker.isEnabled()).isTrue();
+                    assertThat(circuitBreaker.getWindow()).hasSeconds(20);
+                    assertThat(circuitBreaker.getMinimumCalls()).isEqualTo(4);
+                    assertThat(circuitBreaker.getFailureRateThreshold()).isEqualTo(25.5d);
+                    assertThat(circuitBreaker.getSlowCallThreshold()).hasMillis(150);
+                    assertThat(circuitBreaker.getSlowCallRateThreshold()).isEqualTo(75.0d);
+                    assertThat(circuitBreaker.getHalfOpenProbeCalls()).isEqualTo(2);
+                    assertThat(circuitBreaker.getOpenStateDuration()).hasSeconds(5);
+                    assertThat(circuitBreaker.getSlidingWindowSize()).isEqualTo(8);
+                    assertThat(circuitBreaker.getConsecutiveFailureThreshold()).isEqualTo(3);
+
+                    assertThat(policy.circuitBreakerEnabled()).isTrue();
+                    assertThat(policy.minimumRequests()).isEqualTo(4);
+                    assertThat(policy.failureRateThreshold()).isEqualTo(25.5d);
+                    assertThat(policy.slowCallDuration()).hasValueSatisfying(duration -> assertThat(duration).hasMillis(150));
+                    assertThat(policy.slowCallThreshold()).isEqualTo(75.0d);
+                    assertThat(policy.halfOpenMaxCalls()).isEqualTo(2);
+                    assertThat(policy.openStateDuration()).hasSeconds(5);
+                    assertThat(policy.slidingWindowSize()).isEqualTo(8);
+                    assertThat(policy.slidingWindowDuration()).hasSeconds(20);
+                    assertThat(policy.consecutiveFailureThreshold()).isEqualTo(3);
                 });
     }
 }

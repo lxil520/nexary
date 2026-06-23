@@ -46,7 +46,7 @@ implementation project(':nexary-boot:nexary-job-spring-boot-starter')
 After Maven Central publication, replace `nexaryVersion` with the latest release. Spring Boot 3.3 / Java 17+ starter entry:
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-spring-boot-starter'
 ```
@@ -54,14 +54,14 @@ implementation 'com.aweimao:nexary-job-spring-boot-starter'
 Spring Boot 2.7 / Java 8+ starter entry:
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 implementation "com.aweimao:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime starter entry:
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 implementation "com.aweimao:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 

@@ -243,9 +243,37 @@ Later updates in the same minor line should continue:
 
 `0.5.x` does not include:
 
-- commercial product positioning.
+- private deployment product claims.
 - private deployment platforms, tenant management, user permissions, billing, or ticketing.
 - support claims for providers that have not passed real middleware validation.
+
+## `0.6.x` Local Governance Flow
+
+`0.6.x` tightens the verifiable boundary of local governance. The goal is not a console or remote policy platform. The goal is to show one in-process Java call moving through normal execution, failure records, slow-call records, open circuit, fallback, half-open probing, recovery, and reopening.
+
+Included in `0.6.x`:
+
+- Governance: add circuit state, rejection reason, and local snapshot types with bounded fields for `CLOSED`, `OPEN`, and `HALF_OPEN`.
+- Boot: bind `circuit-breaker` settings to local `GovernancePolicy`, covering failure rate, slow-call rate, half-open probes, and open duration.
+- Cache: Redis client calls go through the local governance runtime, so failures and slow calls can open the same circuit.
+- Messaging: consumer handlers go through `GovernanceExecution`; slow or failed consumption can open the local circuit. The publish path still uses the existing send events.
+- Job: local, XXL-JOB, and PowerJob execution entries go through `GovernanceExecution`; slow or failed jobs can open the local circuit.
+- Samples: `nexary-sample-governance` adds `LocalCircuitBreakerProfileGateway`, with curl paths for opening on failures, opening on slow calls, fallback while open, successful half-open recovery, and failed half-open reopening.
+- Docs: governance and sample docs include dependencies, configuration, run commands, curl steps, expected fields, and boundaries.
+- Tests: sample tests cover open circuit, fallback after rejection, half-open recovery, failed half-open reopening, and slow-call opening.
+
+Later `0.6.x` work should close only two gaps:
+
+- Put the messaging publish path behind the same governance runtime instead of relying only on existing send events and deadline headers.
+- Add command-level real-middleware demos so Redis, Kafka/RocketMQ/ActiveMQ Classic, XXL-JOB, and PowerJob circuit behavior can be reproduced directly.
+
+`0.6.x` does not include:
+
+- consoles, sidecars, agents, remote dynamic config, or policy push.
+- cross-service platform behavior, cross-process state sharing, or cross-instance circuit windows.
+- invasive changes to the primary cache / messaging / job APIs.
+- runtime-backed circuit breaking for messaging publish.
+- README support claims that have not passed sample and test verification.
 
 ## `1.0.0` Stability Target
 

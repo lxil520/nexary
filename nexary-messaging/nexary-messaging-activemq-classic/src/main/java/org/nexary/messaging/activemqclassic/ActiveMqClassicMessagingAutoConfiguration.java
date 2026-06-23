@@ -4,6 +4,7 @@ import jakarta.jms.ConnectionFactory;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.messaging.ConcurrentMapMessageDeduplicationStore;
 import org.nexary.messaging.DefaultStringMessageSerializer;
@@ -45,6 +46,7 @@ public class ActiveMqClassicMessagingAutoConfiguration {
             ObjectProvider<MessageInterceptor> interceptors,
             ObjectProvider<MessageDeadLetterPublisher> deadLetterPublisher,
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution,
             ActiveMqClassicMessagingProperties properties) {
         return new MessageConsumeExecutor(
                 Optional.ofNullable(deduplicationStore.getIfAvailable()),
@@ -52,7 +54,9 @@ public class ActiveMqClassicMessagingAutoConfiguration {
                 interceptors.orderedStream().collect(Collectors.toCollection(ArrayList::new)),
                 properties.toRetryPolicy(),
                 deadLetterPublisher.getIfAvailable(MessageDeadLetterPublisher::inMemory),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct),
+                "activemq_classic");
     }
 
     @Bean

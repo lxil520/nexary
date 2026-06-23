@@ -16,11 +16,23 @@ public final class ProfileResult {
         return userId;
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
     public String displayName() {
         return displayName;
     }
 
+    public String getDisplayName() {
+        return displayName;
+    }
+
     public String source() {
+        return source;
+    }
+
+    public String getSource() {
         return source;
     }
 }

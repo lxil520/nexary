@@ -72,5 +72,9 @@ class GovernanceObservationEventsTest {
                 .contains(Map.entry("governance_action", "degraded"));
         assertThat(GovernanceObservationEvents.bulkheadRejected(null, null, now, now).tags())
                 .contains(Map.entry("governance_action", "bulkhead_rejected"));
+        assertThat(GovernanceObservationEvents.circuitOpen(null, null, "half_open_limited", now, now).tags())
+                .contains(
+                        Map.entry("governance_action", "half_open_limited"),
+                        Map.entry("failure_category", "circuit_open"));
     }
 }

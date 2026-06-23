@@ -8,4 +8,5 @@ import org.springframework.context.annotation.Configuration;
 public class GovernanceSampleConfiguration {
     public static final GovernanceResource PROFILE_RESOURCE = GovernanceResource.http("profile-api", "get-profile");
     public static final GovernanceResource DEGRADED_RESOURCE = GovernanceResource.downstream("inventory-service", "reserve");
+    public static final GovernanceResource CIRCUIT_RESOURCE = GovernanceResource.downstream("profile-service", "load-profile");
 }

@@ -8,6 +8,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Callable;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
+import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.governance.GovernanceResource.ResourceKind;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetrySignal;
 
@@ -20,6 +26,8 @@ public class MessageConsumeExecutor {
     private final MessageDeadLetterPublisher deadLetterPublisher;
     private final ConcurrentMap<String, Integer> attempts = new ConcurrentHashMap<>();
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceExecution governanceExecution;
+    private final String governanceProvider;
 
     public MessageConsumeExecutor(
             Optional<MessageDeduplicationStore> deduplicationStore,
@@ -27,7 +35,8 @@ public class MessageConsumeExecutor {
             List<MessageInterceptor> interceptors,
             MessageRetryPolicy retryPolicy,
             MessageDeadLetterPublisher deadLetterPublisher) {
-        this(deduplicationStore, deduplicationTtl, interceptors, retryPolicy, deadLetterPublisher, NexaryObservationPublisher.noop());
+        this(deduplicationStore, deduplicationTtl, interceptors, retryPolicy, deadLetterPublisher,
+                NexaryObservationPublisher.noop());
     }
 
     public MessageConsumeExecutor(
@@ -37,12 +46,27 @@ public class MessageConsumeExecutor {
             MessageRetryPolicy retryPolicy,
             MessageDeadLetterPublisher deadLetterPublisher,
             NexaryObservationPublisher observationPublisher) {
+        this(deduplicationStore, deduplicationTtl, interceptors, retryPolicy, deadLetterPublisher,
+                observationPublisher, GovernanceExecution.direct(), "core");
+    }
+
+    public MessageConsumeExecutor(
+            Optional<MessageDeduplicationStore> deduplicationStore,
+            Duration deduplicationTtl,
+            List<MessageInterceptor> interceptors,
+            MessageRetryPolicy retryPolicy,
+            MessageDeadLetterPublisher deadLetterPublisher,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceExecution governanceExecution,
+            String governanceProvider) {
         this.deduplicationStore = deduplicationStore;
         this.deduplicationTtl = deduplicationTtl == null ? Duration.ofHours(1) : deduplicationTtl;
         this.interceptors = interceptors == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(interceptors));
         this.retryPolicy = retryPolicy == null ? MessageRetryPolicy.defaults() : retryPolicy;
         this.deadLetterPublisher = deadLetterPublisher == null ? MessageDeadLetterPublisher.inMemory() : deadLetterPublisher;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
+        this.governanceProvider = hasText(governanceProvider) ? governanceProvider.trim() : "core";
     }
 
     /** Consumes an envelope through the configured cross-cutting policies. */
@@ -83,7 +107,10 @@ public class MessageConsumeExecutor {
 
         Throwable error = null;
         try {
-            consumer.handle(prepared);
+            executeGoverned(prepared, "consume", () -> {
+                consumer.handle(prepared);
+                return null;
+            });
             claim.ifPresent(MessageDeduplicationClaim::complete);
             attempts.remove(prepared.messageId());
             MessageObservationSupport.publish(
@@ -93,6 +120,13 @@ public class MessageConsumeExecutor {
             error = ex;
             MessageObservationSupport.publish(
                     observationPublisher, "handler", "core", "failure", Collections.emptyMap(), ex);
+            if (ex instanceof GovernanceRejection) {
+                attempts.remove(prepared.messageId());
+                MessageConsumeResult result = MessageConsumeResult.failed(ex.getMessage());
+                MessageGovernanceSupport.publishRetryStoppedIfStop(
+                        prepared, "core", "consume", result.retrySignal(), observationPublisher);
+                return result;
+            }
             return onFailure(prepared, consumerGroup, claim, ex);
         } finally {
             claim.ifPresent(MessageDeduplicationClaim::close);
@@ -153,5 +187,40 @@ public class MessageConsumeExecutor {
                     envelope, "core", "consume", result.retrySignal(), observationPublisher);
             return result;
         }
+    }
+
+    private Object executeGoverned(MessageEnvelope<?> envelope, String operation, Callable<?> action) throws Exception {
+        return governanceExecution.execute(governanceContext(envelope, operation), action);
+    }
+
+    private GovernanceContext governanceContext(MessageEnvelope<?> envelope, String operation) {
+        GovernanceContext.Builder builder = GovernanceContext.builder()
+                .resource(new GovernanceResource(
+                        ResourceKind.MESSAGING,
+                        "message-" + operation,
+                        governanceProvider,
+                        operation));
+        if (envelope != null) {
+            builder.trafficTag(envelope.trafficTag());
+        }
+        effectiveDeadline(envelope).ifPresent(builder::deadline);
+        return builder.build();
+    }
+
+    private Optional<java.time.Instant> effectiveDeadline(MessageEnvelope<?> envelope) {
+        java.time.Instant envelopeDeadline = envelope == null ? null : envelope.deadline();
+        Optional<java.time.Instant> currentDeadline = GovernanceContext.current().flatMap(GovernanceContext::deadline);
+        if (envelopeDeadline == null) {
+            return currentDeadline;
+        }
+        if (!currentDeadline.isPresent()) {
+            return Optional.of(envelopeDeadline);
+        }
+        java.time.Instant inherited = currentDeadline.get();
+        return Optional.of(envelopeDeadline.isBefore(inherited) ? envelopeDeadline : inherited);
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

@@ -126,6 +126,52 @@ class GovernedCacheClientTest {
                 .containsEntry("outcome", "degraded"));
     }
 
+    @Test
+    void providerExceptionCanOpenCircuitThroughRuntimeExecute() {
+        RecordingCacheClient delegate = new RecordingCacheClient();
+        delegate.getFailure = new IllegalStateException("redis down");
+        GovernanceRuntime runtime = runtime(
+                GovernancePolicy.builder().consecutiveFailureThreshold(1).build(),
+                "cache.get",
+                new RecordingPublisher());
+        CacheClient cacheClient = new GovernedCacheClient(delegate, runtime, "redis");
+
+        assertThatThrownBy(() -> cacheClient.get(KEY, String.class))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("redis down");
+
+        delegate.getFailure = null;
+        assertThatThrownBy(() -> cacheClient.get(KEY, String.class))
+                .isInstanceOf(GovernanceRejectedException.class)
+                .satisfies(error -> assertThat(((GovernanceRejectedException) error).decision().decision())
+                        .isEqualTo(GovernanceDecision.Decision.CIRCUIT_OPEN));
+        assertThat(delegate.calls).containsExactly("get");
+    }
+
+    @Test
+    void slowProviderCallCanOpenCircuitThroughRuntimeExecute() {
+        RecordingCacheClient delegate = new RecordingCacheClient();
+        delegate.delay = Duration.ofMillis(20);
+        GovernanceRuntime runtime = runtime(
+                GovernancePolicy.builder()
+                        .minimumRequests(1)
+                        .slowCallDuration(Duration.ofMillis(1))
+                        .slowCallThreshold(100.0d)
+                        .build(),
+                "cache.get",
+                new RecordingPublisher());
+        CacheClient cacheClient = new GovernedCacheClient(delegate, runtime, "redis");
+
+        assertThat(cacheClient.get(KEY, String.class)).contains("cached");
+
+        delegate.delay = Duration.ZERO;
+        assertThatThrownBy(() -> cacheClient.get(KEY, String.class))
+                .isInstanceOf(GovernanceRejectedException.class)
+                .satisfies(error -> assertThat(((GovernanceRejectedException) error).decision().decision())
+                        .isEqualTo(GovernanceDecision.Decision.CIRCUIT_OPEN));
+        assertThat(delegate.calls).containsExactly("get");
+    }
+
     private static GovernanceRuntime runtime(
             GovernancePolicy policy,
             String operation,
@@ -166,11 +212,17 @@ class GovernedCacheClientTest {
     private static final class RecordingCacheClient implements CacheClient {
         private final List<String> calls = new CopyOnWriteArrayList<>();
         private GovernanceContext capturedContext;
+        private RuntimeException getFailure;
+        private Duration delay = Duration.ZERO;
 
         @Override
         public <T> Optional<T> get(CacheKey key, Class<T> type) {
             calls.add("get");
             capturedContext = GovernanceContext.current().orElse(null);
+            sleep(delay);
+            if (getFailure != null) {
+                throw getFailure;
+            }
             return Optional.of(type.cast("cached"));
         }
 
@@ -230,4 +282,17 @@ class GovernedCacheClientTest {
             return loader.get();
         }
     }
+
+    private static void sleep(Duration duration) {
+        if (duration == null || duration.isZero() || duration.isNegative()) {
+            return;
+        }
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted", ex);
+        }
+    }
+
 }

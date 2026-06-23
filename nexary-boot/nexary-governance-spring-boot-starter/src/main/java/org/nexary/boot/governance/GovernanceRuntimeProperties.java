@@ -78,6 +78,7 @@ public class GovernanceRuntimeProperties {
         private Duration rateLimitWindow = Duration.ofSeconds(1);
         private int maxConcurrency = Integer.MAX_VALUE;
         private boolean degraded;
+        private CircuitBreaker circuitBreaker = new CircuitBreaker();
 
         /** Returns the optional maximum time allowed for the protected action. */
         public Duration getDeadline() {
@@ -127,6 +128,130 @@ public class GovernanceRuntimeProperties {
         /** Sets whether calls should use fallback without running the main action. */
         public void setDegraded(boolean degraded) {
             this.degraded = degraded;
+        }
+
+        /** Returns circuit-breaker accounting settings for this policy. */
+        public CircuitBreaker getCircuitBreaker() {
+            return circuitBreaker;
+        }
+
+        /** Sets circuit-breaker accounting settings for this policy. */
+        public void setCircuitBreaker(CircuitBreaker circuitBreaker) {
+            this.circuitBreaker = circuitBreaker == null ? new CircuitBreaker() : circuitBreaker;
+        }
+    }
+
+    /** Circuit-breaker policy settings. */
+    public static class CircuitBreaker {
+        private boolean enabled;
+        private Duration window = Duration.ofSeconds(30);
+        private int minimumCalls = 10;
+        private double failureRateThreshold = 50.0d;
+        private Duration slowCallThreshold = Duration.ofSeconds(1);
+        private double slowCallRateThreshold = 50.0d;
+        private int halfOpenProbeCalls = 1;
+        private Duration openStateDuration = Duration.ofSeconds(30);
+        private int slidingWindowSize = 100;
+        private int consecutiveFailureThreshold;
+
+        /** Returns whether circuit-breaker accounting is enabled for this policy. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether circuit-breaker accounting is enabled for this policy. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns the rolling accounting window. */
+        public Duration getWindow() {
+            return window;
+        }
+
+        /** Sets the rolling accounting window. */
+        public void setWindow(Duration window) {
+            this.window = window;
+        }
+
+        /** Returns the minimum number of calls before breaker decisions are evaluated. */
+        public int getMinimumCalls() {
+            return minimumCalls;
+        }
+
+        /** Sets the minimum number of calls before breaker decisions are evaluated. */
+        public void setMinimumCalls(int minimumCalls) {
+            this.minimumCalls = minimumCalls;
+        }
+
+        /** Returns the failure-rate threshold percentage that opens the circuit. */
+        public double getFailureRateThreshold() {
+            return failureRateThreshold;
+        }
+
+        /** Sets the failure-rate threshold percentage that opens the circuit. */
+        public void setFailureRateThreshold(double failureRateThreshold) {
+            this.failureRateThreshold = failureRateThreshold;
+        }
+
+        /** Returns the duration after which a call is counted as slow. */
+        public Duration getSlowCallThreshold() {
+            return slowCallThreshold;
+        }
+
+        /** Sets the duration after which a call is counted as slow. */
+        public void setSlowCallThreshold(Duration slowCallThreshold) {
+            this.slowCallThreshold = slowCallThreshold;
+        }
+
+        /** Returns the slow-call-rate threshold percentage that opens the circuit. */
+        public double getSlowCallRateThreshold() {
+            return slowCallRateThreshold;
+        }
+
+        /** Sets the slow-call-rate threshold percentage that opens the circuit. */
+        public void setSlowCallRateThreshold(double slowCallRateThreshold) {
+            this.slowCallRateThreshold = slowCallRateThreshold;
+        }
+
+        /** Returns the number of probe calls allowed in half-open state. */
+        public int getHalfOpenProbeCalls() {
+            return halfOpenProbeCalls;
+        }
+
+        /** Sets the number of probe calls allowed in half-open state. */
+        public void setHalfOpenProbeCalls(int halfOpenProbeCalls) {
+            this.halfOpenProbeCalls = halfOpenProbeCalls;
+        }
+
+        /** Returns how long the circuit stays open before half-open probing. */
+        public Duration getOpenStateDuration() {
+            return openStateDuration;
+        }
+
+        /** Sets how long the circuit stays open before half-open probing. */
+        public void setOpenStateDuration(Duration openStateDuration) {
+            this.openStateDuration = openStateDuration;
+        }
+
+        /** Returns the maximum number of recent calls retained for circuit decisions. */
+        public int getSlidingWindowSize() {
+            return slidingWindowSize;
+        }
+
+        /** Sets the maximum number of recent calls retained for circuit decisions. */
+        public void setSlidingWindowSize(int slidingWindowSize) {
+            this.slidingWindowSize = slidingWindowSize;
+        }
+
+        /** Returns the consecutive failure count that opens the circuit; zero disables this trigger. */
+        public int getConsecutiveFailureThreshold() {
+            return consecutiveFailureThreshold;
+        }
+
+        /** Sets the consecutive failure count that opens the circuit; zero disables this trigger. */
+        public void setConsecutiveFailureThreshold(int consecutiveFailureThreshold) {
+            this.consecutiveFailureThreshold = consecutiveFailureThreshold;
         }
     }
 

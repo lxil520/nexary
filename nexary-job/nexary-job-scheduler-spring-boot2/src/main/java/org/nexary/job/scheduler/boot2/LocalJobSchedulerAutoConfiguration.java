@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.nexary.cache.CacheClient;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationListener;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.job.JobExecutionListener;
@@ -70,13 +71,15 @@ public class LocalJobSchedulerAutoConfiguration {
             ExecutorService nexaryJobExecutionExecutor,
             JobExecutionStore executionStore,
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
-            ObjectProvider<NexaryObservationListener> observationListeners) {
+            ObjectProvider<NexaryObservationListener> observationListeners,
+            ObjectProvider<GovernanceExecution> governanceExecution) {
         return new JobExecutionRunner(
                 JobCompatibilityCollections.collectList(listeners.orderedStream()),
                 nexaryJobExecutionExecutor,
                 executionStore,
                 observationPublisher(observationPublisher, observationListeners),
-                "local");
+                "local",
+                governanceExecution.getIfAvailable(GovernanceExecution::direct));
     }
 
     @Bean

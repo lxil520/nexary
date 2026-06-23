@@ -4,12 +4,17 @@ import java.time.Instant;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.governance.runtime.GovernanceRuntime;
+import org.nexary.governance.runtime.GovernanceRuntimeSnapshot;
+import org.nexary.samples.governance.common.CircuitProfileResult;
 import org.nexary.samples.governance.common.ProfileResult;
 import org.nexary.samples.governance.config.GovernanceSampleConfiguration;
+import org.nexary.samples.governance.service.LocalCircuitBreakerProfileGateway;
 import org.nexary.samples.governance.service.ProfileQueryService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** HTTP entry points for the local governance sample. */
@@ -18,10 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class GovernanceSampleController {
     private final GovernanceRuntime governanceRuntime;
     private final ProfileQueryService profileQueryService;
+    private final LocalCircuitBreakerProfileGateway circuitBreakerProfileGateway;
 
-    public GovernanceSampleController(GovernanceRuntime governanceRuntime, ProfileQueryService profileQueryService) {
+    public GovernanceSampleController(
+            GovernanceRuntime governanceRuntime,
+            ProfileQueryService profileQueryService,
+            LocalCircuitBreakerProfileGateway circuitBreakerProfileGateway) {
         this.governanceRuntime = governanceRuntime;
         this.profileQueryService = profileQueryService;
+        this.circuitBreakerProfileGateway = circuitBreakerProfileGateway;
     }
 
     @GetMapping("/profiles/{userId}")
@@ -53,5 +63,22 @@ public class GovernanceSampleController {
                 context,
                 () -> profileQueryService.loadProfile(userId),
                 () -> profileQueryService.fallbackProfile(userId));
+    }
+
+    @GetMapping("/circuit/profiles/{userId}")
+    public CircuitProfileResult circuitProfile(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "success") String mode) throws Exception {
+        return circuitBreakerProfileGateway.callProfile(userId, mode);
+    }
+
+    @GetMapping("/circuit/state")
+    public GovernanceRuntimeSnapshot circuitState() {
+        return circuitBreakerProfileGateway.snapshot();
+    }
+
+    @PostMapping("/circuit/reset")
+    public GovernanceRuntimeSnapshot resetCircuit() {
+        return circuitBreakerProfileGateway.reset();
     }
 }

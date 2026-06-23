@@ -243,9 +243,37 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 `0.5.x` 不包含：
 
-- 商业产品形态说明。
+- 私有化产品说明。
 - 私有部署平台、租户管理、用户权限、计费或工单能力。
 - 未经真实中间件验证的 provider 支持声明。
+
+## `0.6.x` 本地治理流程
+
+`0.6.x` 继续收紧治理能力的可验证边界。目标不是做控制台或远程策略平台，而是让一个 Java 进程内的调用能清楚地展示：正常调用、失败记录、慢调用记录、熔断打开、fallback、半开探测、恢复或重开。
+
+`0.6.x` 已纳入：
+
+- Governance：补充熔断状态、拒绝原因和本地状态快照类型，用低数量字段描述 `CLOSED`、`OPEN`、`HALF_OPEN`。
+- Boot：`circuit-breaker` 配置可绑定到本地 `GovernancePolicy`，覆盖失败率、慢调用比例、半开探测和打开时长。
+- Cache：Redis 客户端调用经过本地治理运行时，失败和慢调用可以进入同一套熔断判断。
+- Messaging：consumer handler 经过 `GovernanceExecution`，慢消费或失败可打开本地熔断；publish 路径仍按原有发送事件记录。
+- Job：local、XXL-JOB、PowerJob 的执行入口经过 `GovernanceExecution`，慢任务或失败可打开本地熔断。
+- Samples：`nexary-sample-governance` 增加 `LocalCircuitBreakerProfileGateway`，可通过 curl 跑出失败打开、慢调用打开、打开后 fallback、半开成功恢复、半开失败重开。
+- Docs：治理文档和样例文档补齐依赖、配置、运行命令、curl 步骤、预期字段和边界说明。
+- Tests：样例测试覆盖熔断打开、拒绝后 fallback、半开恢复、半开失败重开和慢调用打开。
+
+`0.6.x` 后续只补两类缺口：
+
+- 统一 messaging publish 路径的治理运行时接入，避免发送端只停留在原有发送事件和 deadline header。
+- 继续补真实中间件命令级演示，让 Redis、Kafka/RocketMQ/ActiveMQ Classic、XXL-JOB/PowerJob 的熔断行为都有可复制命令。
+
+`0.6.x` 不包含：
+
+- 控制台、sidecar、agent、远程动态配置或策略下发。
+- 全局服务治理、跨进程状态同步或跨实例统一熔断窗口。
+- 对 cache / messaging / job 主 API 的侵入式改造。
+- messaging publish 的统一 runtime-backed 熔断。
+- 未经样例和测试验证的 README 支持声明。
 
 ## `1.0.0` 稳定版目标
 

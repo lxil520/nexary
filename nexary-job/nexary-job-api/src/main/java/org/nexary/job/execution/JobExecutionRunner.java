@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.TimeoutDecision;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -28,6 +30,7 @@ public class JobExecutionRunner {
     private final JobExecutionStore executionStore;
     private final NexaryObservationPublisher observationPublisher;
     private final String provider;
+    private final GovernanceExecution governanceExecution;
     private final Map<String, AtomicInteger> running = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> bulkheads = new ConcurrentHashMap<>();
 
@@ -50,11 +53,23 @@ public class JobExecutionRunner {
             JobExecutionStore executionStore,
             NexaryObservationPublisher observationPublisher,
             String provider) {
+        this(listeners, executorService, executionStore, observationPublisher, provider, GovernanceExecution.direct());
+    }
+
+    /** Creates a runner backed by the given execution store, observation publisher, and governance executor. */
+    public JobExecutionRunner(
+            List<JobExecutionListener> listeners,
+            ExecutorService executorService,
+            JobExecutionStore executionStore,
+            NexaryObservationPublisher observationPublisher,
+            String provider,
+            GovernanceExecution governanceExecution) {
         this.listeners = JobCompatibilityCollections.copyList(listeners);
         this.executorService = executorService;
         this.executionStore = executionStore == null ? new InMemoryJobExecutionStore() : executionStore;
         this.observationPublisher = observationPublisher == null ? NexaryObservationPublisher.noop() : observationPublisher;
         this.provider = provider == null || provider.trim().isEmpty() ? "unknown" : provider;
+        this.governanceExecution = governanceExecution == null ? GovernanceExecution.direct() : governanceExecution;
     }
 
     /** Executes a job through timeout, retry, concurrency, listener, and record handling. */
@@ -167,7 +182,9 @@ public class JobExecutionRunner {
             try {
                 GovernanceContext governanceContext = governanceContext(request);
                 lastResult = callWithTimeout(
-                        () -> GovernanceContext.callWithContext(governanceContext, () -> job.execute(request.context())),
+                        () -> (JobResult) governanceExecution.execute(
+                                governanceContext,
+                                () -> job.execute(request.context())),
                         request.policy().timeout());
                 if (lastResult != null && lastResult.status() == JobResult.JobStatus.SUCCESS) {
                     return complete(request, startedAt, attempt, lastResult, null);
@@ -177,6 +194,9 @@ public class JobExecutionRunner {
                 lastResult = error instanceof TimeoutException
                         ? new JobResult(JobResult.JobStatus.FAILED, "job execution timed out")
                         : JobResult.failed(error.getMessage());
+                if (error instanceof GovernanceRejection) {
+                    return complete(request, startedAt, attempt, lastResult, lastError);
+                }
                 if (error instanceof TimeoutException) {
                     JobObservationSupport.publish(
                             observationPublisher,

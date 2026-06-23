@@ -1,6 +1,7 @@
 package org.nexary.boot.governance;
 
 import java.util.Map;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.RequestPriority;
 import org.nexary.core.observation.NexaryObservationPublisher;
@@ -49,6 +50,12 @@ public class GovernanceRuntimeAutoConfiguration {
         return new LocalGovernanceRuntime(policyRegistry, publisher);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public GovernanceExecution nexaryGovernanceExecution(GovernanceRuntime governanceRuntime) {
+        return (context, action) -> governanceRuntime.execute(context, () -> action.call());
+    }
+
     private static GovernanceRuntimeProperties.Policy defaultPolicy(GovernanceRuntimeProperties properties) {
         if (properties.getRuntime().getDefaultPolicy() != null) {
             return properties.getRuntime().getDefaultPolicy();
@@ -59,13 +66,25 @@ public class GovernanceRuntimeAutoConfiguration {
     private static GovernancePolicy toPolicy(GovernanceRuntimeProperties.Policy properties) {
         GovernanceRuntimeProperties.Policy safeProperties =
                 properties == null ? new GovernanceRuntimeProperties.Policy() : properties;
-        return GovernancePolicy.builder()
+        GovernancePolicy.Builder builder = GovernancePolicy.builder()
                 .deadline(safeProperties.getDeadline())
                 .maxRequestsPerWindow(safeProperties.getMaxRequestsPerWindow())
                 .rateLimitWindow(safeProperties.getRateLimitWindow())
                 .maxConcurrency(safeProperties.getMaxConcurrency())
-                .degraded(safeProperties.isDegraded())
-                .build();
+                .degraded(safeProperties.isDegraded());
+        GovernanceRuntimeProperties.CircuitBreaker circuitBreaker = safeProperties.getCircuitBreaker();
+        if (circuitBreaker != null && circuitBreaker.isEnabled()) {
+            builder.minimumRequests(circuitBreaker.getMinimumCalls())
+                    .failureRateThreshold(circuitBreaker.getFailureRateThreshold())
+                    .slowCallThreshold(circuitBreaker.getSlowCallRateThreshold())
+                    .slowCallDuration(circuitBreaker.getSlowCallThreshold())
+                    .openStateDuration(circuitBreaker.getOpenStateDuration())
+                    .halfOpenMaxCalls(circuitBreaker.getHalfOpenProbeCalls())
+                    .slidingWindowSize(circuitBreaker.getSlidingWindowSize())
+                    .slidingWindowDuration(circuitBreaker.getWindow())
+                    .consecutiveFailureThreshold(circuitBreaker.getConsecutiveFailureThreshold());
+        }
+        return builder.build();
     }
 
     private static GovernanceResource toResource(String id, GovernanceRuntimeProperties.ResourcePolicy properties) {

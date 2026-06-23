@@ -2,6 +2,7 @@ package org.nexary.messaging.rocketmq;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.messaging.DefaultStringMessageSerializer;
 import org.nexary.messaging.ConcurrentMapMessageDeduplicationStore;
@@ -46,6 +47,7 @@ public class RocketMqMessagingAutoConfiguration {
             ObjectProvider<MessageInterceptor> interceptors,
             ObjectProvider<MessageDeadLetterPublisher> deadLetterPublisher,
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution,
             RocketMqMessagingProperties properties) {
         return new MessageConsumeExecutor(
                 java.util.Optional.ofNullable(deduplicationStore.getIfAvailable()),
@@ -53,7 +55,9 @@ public class RocketMqMessagingAutoConfiguration {
                 interceptors.orderedStream().collect(Collectors.toCollection(ArrayList::new)),
                 properties.toRetryPolicy(),
                 deadLetterPublisher.getIfAvailable(MessageDeadLetterPublisher::inMemory),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct),
+                "rocketmq");
     }
 
     @Bean

@@ -4,9 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.nexary.governance.runtime.GovernanceCircuitState;
 import org.nexary.governance.runtime.GovernanceRuntime;
+import org.nexary.governance.runtime.GovernanceRejectionReason;
+import org.nexary.samples.governance.common.CircuitProfileResult;
 import org.nexary.samples.governance.api.GovernanceSampleController;
+import org.nexary.samples.governance.service.LocalCircuitBreakerProfileGateway;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -24,6 +29,11 @@ class GovernanceSampleApplicationTest {
 
     @Autowired
     private MeterRegistry meterRegistry;
+
+    @BeforeEach
+    void resetCircuit() {
+        controller.resetCircuit();
+    }
 
     @Test
     void startsWithGovernanceRuntime() {
@@ -50,6 +60,53 @@ class GovernanceSampleApplicationTest {
                         .noneMatch(tag -> tag.getKey().equals("tenant"))
                         .noneMatch(tag -> tag.getKey().equals("biz_key"))
                         .noneMatch(tag -> tag.getKey().equals("user_id")));
+    }
+
+    @Test
+    void demonstratesCircuitOpenFallbackHalfOpenAndRecovery() throws Exception {
+        assertThat(controller.circuitProfile("u-10", "success").getCircuitState())
+                .isEqualTo(GovernanceCircuitState.CLOSED);
+
+        controller.circuitProfile("u-11", "failure");
+        CircuitProfileResult opened = controller.circuitProfile("u-12", "failure");
+
+        assertThat(opened.getCircuitState()).isEqualTo(GovernanceCircuitState.OPEN);
+        assertThat(opened.getOutcome()).isEqualTo("failure_opened");
+
+        CircuitProfileResult rejected = controller.circuitProfile("u-13", "success");
+
+        assertThat(rejected.getSource()).isEqualTo("fallback");
+        assertThat(rejected.getOutcome()).isEqualTo("fallback_open");
+        assertThat(rejected.getLastRejectionReason()).isEqualTo(GovernanceRejectionReason.CIRCUIT_OPEN);
+
+        Thread.sleep(LocalCircuitBreakerProfileGateway.OPEN_STATE_DURATION.plusMillis(50).toMillis());
+        CircuitProfileResult recovered = controller.circuitProfile("u-14", "success");
+
+        assertThat(recovered.getCircuitState()).isEqualTo(GovernanceCircuitState.CLOSED);
+        assertThat(recovered.getOutcome()).isEqualTo("half_open_recovered");
+        assertThat(controller.circuitState().windowCalls()).isZero();
+    }
+
+    @Test
+    void reopensCircuitWhenHalfOpenProbeFails() throws Exception {
+        controller.circuitProfile("u-20", "failure");
+        controller.circuitProfile("u-21", "failure");
+
+        Thread.sleep(LocalCircuitBreakerProfileGateway.OPEN_STATE_DURATION.plusMillis(50).toMillis());
+        CircuitProfileResult reopened = controller.circuitProfile("u-22", "failure");
+
+        assertThat(reopened.getCircuitState()).isEqualTo(GovernanceCircuitState.OPEN);
+        assertThat(reopened.getOutcome()).isEqualTo("half_open_reopened");
+    }
+
+    @Test
+    void opensCircuitAfterRepeatedSlowCalls() throws Exception {
+        controller.circuitProfile("u-30", "slow");
+        CircuitProfileResult opened = controller.circuitProfile("u-31", "slow");
+
+        assertThat(opened.getCircuitState()).isEqualTo(GovernanceCircuitState.OPEN);
+        assertThat(opened.getWindowSlowCalls()).isEqualTo(2);
+        assertThat(opened.getOutcome()).isEqualTo("slow_opened");
     }
 
     @TestConfiguration

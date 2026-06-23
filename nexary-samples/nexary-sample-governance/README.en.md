@@ -1,8 +1,11 @@
 # nexary-sample-governance
 
-This sample shows local protection in a Spring Boot service: policies live in `application.yml`, while the business entry point names the resource, attaches traffic tags and a deadline, then runs business code through `GovernanceRuntime`.
+This sample shows two paths:
 
-The sample also adds `nexary-observation-micrometer-spring-boot-starter` and registers a local `SimpleMeterRegistry`. When rate limit, degradation, or bulkhead events happen, governance events are recorded in `nexary.observation.events.total` and `nexary.observation.events.duration`.
+- How the Spring Boot starter reads `application.yml` for deadlines, rate limits, bulkheads, and explicit degradation.
+- How the v0.6 local circuit flow behaves for one downstream call: normal calls, repeated failures, slow calls, open circuit, fallback, half-open probing, recovery, and reopening.
+
+The sample also adds `nexary-observation-micrometer-spring-boot-starter`. Tests register a local `SimpleMeterRegistry`, so rate-limit, degradation, and bulkhead events are recorded in `nexary.observation.events.total` and `nexary.observation.events.duration`.
 
 ## Run
 
@@ -10,31 +13,124 @@ The sample also adds `nexary-observation-micrometer-spring-boot-starter` and reg
 ./gradlew :nexary-samples:nexary-sample-governance:run
 ```
 
-Available endpoints:
+From another terminal:
 
-- `GET /governance/profiles/{userId}`: uses the `profile-api/get-profile` policy. More than `2/min` goes to fallback.
-- `GET /governance/degraded/{userId}`: uses the `inventory-service/reserve` policy. `degraded=true` goes directly to fallback.
+```bash
+curl http://localhost:8080/governance/profiles/u-1
+curl http://localhost:8080/governance/profiles/u-2
+curl http://localhost:8080/governance/profiles/u-3
+```
+
+The third request exceeds the `profile-api/get-profile` `2/min` policy and returns fallback.
+
+Explicit degradation:
+
+```bash
+curl http://localhost:8080/governance/degraded/u-1
+```
+
+The response `source` is `fallback` because `inventory-service/reserve` has `degraded=true`.
+
+## Circuit Flow
+
+Clear the local sample state first:
+
+```bash
+curl -X POST http://localhost:8080/governance/circuit/reset
+```
+
+Normal call:
+
+```bash
+curl "http://localhost:8080/governance/circuit/profiles/u-1?mode=success"
+```
+
+The response has `circuitState=CLOSED` and `outcome=primary`.
+
+Two failed calls open the circuit:
+
+```bash
+curl "http://localhost:8080/governance/circuit/profiles/u-2?mode=failure"
+curl "http://localhost:8080/governance/circuit/profiles/u-3?mode=failure"
+```
+
+The second response has `circuitState=OPEN` and `outcome=failure_opened`. Call again while open:
+
+```bash
+curl "http://localhost:8080/governance/circuit/profiles/u-4?mode=success"
+```
+
+The main path is not called. The response has `source=fallback`, `outcome=fallback_open`, and `lastRejectionReason=CIRCUIT_OPEN`.
+
+After the half-open window, send a successful probe:
+
+```bash
+sleep 0.2
+curl "http://localhost:8080/governance/circuit/profiles/u-5?mode=success"
+```
+
+The response has `circuitState=CLOSED` and `outcome=half_open_recovered`. If the half-open probe fails, the response has `outcome=half_open_reopened` and the circuit returns to `OPEN`.
+
+Slow calls can open the circuit too:
+
+```bash
+curl -X POST http://localhost:8080/governance/circuit/reset
+curl "http://localhost:8080/governance/circuit/profiles/u-6?mode=slow"
+curl "http://localhost:8080/governance/circuit/profiles/u-7?mode=slow"
+```
+
+The second response has `circuitState=OPEN`, `windowSlowCalls=2`, and `outcome=slow_opened`.
 
 ## Configuration to Copy
+
+The `application.yml` settings are suitable for a Spring Boot 3.3 mainline project:
 
 ```yaml
 nexary:
   governance:
+    runtime:
+      enabled: true
     resources:
       profile-api:
         kind: http
         name: profile-api
+        provider: nexary
         operation: get-profile
         deadline: 300ms
         max-requests-per-window: 2
         rate-limit-window: 1m
         max-concurrency: 1
+      inventory-reserve:
+        kind: downstream
+        name: inventory-service
+        provider: nexary
+        operation: reserve
+        degraded: true
+      profile-service:
+        kind: downstream
+        name: profile-service
+        provider: nexary
+        operation: load-profile
+        circuit-breaker:
+          enabled: true
+          window: 5s
+          minimum-calls: 2
+          failure-rate-threshold: 100
+          slow-call-threshold: 100ms
+          slow-call-rate-threshold: 100
+          half-open-probe-calls: 1
+          open-state-duration: 150ms
+          sliding-window-size: 8
+          consecutive-failure-threshold: 2
 ```
+
+The circuit flow is demonstrated by `LocalCircuitBreakerProfileGateway` through the local `GovernanceRuntime`. It creates the same policy in code, and `reset` only clears sample state so the curl commands can be repeated. The YAML above is what starter-based applications should copy.
 
 ## Code to Copy
 
-- `GovernanceSampleConfiguration`: stable resource names, not policies.
-- `GovernanceSampleController`: how a business entry point creates `GovernanceContext` and calls `GovernanceRuntime`.
-- `ProfileQueryService`: keeps main logic and fallback logic separate without depending on a third-party governance framework.
+- `GovernanceSampleConfiguration`: stable resource names, never user ids, order ids, cache keys, or message ids.
+- `GovernanceSampleController`: how a business entry point creates `GovernanceContext`, and how the circuit demo endpoints are exposed.
+- `LocalCircuitBreakerProfileGateway`: uses the local governance runtime to demonstrate `CLOSED`, `OPEN`, and `HALF_OPEN`.
+- `ProfileQueryService`: main logic, slow call, failed call, and fallback are kept separate.
 
-Keep resource names stable, such as `profile-api/get-profile`. Do not put user ids, order ids, cache keys, or message ids into resource names or governance tags. Micrometer meters keep only bounded tags such as `resource_kind`, `governance_action`, `traffic_channel`, `traffic_priority`, and `outcome`.
+Keep resource names stable, such as `profile-api/get-profile`. Micrometer meters keep only bounded tags such as `resource_kind`, `governance_action`, `traffic_channel`, `traffic_priority`, and `outcome`.

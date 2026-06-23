@@ -7,12 +7,16 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.job.JobContext;
@@ -71,6 +75,32 @@ class JobExecutionRunnerTest {
                 .filteredOn(event -> event.operation().equals(JobObservationSupport.OPERATION_TIMEOUT))
                 .allSatisfy(event -> assertThat(event.tags().get("failure_category")).isEqualTo("timeout"));
         assertBoundedTags(publisher.events);
+    }
+
+    @Test
+    void slowJobCallCanOpenCircuitThroughGovernanceExecution() {
+        CircuitOpeningGovernanceExecution governanceExecution =
+                new CircuitOpeningGovernanceExecution(Duration.ofMillis(1));
+        JobExecutionRunner runner = runner(new RecordingObservationPublisher(), governanceExecution);
+        AtomicInteger calls = new AtomicInteger();
+        NexaryJob job = job(context -> {
+            calls.incrementAndGet();
+            Thread.sleep(20);
+            return JobResult.success();
+        });
+
+        JobExecutionPolicy retryingPolicy = JobExecutionPolicy.defaults()
+                .withRetryAttempts(3)
+                .withRetryBackoff(Duration.ZERO);
+
+        JobExecutionRecord first = runner.execute(job, request(retryingPolicy));
+        JobExecutionRecord second = runner.execute(job, request(retryingPolicy));
+
+        assertThat(first.status()).isEqualTo(JobExecutionStatus.SUCCESS);
+        assertThat(second.status()).isEqualTo(JobExecutionStatus.FAILED);
+        assertThat(second.attempts()).isEqualTo(1);
+        assertThat(calls).hasValue(1);
+        assertThat(governanceExecution.executions).isEqualTo(1);
     }
 
     @Test
@@ -193,12 +223,25 @@ class JobExecutionRunnerTest {
         return runner(publisher, Collections.emptyList());
     }
 
+    private JobExecutionRunner runner(
+            RecordingObservationPublisher publisher,
+            GovernanceExecution governanceExecution) {
+        return runner(publisher, Collections.emptyList(), governanceExecution);
+    }
+
     private JobExecutionRunner runner(RecordingObservationPublisher publisher, List<JobExecutionListener> listeners) {
+        return runner(publisher, listeners, GovernanceExecution.direct());
+    }
+
+    private JobExecutionRunner runner(
+            RecordingObservationPublisher publisher,
+            List<JobExecutionListener> listeners,
+            GovernanceExecution governanceExecution) {
         return new JobExecutionRunner(listeners, Executors.newCachedThreadPool(runnable -> {
             Thread thread = new Thread(runnable);
             thread.setDaemon(true);
             return thread;
-        }), new InMemoryJobExecutionStore(Duration.ofDays(1), publisher), publisher, "local");
+        }), new InMemoryJobExecutionStore(Duration.ofDays(1), publisher), publisher, "local", governanceExecution);
     }
 
     private JobExecutionRequest request(JobExecutionPolicy policy) {
@@ -268,6 +311,42 @@ class JobExecutionRunnerTest {
 
         private List<String> operations() {
             return events.stream().map(NexaryObservationEvent::operation).collect(java.util.stream.Collectors.toList());
+        }
+    }
+
+    private static final class CircuitOpeningGovernanceExecution implements GovernanceExecution {
+        private final Duration slowThreshold;
+        private boolean open;
+        private int executions;
+
+        private CircuitOpeningGovernanceExecution(Duration slowThreshold) {
+            this.slowThreshold = slowThreshold;
+        }
+
+        @Override
+        public Object execute(GovernanceContext context, Callable<?> action) throws Exception {
+            if (open) {
+                throw new CircuitOpenException();
+            }
+            executions++;
+            long started = System.nanoTime();
+            try {
+                return GovernanceContext.callWithContext(context, action);
+            } catch (Exception ex) {
+                open = true;
+                throw ex;
+            } finally {
+                if (Duration.ofNanos(System.nanoTime() - started).compareTo(slowThreshold) > 0) {
+                    open = true;
+                }
+            }
+        }
+    }
+
+    private static final class CircuitOpenException extends RuntimeException implements GovernanceRejection {
+        @Override
+        public String governanceRejectionReason() {
+            return "circuit_open";
         }
     }
 

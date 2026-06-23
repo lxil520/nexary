@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.messaging.ConcurrentMapMessageDeduplicationStore;
 import org.nexary.messaging.MessageDeadLetterPublisher;
@@ -35,6 +36,7 @@ public class DisruptorMessagingAutoConfiguration {
             ObjectProvider<MessageInterceptor> interceptors,
             ObjectProvider<MessageDeadLetterPublisher> deadLetterPublisher,
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution,
             DisruptorMessagingProperties properties) {
         return new MessageConsumeExecutor(
                 Optional.ofNullable(deduplicationStore.getIfAvailable()),
@@ -42,7 +44,9 @@ public class DisruptorMessagingAutoConfiguration {
                 interceptors.stream().collect(Collectors.toCollection(ArrayList::new)),
                 properties.toRetryPolicy(),
                 deadLetterPublisher.getIfAvailable(MessageDeadLetterPublisher::inMemory),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct),
+                "disruptor");
     }
 
     @Bean

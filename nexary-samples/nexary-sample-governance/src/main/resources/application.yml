@@ -26,6 +26,22 @@ nexary:
         provider: nexary
         operation: reserve
         degraded: true
+      profile-service:
+        kind: downstream
+        name: profile-service
+        provider: nexary
+        operation: load-profile
+        circuit-breaker:
+          enabled: true
+          window: 5s
+          minimum-calls: 2
+          failure-rate-threshold: 100
+          slow-call-threshold: 100ms
+          slow-call-rate-threshold: 100
+          half-open-probe-calls: 1
+          open-state-duration: 150ms
+          sliding-window-size: 8
+          consecutive-failure-threshold: 2
   observation:
     micrometer:
       enabled: true

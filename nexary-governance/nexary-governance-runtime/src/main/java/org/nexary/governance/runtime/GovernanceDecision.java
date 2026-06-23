@@ -72,6 +72,7 @@ public final class GovernanceDecision {
         DEADLINE_EXPIRED,
         RATE_LIMITED,
         CONCURRENCY_LIMITED,
+        CIRCUIT_OPEN,
         DEGRADED,
         REJECTED
     }

@@ -11,7 +11,7 @@ Cache is one of Nexary's clearest standalone capabilities.
 
 ## Version Selection
 
-Current development version: `0.5.1`. After publication, replace `${nexary.version}` with the latest release / tag version.
+Current development version: `0.6.0`. After publication, replace `${nexary.version}` with the latest release / tag version.
 
 | Spring Boot | JDK | Cache Status | Starter artifactId | SPI/provider Dependencies |
 | --- | --- | --- | --- | --- |
@@ -19,7 +19,7 @@ Current development version: `0.5.1`. After publication, replace `${nexary.versi
 | Spring Boot 2.7.x | Java 8+ | Redis single-tier is verified; tiered local cache is not included | `nexary-cache-spring-boot2-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot2` |
 | Spring Boot 4.1.x | Java 21 primary validation runtime | Cache Redis provider/starter verified; not whole-repository Boot4 support | `nexary-cache-spring-boot4-starter` | `nexary-cache-api` + `nexary-cache-redis-spring-boot4` |
 
-`nexary-cache-spring-boot-starter` represents the verified Spring Boot 3.3 / Java 17+ mainline. `nexary-cache-spring-boot2-starter` represents the verified Spring Boot 2.7 / Java 8+ Redis single-tier entry. `nexary-cache-spring-boot4-starter` represents the verified Cache Redis provider/starter entry for Spring Boot 4.1 with Java 21 as Nexary's primary validation runtime; this is a Nexary validation runtime statement, not a Spring official JDK-floor statement, and it does not imply Boot4 support for messaging, job, or the whole repository.
+`nexary-cache-spring-boot-starter` represents the verified Spring Boot 3.3 / Java 17+ mainline. `nexary-cache-spring-boot2-starter` represents the verified Spring Boot 2.7 / Java 8+ Redis single-tier entry. `nexary-cache-spring-boot4-starter` represents the verified Cache Redis provider/starter entry for Spring Boot 4.1 with Java 21 as Nexary's primary validation runtime; this is a Nexary validation runtime statement, not a Spring official JDK-floor statement; it does not imply Boot4 support for every module in the repository.
 
 Valkey is a v0.3 Redis-protocol deployment target. Business code still uses `CacheClient`, `CacheCounterClient`, `CacheKey`, and `CacheCounterKey`; the Spring Boot 3.3 / Java17+ line switches by setting `nexary.cache.provider=valkey` and pointing the Redis-protocol connection at Valkey. A support claim must be backed by the Valkey container integration gate.
 
@@ -32,7 +32,7 @@ Starter mode is for Spring Boot services that want the cache capability aggregat
 Spring Boot 3.3.x / Java 17+:
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -44,7 +44,7 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.5.1"
+    implementation "com.aweimao:nexary-cache-spring-boot2-starter:0.6.0"
 }
 ```
 
@@ -52,7 +52,7 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.5.1"
+    implementation "com.aweimao:nexary-cache-spring-boot4-starter:0.6.0"
 }
 ```
 
@@ -89,7 +89,7 @@ SPI/provider mode is for services that want explicit provider dependency control
 Spring Boot 3.3.x / Java 17+:
 
 ```groovy
-def nexaryVersion = "0.5.1"
+def nexaryVersion = "0.6.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -105,8 +105,8 @@ Spring Boot 2.7.x / Java 8+ Redis single-tier:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.5.1"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.5.1"
+    implementation "com.aweimao:nexary-cache-api:0.6.0"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot2:0.6.0"
 }
 ```
 
@@ -114,8 +114,8 @@ Spring Boot 4.1.x / Java 21 primary validation runtime:
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-cache-api:0.5.1"
-    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.5.1"
+    implementation "com.aweimao:nexary-cache-api:0.6.0"
+    runtimeOnly "com.aweimao:nexary-cache-redis-spring-boot4:0.6.0"
 }
 ```
 

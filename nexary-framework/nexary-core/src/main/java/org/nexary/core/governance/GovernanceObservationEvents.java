@@ -85,6 +85,22 @@ public final class GovernanceObservationEvents {
                 new FaultSignal(FaultSignal.FaultType.REJECTED, provider(resource), "", endedAt, true), tags);
     }
 
+    /** Creates an event for a circuit breaker rejection. */
+    public static NexaryObservationEvent circuitOpen(
+            GovernanceResource resource,
+            TrafficTag trafficTag,
+            String reason,
+            Instant startedAt,
+            Instant endedAt) {
+        String safeReason = reason == null || reason.trim().isEmpty() ? "circuit_open" : reason.trim();
+        Map<String, String> tags = baseTags(resource, trafficTag);
+        tags.put("governance_action", safeReason);
+        tags.put("outcome", "rejected");
+        tags.put("failure_category", "circuit_open");
+        return event("governance.circuit.open", startedAt, endedAt, trafficTag,
+                new FaultSignal(FaultSignal.FaultType.REJECTED, provider(resource), "", endedAt, true), tags);
+    }
+
     private static NexaryObservationEvent event(
             String operation,
             Instant startedAt,

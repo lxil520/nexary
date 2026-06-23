@@ -3,6 +3,7 @@ package org.nexary.messaging.redis;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.messaging.DefaultStringMessageSerializer;
 import org.nexary.messaging.MessageConsumeExecutor;
@@ -47,6 +48,7 @@ public class RedisMessagingAutoConfiguration {
             ObjectProvider<MessageInterceptor> interceptors,
             ObjectProvider<MessageDeadLetterPublisher> deadLetterPublisher,
             ObjectProvider<NexaryObservationPublisher> observationPublisher,
+            ObjectProvider<GovernanceExecution> governanceExecution,
             RedisMessagingProperties properties) {
         return new MessageConsumeExecutor(
                 Optional.ofNullable(deduplicationStore.getIfAvailable()),
@@ -54,7 +56,9 @@ public class RedisMessagingAutoConfiguration {
                 interceptors.orderedStream().collect(Collectors.toCollection(ArrayList::new)),
                 properties.toRetryPolicy(),
                 deadLetterPublisher.getIfAvailable(MessageDeadLetterPublisher::inMemory),
-                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop));
+                observationPublisher.getIfAvailable(NexaryObservationPublisher::noop),
+                governanceExecution.getIfAvailable(GovernanceExecution::direct),
+                "redis");
     }
 
     @Bean
