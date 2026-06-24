@@ -1,0 +1,101 @@
+package org.nexary.console.api;
+
+/**
+ * Aggregate read-only summary shown by the Nexary console.
+ */
+public final class ConsoleSummaryResponse {
+    private final int resourceCount;
+    private final int snapshotCount;
+    private final int eventCount;
+    private final long successCount;
+    private final long failureCount;
+    private final long rejectedCount;
+    private final long fallbackCount;
+    private final long openCircuitCount;
+    private final long halfOpenCircuitCount;
+    private final long degradedResourceCount;
+    private final String lastEventAt;
+
+    /**
+     * Creates a summary response from bounded aggregate counters.
+     */
+    public ConsoleSummaryResponse(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long fallbackCount,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            String lastEventAt) {
+        this.resourceCount = resourceCount;
+        this.snapshotCount = snapshotCount;
+        this.eventCount = eventCount;
+        this.successCount = successCount;
+        this.failureCount = failureCount;
+        this.rejectedCount = rejectedCount;
+        this.fallbackCount = fallbackCount;
+        this.openCircuitCount = openCircuitCount;
+        this.halfOpenCircuitCount = halfOpenCircuitCount;
+        this.degradedResourceCount = degradedResourceCount;
+        this.lastEventAt = lastEventAt;
+    }
+
+    /** Returns the number of known resource descriptors. */
+    public int getResourceCount() {
+        return resourceCount;
+    }
+
+    /** Returns the number of runtime snapshots. */
+    public int getSnapshotCount() {
+        return snapshotCount;
+    }
+
+    /** Returns the number of retained recent events. */
+    public int getEventCount() {
+        return eventCount;
+    }
+
+    /** Returns the retained recent-event success count. */
+    public long getSuccessCount() {
+        return successCount;
+    }
+
+    /** Returns the retained recent-event failure count. */
+    public long getFailureCount() {
+        return failureCount;
+    }
+
+    /** Returns the retained recent-event rejected count. */
+    public long getRejectedCount() {
+        return rejectedCount;
+    }
+
+    /** Returns the retained recent-event fallback count. */
+    public long getFallbackCount() {
+        return fallbackCount;
+    }
+
+    /** Returns the number of snapshots with an open circuit. */
+    public long getOpenCircuitCount() {
+        return openCircuitCount;
+    }
+
+    /** Returns the number of snapshots with a half-open circuit. */
+    public long getHalfOpenCircuitCount() {
+        return halfOpenCircuitCount;
+    }
+
+    /** Returns the number of snapshots currently using a degraded policy. */
+    public long getDegradedResourceCount() {
+        return degradedResourceCount;
+    }
+
+    /** Returns when the latest retained event was recorded, if available. */
+    public String getLastEventAt() {
+        return lastEventAt;
+    }
+}

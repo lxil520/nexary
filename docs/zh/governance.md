@@ -1,8 +1,8 @@
 # 治理
 
-治理用来给本地 Java 调用加保护：deadline 到了就别再启动新动作，请求太密就拒绝，同一个资源并发过高就让后面的调用走 fallback，需要临时停用某个下游时也不改业务代码。v0.8 继续把这条路径收紧成一个本地治理数据平面：业务入口把调用交给 `GovernanceRuntime`，运行时在当前 JVM 内完成 deadline、限流、并发隔离、显式降级和熔断判断，并提供低数量诊断快照。
+治理用来给本地 Java 调用加保护：deadline 到了就别再启动新动作，请求太密就拒绝，同一个资源并发过高就让后面的调用走 fallback，需要临时停用某个下游时也不改业务代码。v0.9 在本地治理数据面上加了只读页面：业务入口把调用交给 `GovernanceRuntime`，运行时在当前 JVM 内完成 deadline、限流、并发隔离、显式降级和熔断判断，并提供低数量诊断快照和页面查看入口。
 
-它的边界很明确：这是 SDK 级本地治理，不是 UI、远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
+它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
 ## 引入依赖
 
@@ -11,6 +11,7 @@ Spring Boot 3.3 主线使用：
 ```groovy
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation "com.aweimao:nexary-governance-spring-boot-starter"
+implementation "com.aweimao:nexary-console-spring-boot-starter"
 implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
 ```
 
@@ -31,6 +32,8 @@ nexary:
       enabled: true
     diagnostics:
       enabled: true
+  console:
+    enabled: true
     default-policy:
       max-requests-per-window: 100
       rate-limit-window: 1s
@@ -231,6 +234,16 @@ curl -s http://localhost:8080/nexary/governance/events
 
 这些字段是诊断用的低基数字段，不包含 userId、订单号、messageId、cache key、payload、异常全文或堆栈。端点只读；starter 默认不打开这些 HTTP 路径。
 
+## 打开只读 Console
+
+如果应用同时引入 `nexary-console-spring-boot-starter`，并设置 `nexary.console.enabled=true`，可以访问：
+
+```bash
+open http://localhost:8080/nexary/console
+```
+
+Console 读取 `/nexary/console/api` 下的只读接口。它展示当前 JVM 的 summary、resources、resource detail、events 和只读设置提示。它不会写策略，不会下发配置，也不会汇总多个实例。
+
 ## Messaging publish 策略
 
 如果服务已经接入 messaging starter，可以给 publish 资源加本地策略：
@@ -286,10 +299,10 @@ nexary:
 - deadline 是启动前检查和上下文传播，不会强行杀掉已经进入业务方法的普通 Java 代码。
 - 熔断窗口是当前 JVM 内的本地状态；多实例之间不会共享失败计数、慢调用计数或半开探测结果。
 - Cache 的治理包裹只声明在 Spring Boot 3 Redis 主线；Boot2 / Boot4 的 cache 入口要按对应样例和测试结果再扩大说明。
-- v0.8 不包含 UI、远程控制台、sidecar、agent、远程动态配置或跨实例状态同步。
+- v0.9 只包含本地只读页面，不包含远程控制台、sidecar、agent、远程动态配置或跨实例状态同步。
 - Messaging 的 deadline header 只对新发送的消息有效；历史积压消息没有这个 header。
 - Job 的 `execution-timeout` 仍负责执行中的超时控制；`start-deadline` 只判断这次触发是否还值得启动。
-- 这里没有控制台、sidecar、agent、远程动态配置或自动下发策略。
+- 这里没有远程控制台、sidecar、agent、远程动态配置或自动下发策略。
 
 ## 验证
 

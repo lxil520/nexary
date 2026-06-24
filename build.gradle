@@ -16,6 +16,8 @@ ext {
             ':nexary-framework:nexary-core',
             ':nexary-framework:nexary-spi',
             ':nexary-governance:nexary-governance-runtime',
+            ':nexary-console:nexary-console-api',
+            ':nexary-console:nexary-console-server',
             ':nexary-cache:nexary-cache-api',
             ':nexary-cache:nexary-cache-tiered-internal',
             ':nexary-cache:nexary-cache-redis',
@@ -55,6 +57,7 @@ ext {
             ':nexary-boot:nexary-job-spring-boot2-starter',
             ':nexary-boot:nexary-job-spring-boot4-starter',
             ':nexary-boot:nexary-governance-spring-boot-starter',
+            ':nexary-boot:nexary-console-spring-boot-starter',
             ':nexary-boot:nexary-observation-micrometer-spring-boot-starter'
     ] as Set
     projectWebsite = findProperty('projectWebsite') ?: 'https://github.com/lxil520/nexary'
@@ -66,7 +69,7 @@ ext {
 
 allprojects {
     group = 'com.aweimao'
-    version = findProperty('nexaryVersion') ?: '0.8.0'
+    version = findProperty('nexaryVersion') ?: '0.9.0'
 }
 
 configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists() }) {
@@ -290,6 +293,7 @@ tasks.register('compatibilityAudit') {
     doLast {
         def sourceRoots = [
                 'nexary-framework',
+                'nexary-console',
                 'nexary-cache',
                 'nexary-messaging',
                 'nexary-job',

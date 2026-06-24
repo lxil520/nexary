@@ -9,6 +9,8 @@
 - [Messaging Guide](messaging.md)
 - [Job Guide](job.md)
 - [Governance Guide](governance.md)
+- [Read-Only Governance Diagnostic Console PRD](console-prd.md)
+- [Read-Only Governance Diagnostic Console Design](console-design.md)
 - [Observation and Micrometer](observation.md)
 - [Local Validation Guide](verification.md)
 - [Troubleshooting](troubleshooting.md)

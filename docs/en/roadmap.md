@@ -316,6 +316,24 @@ Included scope:
 - cross-instance windows, centralized state storage, or automatic provider switching.
 - Boot2 / Boot4 / provider support claims that have not passed real samples and middleware tests.
 
+## `0.9.x` Read-Only Governance Diagnostic Console
+
+`0.9.x` adds a page on top of the v0.8 local governance data plane. After starting a Spring Boot application, users open `/nexary/console` to inspect summary, resources, resource detail, events, and read-only settings for the current JVM. The page is read-only and is meant for local debugging.
+
+Included scope:
+
+- Console API: `GET /nexary/console/api/summary`, `/resources`, `/resources/{id}`, and `/events`.
+- Console pages: Overview, Resources, Resource Detail, Events, and Settings Readonly.
+- Starter: `nexary-console-spring-boot-starter` registers the page and API only after `nexary.console.enabled=true`.
+- Packaging: `nexary-console-server` packages the Vue build output under `static/nexary/console` in the jar.
+- Sample: `nexary-sample-governance` includes the Console starter, so `/nexary/console` works after the sample starts.
+
+`0.9.x` does not include:
+
+- policy writes, config push, remote control, login, permissions, audit backends, or multi-instance aggregation.
+- userId, tenant, bizKey, messageId, cache key, payload, full exception messages, or stack traces.
+- separately deployed frontend services, sidecars, agents, or cross-service management pages.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

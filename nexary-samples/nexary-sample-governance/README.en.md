@@ -5,10 +5,11 @@ This sample shows three paths:
 - How the Spring Boot starter reads `application.yml` for deadlines, rate limits, bulkheads, and explicit degradation.
 - How the local governance data plane connects `GovernanceContext`, `GovernanceRuntime`, fallback, and bounded diagnostic snapshots.
 - How the local circuit flow behaves for one downstream call: normal calls, repeated failures, slow calls, open circuit, fallback, half-open probing, recovery, and reopening.
+- How the read-only governance diagnostic Console reads current-JVM resources, windows, circuit state, and recent events.
 
 The sample also adds `nexary-observation-micrometer-spring-boot-starter`. Tests register a local `SimpleMeterRegistry`, so rate-limit, degradation, and bulkhead events are recorded in `nexary.observation.events.total` and `nexary.observation.events.duration`.
 
-This sample is not a UI, remote console, sidecar, agent, or multi-instance governance service. All windows, counters, and diagnostic fields come from the current JVM.
+This sample includes a local read-only page, but it is not a remote console, sidecar, agent, or multi-instance governance service. All windows, counters, and diagnostic fields come from the current JVM.
 
 ## Run
 
@@ -42,6 +43,12 @@ The sample enables `nexary.governance.diagnostics.enabled=true`. Inspect local s
 curl -s http://localhost:8080/nexary/governance/summary
 curl -s http://localhost:8080/nexary/governance/resources
 curl -s http://localhost:8080/nexary/governance/events
+```
+
+You can also open the read-only page:
+
+```bash
+open http://localhost:8080/nexary/console
 ```
 
 To see circuit and rejection fields, open the circuit first and then inspect diagnostics:
@@ -181,6 +188,6 @@ Keep resource names stable, such as `profile-api/get-profile`. Micrometer meters
 
 ## What This Does Not Include
 
-- No UI, remote console, sidecar, or agent.
+- No remote console, sidecar, or agent.
 - No remote policy push.
 - No cross-instance sync for circuit, rate-limit, bulkhead, or diagnostic state.

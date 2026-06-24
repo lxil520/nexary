@@ -9,6 +9,8 @@
 - [Messaging 指南](messaging.md)
 - [Job 指南](job.md)
 - [Governance 指南](governance.md)
+- [只读治理诊断 Console PRD](console-prd.md)
+- [只读治理诊断 Console 设计](console-design.md)
 - [Observation 与 Micrometer](observation.md)
 - [本地验证指南](verification.md)
 - [常见问题](troubleshooting.md)

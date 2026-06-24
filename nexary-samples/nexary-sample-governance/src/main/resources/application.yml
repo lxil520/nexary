@@ -49,3 +49,5 @@ nexary:
       enabled: true
       counter-name: nexary.observation.events.total
       timer-name: nexary.observation.events.duration
+  console:
+    enabled: true

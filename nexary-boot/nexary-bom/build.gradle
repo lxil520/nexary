@@ -13,6 +13,8 @@ dependencies {
         api project(':nexary-framework:nexary-core')
         api project(':nexary-framework:nexary-spi')
         api project(':nexary-governance:nexary-governance-runtime')
+        api project(':nexary-console:nexary-console-api')
+        api project(':nexary-console:nexary-console-server')
         api project(':nexary-cache:nexary-cache-api')
         api project(':nexary-cache:nexary-cache-redis')
         api project(':nexary-cache:nexary-cache-redis-spring-boot2')
@@ -44,6 +46,7 @@ dependencies {
         api project(':nexary-boot:nexary-job-spring-boot2-starter')
         api project(':nexary-boot:nexary-job-spring-boot4-starter')
         api project(':nexary-boot:nexary-governance-spring-boot-starter')
+        api project(':nexary-boot:nexary-console-spring-boot-starter')
         api project(':nexary-boot:nexary-observation-micrometer-spring-boot-starter')
     }
 }

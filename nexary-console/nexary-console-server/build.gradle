@@ -1,0 +1,52 @@
+dependencies {
+    api project(':nexary-console:nexary-console-api')
+    implementation project(':nexary-governance:nexary-governance-runtime')
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+def consoleUiDir = rootProject.layout.projectDirectory.dir('nexary-console/nexary-console-ui')
+def consoleUiDistDir = consoleUiDir.dir('dist')
+def npmCommand = System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('windows') ? 'npm.cmd' : 'npm'
+
+tasks.register('installConsoleUi', Exec) {
+    workingDir consoleUiDir.asFile
+    commandLine npmCommand, 'ci'
+    inputs.file consoleUiDir.file('package-lock.json')
+    outputs.dir consoleUiDir.dir('node_modules')
+}
+
+tasks.register('buildConsoleUi', Exec) {
+    dependsOn tasks.named('installConsoleUi')
+    workingDir consoleUiDir.asFile
+    commandLine npmCommand, 'run', 'build'
+    inputs.files(
+            fileTree(consoleUiDir) {
+                include 'index.html'
+                include 'package.json'
+                include 'package-lock.json'
+                include 'tsconfig.json'
+                include 'tsconfig.node.json'
+                include 'vite.config.ts'
+                include 'src/**'
+            }
+    )
+    outputs.dir consoleUiDistDir
+}
+
+tasks.named('processResources') {
+    dependsOn tasks.named('buildConsoleUi')
+    from(consoleUiDistDir) {
+        into 'static/nexary/console'
+    }
+}
+
+tasks.register('cleanConsoleUi', Delete) {
+    delete consoleUiDistDir
+}
+
+tasks.named('clean') {
+    dependsOn tasks.named('cleanConsoleUi')
+}

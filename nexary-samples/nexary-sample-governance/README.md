@@ -5,10 +5,11 @@
 - Spring Boot starter 如何用 `application.yml` 配置 deadline、限流、并发隔离和手动降级。
 - 本地治理数据平面如何把 `GovernanceContext`、`GovernanceRuntime`、fallback 和低数量诊断快照串起来。
 - 本地熔断流程如何在一个下游调用上跑起来：正常调用、多次失败、慢调用、熔断打开、fallback、半开探测、恢复或重开。
+- 只读治理诊断 Console 如何读取当前 JVM 的治理资源、窗口、熔断状态和最近事件。
 
 样例引入 `nexary-observation-micrometer-spring-boot-starter`，并在测试里注册 `SimpleMeterRegistry`。触发限流、降级或并发隔离时，治理事件会写入 `nexary.observation.events.total` 和 `nexary.observation.events.duration`。
 
-这个样例不是 UI、远程控制台、sidecar、agent 或多实例治理服务。所有窗口、计数和诊断字段都来自当前 JVM。
+这个样例带一个本地只读页面，但不是远程控制台、sidecar、agent 或多实例治理服务。所有窗口、计数和诊断字段都来自当前 JVM。
 
 ## 运行
 
@@ -42,6 +43,12 @@ curl http://localhost:8080/governance/degraded/u-1
 curl -s http://localhost:8080/nexary/governance/summary
 curl -s http://localhost:8080/nexary/governance/resources
 curl -s http://localhost:8080/nexary/governance/events
+```
+
+也可以打开只读页面：
+
+```bash
+open http://localhost:8080/nexary/console
 ```
 
 为了看到熔断和拒绝字段，可以先打开熔断再查询：
@@ -181,6 +188,6 @@ nexary:
 
 ## 不包含什么
 
-- 不提供 UI、远程控制台、sidecar 或 agent。
+- 不提供远程控制台、sidecar 或 agent。
 - 不做远程策略下发。
 - 不同步多实例之间的熔断、限流、并发隔离或诊断状态。

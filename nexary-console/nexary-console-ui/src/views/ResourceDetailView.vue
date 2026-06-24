@@ -1,0 +1,88 @@
+<script setup lang="ts">
+import { computed, onMounted, watch } from 'vue';
+import EmptyState from '../components/EmptyState.vue';
+import ErrorState from '../components/ErrorState.vue';
+import EventTable from '../components/EventTable.vue';
+import LoadingBlock from '../components/LoadingBlock.vue';
+import PolicySummary from '../components/PolicySummary.vue';
+import RuntimeWindowStats from '../components/RuntimeWindowStats.vue';
+import StatusBadge from '../components/StatusBadge.vue';
+import { useConsoleData } from '../composables/useConsoleData';
+
+const props = defineProps<{
+  resourceKey: string;
+}>();
+
+const { events, isLoading, errorMessage, hasLoaded, refreshAll, loadResource, resourceByKey } = useConsoleData();
+const resource = computed(() => resourceByKey(props.resourceKey));
+const relatedEvents = computed(() => events.value.filter((event) => event.resourceKey === props.resourceKey).slice(0, 10));
+
+async function ensureResourceLoaded(): Promise<void> {
+  if (!hasLoaded.value) {
+    await refreshAll();
+  }
+  if (!resource.value && props.resourceKey) {
+    await loadResource(props.resourceKey);
+  }
+}
+
+onMounted(() => {
+  void ensureResourceLoaded();
+});
+
+watch(
+  () => props.resourceKey,
+  () => {
+    void ensureResourceLoaded();
+  },
+);
+</script>
+
+<template>
+  <LoadingBlock v-if="isLoading && !resource" label="Loading resource detail" />
+  <ErrorState
+    v-else-if="errorMessage"
+    title="Resource detail failed to load"
+    :message="errorMessage"
+    @retry="ensureResourceLoaded"
+  />
+  <EmptyState
+    v-else-if="!resource"
+    title="Resource not found"
+    message="Open a resource from the Resources table or refresh diagnostics after generating runtime activity."
+  />
+  <div v-else class="view-stack">
+    <section class="detail-header">
+      <div>
+        <p class="eyebrow">{{ resource.kind }} / {{ resource.provider }}</p>
+        <h1>{{ resource.name }}</h1>
+        <p class="resource-key">{{ resource.resourceKey }}</p>
+      </div>
+      <div class="detail-header__badges">
+        <StatusBadge :label="resource.priority" :state="resource.priority" />
+        <StatusBadge
+          :label="resource.runtimeSnapshot?.circuitState ?? 'NO_STATE'"
+          :state="resource.runtimeSnapshot?.circuitState ?? 'NO_STATE'"
+        />
+      </div>
+    </section>
+
+    <section class="split-grid split-grid--balanced">
+      <RuntimeWindowStats :runtime="resource.runtimeSnapshot" />
+      <PolicySummary :policy="resource.policySnapshot" />
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2>Recent Events For Resource</h2>
+        <span>{{ relatedEvents.length }} shown</span>
+      </div>
+      <EmptyState
+        v-if="relatedEvents.length === 0"
+        title="No retained events for this resource"
+        message="Trigger this governed operation to populate the resource event list."
+      />
+      <EventTable v-else :events="relatedEvents" />
+    </section>
+  </div>
+</template>

@@ -15,9 +15,9 @@ Chinese documentation: [README.md](README.md)
 
 Nexary adds a thin Java API between business code and middleware SDKs. Services call stable entries such as `CacheClient`, `MessagePublisher`, and `NexaryJob`; Redis, Valkey, Kafka, RocketMQ, ActiveMQ Classic, XXL-JOB, and PowerJob wiring stays in framework modules. When infrastructure needs to be upgraded, replaced, or worked around, most changes stay in dependencies and configuration instead of spreading through business code.
 
-The current `0.8.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and covers cache, messaging, jobs, observation bridging, and the local governance runtime. The governance sample shows resources, policy snapshots, runtime snapshots, recent events, slow-call records, open circuit, half-open probes, and recovery. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
+The current `0.9.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and covers cache, messaging, jobs, observation bridging, the local governance runtime, and a read-only governance diagnostic Console. The governance sample shows resources, policy snapshots, runtime snapshots, recent events, slow-call records, open circuit, half-open probes, and recovery. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
 
-The `0.8.x` line makes the local governance data plane directly inspectable. You can start `nexary-sample-governance`, trigger success, failure, rate-limit, bulkhead, and circuit paths with curl, then inspect low-cardinality fields through `/nexary/governance/summary`, `/nexary/governance/resources`, and `/nexary/governance/events`. It is not a console, sidecar, agent, or remote configuration platform.
+The `0.9.x` line adds a read-only page on top of the local governance data plane. You can start `nexary-sample-governance`, trigger success, failure, rate-limit, bulkhead, and circuit paths with curl, then open `/nexary/console` to inspect resources, policies, windows, circuit state, rejection reasons, and recent events for the current JVM. It does not write policies, push configuration, or aggregate multiple instances.
 
 ## When to Use It
 
@@ -59,7 +59,7 @@ The currently verified mainline is:
 
 This boundary comes from Spring Boot 3's own Java 17+ requirement, not from Nexary's initial development JDK.
 
-To reach more users, Nexary includes Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 in the `0.8.x` validation target. README snippets are only added after samples and tests pass for that combination. Java 21 is Nexary's primary validation runtime for the Boot4 line; it is not a statement about Spring Boot 4's official minimum JDK. Spring documentation remains the source for that.
+To reach more users, Nexary includes Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 in the `0.9.x` validation target. README snippets are only added after samples and tests pass for that combination. Java 21 is Nexary's primary validation runtime for the Boot4 line; it is not a statement about Spring Boot 4's official minimum JDK. Spring documentation remains the source for that.
 
 ## Documentation
 

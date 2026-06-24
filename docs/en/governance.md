@@ -1,8 +1,8 @@
 # Governance
 
-Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. v0.8 tightens that path into a local governance data plane: business entries call `GovernanceRuntime`, the runtime handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM, and diagnostic snapshots expose bounded local state.
+Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. v0.9 adds a read-only page on top of the local governance data plane: business entries call `GovernanceRuntime`, the runtime handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM, and diagnostic snapshots can be inspected through HTTP and the page.
 
-The boundary is deliberate: this is local SDK-level governance, not a UI, remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
+The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
 ## Add Dependencies
 
@@ -11,6 +11,7 @@ For the Spring Boot 3.3 mainline:
 ```groovy
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation "com.aweimao:nexary-governance-spring-boot-starter"
+implementation "com.aweimao:nexary-console-spring-boot-starter"
 implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
 ```
 
@@ -31,6 +32,8 @@ nexary:
       enabled: true
     diagnostics:
       enabled: true
+  console:
+    enabled: true
     default-policy:
       max-requests-per-window: 100
       rate-limit-window: 1s
@@ -231,6 +234,16 @@ Useful fields:
 
 The diagnostics are intentionally low-cardinality. They do not include user ids, order ids, message ids, cache keys, payloads, exception text, or stack traces. The endpoints are read-only, and the starter does not expose these HTTP paths unless explicitly enabled.
 
+## Open the Read-Only Console
+
+If the application also adds `nexary-console-spring-boot-starter` and sets `nexary.console.enabled=true`, open:
+
+```bash
+open http://localhost:8080/nexary/console
+```
+
+The Console reads the GET-only API under `/nexary/console/api`. It shows summary, resources, resource detail, events, and read-only settings for the current JVM. It does not write policies, push configuration, or aggregate multiple instances.
+
 ## Messaging Publish Policy
 
 When a service already uses the messaging starter, add a local policy for the publish resource:
@@ -286,10 +299,10 @@ This policy only affects publish calls made by the current JVM. Check the result
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.
-- v0.8 does not include a UI, remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.
+- v0.9 only includes a local read-only page. It does not include a remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.
 - Messaging deadline headers apply to newly published messages. Older queued messages do not gain a deadline retroactively.
 - Job `execution-timeout` still controls in-flight timeout. `start-deadline` only decides whether a trigger should start.
-- There is no console, sidecar, agent, remote dynamic config, or policy push service here.
+- There is no remote console, sidecar, agent, remote dynamic config, or policy push service here.
 
 ## Verify
 

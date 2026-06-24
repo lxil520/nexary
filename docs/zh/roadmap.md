@@ -316,6 +316,24 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 跨实例窗口、集中状态存储、自动切换 provider。
 - 未通过真实样例和中间件测试的 Boot2 / Boot4 / provider 支持声明。
 
+## `0.9.x` 只读治理诊断 Console
+
+`0.9.x` 在 v0.8 的本地治理数据面上加一个页面。用户启动自己的 Spring Boot 应用后，访问 `/nexary/console`，就能看到当前 JVM 的 summary、resources、resource detail、events 和只读设置提示。这个页面只读，只服务本地排查。
+
+已纳入范围：
+
+- Console API：`GET /nexary/console/api/summary`、`/resources`、`/resources/{id}`、`/events`。
+- Console 页面：Overview、Resources、Resource Detail、Events、Settings Readonly。
+- Starter：`nexary-console-spring-boot-starter` 只有在 `nexary.console.enabled=true` 后才注册页面和 API。
+- 打包：`nexary-console-server` 会把 Vue 构建产物放入 jar 的 `static/nexary/console`。
+- 样例：`nexary-sample-governance` 默认引入 Console starter，启动后可以直接打开 `/nexary/console`。
+
+`0.9.x` 不包含：
+
+- 写策略、下发配置、远程控制、登录、权限、审计后台或多实例聚合。
+- 展示 userId、tenant、bizKey、messageId、cache key、payload、异常全文或堆栈。
+- 独立部署的前端服务、sidecar、agent 或跨服务管理页面。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。
