@@ -8,12 +8,14 @@ import PolicySummary from '../components/PolicySummary.vue';
 import RuntimeWindowStats from '../components/RuntimeWindowStats.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { useConsoleData } from '../composables/useConsoleData';
+import { useLocale } from '../composables/useLocale';
 
 const props = defineProps<{
   resourceKey: string;
 }>();
 
 const { events, isLoading, errorMessage, hasLoaded, refreshAll, loadResource, resourceByKey } = useConsoleData();
+const { enumLabel, t } = useLocale();
 const resource = computed(() => resourceByKey(props.resourceKey));
 const relatedEvents = computed(() => events.value.filter((event) => event.resourceKey === props.resourceKey).slice(0, 10));
 
@@ -39,22 +41,22 @@ watch(
 </script>
 
 <template>
-  <LoadingBlock v-if="isLoading && !resource" label="Loading resource detail" />
+  <LoadingBlock v-if="isLoading && !resource" :label="t('detail.loading')" />
   <ErrorState
     v-else-if="errorMessage"
-    title="Resource detail failed to load"
+    :title="t('detail.errorTitle')"
     :message="errorMessage"
     @retry="ensureResourceLoaded"
   />
   <EmptyState
     v-else-if="!resource"
-    title="Resource not found"
-    message="Open a resource from the Resources table or refresh diagnostics after generating runtime activity."
+    :title="t('detail.notFound')"
+    :message="t('detail.notFoundMessage')"
   />
   <div v-else class="view-stack">
     <section class="detail-header">
       <div>
-        <p class="eyebrow">{{ resource.kind }} / {{ resource.provider }}</p>
+        <p class="eyebrow">{{ enumLabel(resource.kind) }} / {{ resource.provider }}</p>
         <h1>{{ resource.name }}</h1>
         <p class="resource-key">{{ resource.resourceKey }}</p>
       </div>
@@ -74,13 +76,13 @@ watch(
 
     <section class="panel">
       <div class="panel__header">
-        <h2>Recent Events For Resource</h2>
-        <span>{{ relatedEvents.length }} shown</span>
+        <h2>{{ t('detail.recentEvents') }}</h2>
+        <span>{{ relatedEvents.length }} {{ t('state.shown') }}</span>
       </div>
       <EmptyState
         v-if="relatedEvents.length === 0"
-        title="No retained events for this resource"
-        message="Trigger this governed operation to populate the resource event list."
+        :title="t('detail.noEvents')"
+        :message="t('detail.noEventsMessage')"
       />
       <EventTable v-else :events="relatedEvents" />
     </section>

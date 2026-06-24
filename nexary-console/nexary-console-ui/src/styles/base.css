@@ -15,6 +15,11 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    linear-gradient(115deg, rgba(32, 199, 183, 0.13) 0%, rgba(32, 199, 183, 0) 34%),
+    linear-gradient(90deg, rgba(32, 199, 183, 0.08) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(180deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px) 0 0 / 48px 48px,
+    var(--color-page);
 }
 
 button,
@@ -41,8 +46,8 @@ dd {
 }
 
 h1 {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 760;
   letter-spacing: 0;
 }
 
@@ -60,26 +65,27 @@ table {
   min-height: 36px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: rgba(8, 19, 31, 0.72);
   color: var(--color-text);
   padding: 0 var(--space-4);
   font-weight: 650;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .button:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-surface-muted);
+  background: rgba(18, 36, 55, 0.86);
 }
 
 .button--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
+  border-color: rgba(32, 199, 183, 0.38);
+  background: linear-gradient(180deg, #12354a 0%, #07111f 100%);
   color: #ffffff;
 }
 
 .button--primary:hover {
-  border-color: var(--color-primary-strong);
-  background: var(--color-primary-strong);
+  border-color: rgba(32, 199, 183, 0.7);
+  background: linear-gradient(180deg, #17324b 0%, #0b1a2c 100%);
 }
 
 .link-button {
@@ -88,7 +94,7 @@ table {
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--color-primary);
+  color: var(--color-primary-strong);
   padding: 0;
   text-align: left;
 }

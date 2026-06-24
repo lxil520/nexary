@@ -6,9 +6,11 @@ import EventTable from '../components/EventTable.vue';
 import LoadingBlock from '../components/LoadingBlock.vue';
 import { useConsoleData } from '../composables/useConsoleData';
 import { uniqueSorted, useFilteredEvents } from '../composables/useLocalFilters';
+import { useLocale } from '../composables/useLocale';
 import type { EventFilters } from '../types/console';
 
 const { events, isLoading, errorMessage, hasLoaded, refreshAll } = useConsoleData();
+const { enumLabel, t } = useLocale();
 const filters = ref<EventFilters>({
   keyword: '',
   outcome: 'ALL',
@@ -29,46 +31,46 @@ onMounted(() => {
 </script>
 
 <template>
-  <LoadingBlock v-if="isLoading && !hasLoaded" label="Loading events" />
-  <ErrorState v-else-if="errorMessage" title="Events failed to load" :message="errorMessage" @retry="refreshAll" />
+  <LoadingBlock v-if="isLoading && !hasLoaded" :label="t('events.loading')" />
+  <ErrorState v-else-if="errorMessage" :title="t('events.errorTitle')" :message="errorMessage" @retry="refreshAll" />
   <div v-else class="view-stack">
     <section class="filter-bar" aria-label="Event filters">
       <label class="field field--search">
-        <span>Search</span>
-        <input v-model="filters.keyword" type="search" placeholder="resource, action, reason" />
+        <span>{{ t('filters.search') }}</span>
+        <input v-model="filters.keyword" type="search" :placeholder="t('filters.searchEventsPlaceholder')" />
       </label>
       <label class="field">
-        <span>Outcome</span>
+        <span>{{ t('filters.outcome') }}</span>
         <select v-model="filters.outcome">
-          <option value="ALL">All</option>
-          <option v-for="outcome in outcomeOptions" :key="outcome" :value="outcome">{{ outcome }}</option>
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="outcome in outcomeOptions" :key="outcome" :value="outcome">{{ enumLabel(outcome) }}</option>
         </select>
       </label>
       <label class="field">
-        <span>Reason</span>
+        <span>{{ t('filters.reason') }}</span>
         <select v-model="filters.rejectionReason">
-          <option value="ALL">All</option>
-          <option v-for="reason in reasonOptions" :key="reason" :value="reason">{{ reason }}</option>
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="reason in reasonOptions" :key="reason" :value="reason">{{ enumLabel(reason) }}</option>
         </select>
       </label>
       <label class="field">
-        <span>Circuit</span>
+        <span>{{ t('filters.circuit') }}</span>
         <select v-model="filters.circuitState">
-          <option value="ALL">All</option>
-          <option v-for="state in circuitOptions" :key="state" :value="state">{{ state }}</option>
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="state in circuitOptions" :key="state" :value="state">{{ enumLabel(state) }}</option>
         </select>
       </label>
     </section>
 
     <EmptyState
       v-if="hasLoaded && events.length === 0"
-      title="No events retained"
-      message="Run a governed call to record low-cardinality success, failure, rejection, or fallback events."
+      :title="t('state.noEvents')"
+      :message="t('state.noEventsMessage')"
     />
     <EmptyState
       v-else-if="filteredEvents.length === 0"
-      title="No events match the filters"
-      message="Clear a filter or search for a known resource key, action, or rejection reason."
+      :title="t('events.noMatch')"
+      :message="t('events.noMatchMessage')"
     />
     <EventTable v-else :events="filteredEvents" />
   </div>

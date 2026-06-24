@@ -1,0 +1,13 @@
+<svg width="640" height="176" viewBox="0 0 640 176" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Nexary logo</title>
+  <desc id="desc">Nexary Java middleware logo with a connected N mark.</desc>
+  <rect width="640" height="176" rx="32" fill="#F8FAFC"/>
+  <rect x="44" y="36" width="104" height="104" rx="28" fill="#0F172A"/>
+  <path d="M70 116V60H91L136 116H115L70.5 60H92L140 116H161V60H140V95L110 60H70V116Z" fill="#F8FAFC"/>
+  <circle cx="130" cy="60" r="8" fill="#19B67F"/>
+  <circle cx="142" cy="88" r="8" fill="#14B8A6"/>
+  <circle cx="130" cy="116" r="8" fill="#0EA5A4"/>
+  <path d="M120 71L126 63M120 88H134M120 105L126 113" stroke="#F8FAFC" stroke-width="4" stroke-linecap="round"/>
+  <text x="184" y="98" fill="#0F172A" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="64" font-weight="780">Nexary</text>
+  <text x="188" y="128" fill="#0F766E" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="760" letter-spacing="1.8">STABLE APIS FOR JAVA MIDDLEWARE</text>
+</svg>

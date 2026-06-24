@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useLocale } from '../composables/useLocale';
+
 defineProps<{
   title: string;
   message: string;
@@ -7,6 +9,8 @@ defineProps<{
 defineEmits<{
   retry: [];
 }>();
+
+const { t } = useLocale();
 </script>
 
 <template>
@@ -15,6 +19,6 @@ defineEmits<{
       <h2>{{ title }}</h2>
       <p>{{ message }}</p>
     </div>
-    <button class="button button--primary" type="button" @click="$emit('retry')">Retry</button>
+    <button class="button button--primary" type="button" @click="$emit('retry')">{{ t('button.retry') }}</button>
   </section>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useLocale } from '../composables/useLocale';
 
 const props = defineProps<{
   label: string;
@@ -22,8 +23,13 @@ const tone = computed(() => {
   }
   return 'neutral';
 });
+
+const { enumLabel } = useLocale();
 </script>
 
 <template>
-  <span class="status-badge" :data-tone="tone">{{ label }}</span>
+  <span class="status-badge" :data-tone="tone" :title="label">
+    <span class="status-badge__dot" aria-hidden="true"></span>
+    {{ enumLabel(label) }}
+  </span>
 </template>

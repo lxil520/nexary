@@ -7,6 +7,7 @@ import ResourceFilterBar from '../components/ResourceFilterBar.vue';
 import ResourceTable from '../components/ResourceTable.vue';
 import { useConsoleData } from '../composables/useConsoleData';
 import { uniqueSorted, useFilteredResources } from '../composables/useLocalFilters';
+import { useLocale } from '../composables/useLocale';
 import type { ResourceFilters } from '../types/console';
 
 const emit = defineEmits<{
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 }>();
 
 const { resources, isLoading, errorMessage, hasLoaded, refreshAll } = useConsoleData();
+const { t } = useLocale();
 const filters = ref<ResourceFilters>({
   keyword: '',
   kind: 'ALL',
@@ -36,10 +38,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <LoadingBlock v-if="isLoading && !hasLoaded" label="Loading resources" />
+  <LoadingBlock v-if="isLoading && !hasLoaded" :label="t('resources.loading')" />
   <ErrorState
     v-else-if="errorMessage"
-    title="Resources failed to load"
+    :title="t('resources.errorTitle')"
     :message="errorMessage"
     @retry="refreshAll"
   />
@@ -53,13 +55,13 @@ onMounted(() => {
     />
     <EmptyState
       v-if="hasLoaded && resources.length === 0"
-      title="No resources found"
-      message="Configure governance resources or run the governance sample to produce descriptors."
+      :title="t('resources.noResources')"
+      :message="t('resources.noResourcesMessage')"
     />
     <EmptyState
       v-else-if="filteredResources.length === 0"
-      title="No resources match the filters"
-      message="Clear a filter or search for a known resource name, provider, or operation."
+      :title="t('resources.noMatch')"
+      :message="t('resources.noMatchMessage')"
     />
     <ResourceTable v-else :resources="filteredResources" @select="emit('selectResource', $event)" />
   </div>

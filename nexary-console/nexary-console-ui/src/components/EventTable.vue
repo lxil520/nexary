@@ -1,23 +1,13 @@
 <script setup lang="ts">
 import type { ConsoleEvent } from '../types/console';
+import { useLocale } from '../composables/useLocale';
 import StatusBadge from './StatusBadge.vue';
 
 defineProps<{
   events: readonly ConsoleEvent[];
 }>();
 
-function formatTimestamp(value: string | null): string {
-  if (!value) {
-    return 'not recorded';
-  }
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value));
-}
+const { formatTimestamp, t } = useLocale();
 </script>
 
 <template>
@@ -25,13 +15,13 @@ function formatTimestamp(value: string | null): string {
     <table class="data-table">
       <thead>
         <tr>
-          <th scope="col">Time</th>
-          <th scope="col">Resource</th>
-          <th scope="col">Action</th>
-          <th scope="col">Outcome</th>
-          <th scope="col">Reason</th>
-          <th scope="col">Circuit</th>
-          <th scope="col">Duration</th>
+          <th scope="col">{{ t('table.time') }}</th>
+          <th scope="col">{{ t('table.resource') }}</th>
+          <th scope="col">{{ t('table.action') }}</th>
+          <th scope="col">{{ t('table.outcome') }}</th>
+          <th scope="col">{{ t('table.reason') }}</th>
+          <th scope="col">{{ t('table.circuit') }}</th>
+          <th scope="col">{{ t('table.duration') }}</th>
         </tr>
       </thead>
       <tbody>

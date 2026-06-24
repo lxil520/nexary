@@ -6,12 +6,14 @@ import LoadingBlock from '../components/LoadingBlock.vue';
 import MetricCard from '../components/MetricCard.vue';
 import ResourceTable from '../components/ResourceTable.vue';
 import { useConsoleData } from '../composables/useConsoleData';
+import { useLocale } from '../composables/useLocale';
 
 const emit = defineEmits<{
   selectResource: [resourceKey: string];
 }>();
 
 const { summary, resources, events, isLoading, errorMessage, hasLoaded, refreshAll } = useConsoleData();
+const { enumLabel, t } = useLocale();
 
 const degradedCount = computed(() =>
   resources.value.filter((resource) => resource.runtimeSnapshot?.degraded || resource.policySnapshot.degraded).length,
@@ -22,6 +24,15 @@ const hotResources = computed(() =>
     .slice(0, 5),
 );
 const recentEvents = computed(() => events.value.slice(0, 5));
+const retainedEventCount = computed(() => events.value.length);
+const hasAttention = computed(
+  () =>
+    (summary.value?.openCircuitCount ?? 0) > 0 ||
+    (summary.value?.rejectedCount ?? 0) > 0 ||
+    (summary.value?.failureCount ?? 0) > 0 ||
+    degradedCount.value > 0,
+);
+const postureLabel = computed(() => (hasAttention.value ? t('overview.postureWatch') : t('overview.postureStable')));
 
 onMounted(() => {
   if (!hasLoaded.value) {
@@ -31,57 +42,83 @@ onMounted(() => {
 </script>
 
 <template>
-  <LoadingBlock v-if="isLoading && !hasLoaded" label="Loading console summary" />
+  <LoadingBlock v-if="isLoading && !hasLoaded" :label="t('overview.loading')" />
   <ErrorState
     v-else-if="errorMessage"
-    title="Console data is unavailable"
+    :title="t('overview.errorTitle')"
     :message="errorMessage"
     @retry="refreshAll"
   />
   <EmptyState
     v-else-if="hasLoaded && !summary"
-    title="No summary returned"
-    message="Enable the read-only console API or switch the adapter to mock mode for local UI checks."
+    :title="t('overview.emptyTitle')"
+    :message="t('overview.emptyMessage')"
   />
   <div v-else class="view-stack">
-    <section class="metric-grid" aria-label="Runtime summary">
-      <MetricCard label="Resources" :value="summary?.resourceCount ?? 0" detail="known descriptors" tone="info" />
-      <MetricCard label="Open circuits" :value="summary?.openCircuitCount ?? 0" detail="currently blocking" tone="danger" />
-      <MetricCard label="Rejected" :value="summary?.rejectedCount ?? 0" detail="retained events" tone="warning" />
-      <MetricCard label="Failures" :value="summary?.failureCount ?? 0" detail="retained events" tone="danger" />
-      <MetricCard label="Fallback" :value="summary?.fallbackCount ?? 0" detail="fallback actions" tone="neutral" />
-      <MetricCard label="Degraded" :value="degradedCount" detail="policy or runtime" tone="warning" />
+    <section class="signal-deck" :data-tone="hasAttention ? 'warning' : 'stable'">
+      <div class="signal-deck__main">
+        <p class="eyebrow">{{ t('overview.cockpitLabel') }}</p>
+        <h2>{{ t('overview.posture') }}</h2>
+        <div class="signal-deck__status">
+          <span aria-hidden="true"></span>
+          <strong>{{ postureLabel }}</strong>
+        </div>
+        <p>{{ t('overview.postureDetail') }}</p>
+      </div>
+      <div class="signal-rail">
+        <div>
+          <span>{{ t('overview.trackedResources') }}</span>
+          <strong>{{ summary?.resourceCount ?? 0 }}</strong>
+        </div>
+        <div>
+          <span>{{ t('overview.retainedEvents') }}</span>
+          <strong>{{ retainedEventCount }}</strong>
+        </div>
+        <div>
+          <span>{{ t('overview.guardrail') }}</span>
+          <strong>{{ t('overview.guardrailDetail') }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="metric-grid" :aria-label="t('overview.runtimeSummary')">
+      <MetricCard :label="t('overview.resources')" :value="summary?.resourceCount ?? 0" :detail="t('overview.resourcesDetail')" tone="info" />
+      <MetricCard :label="t('overview.openCircuits')" :value="summary?.openCircuitCount ?? 0" :detail="t('overview.openCircuitsDetail')" tone="danger" />
+      <MetricCard :label="t('overview.rejected')" :value="summary?.rejectedCount ?? 0" :detail="t('overview.rejectedDetail')" tone="warning" />
+      <MetricCard :label="t('overview.failures')" :value="summary?.failureCount ?? 0" :detail="t('overview.failuresDetail')" tone="danger" />
+      <MetricCard :label="t('overview.fallback')" :value="summary?.fallbackCount ?? 0" :detail="t('overview.fallbackDetail')" tone="neutral" />
+      <MetricCard :label="t('overview.degraded')" :value="degradedCount" :detail="t('overview.degradedDetail')" tone="warning" />
     </section>
 
     <section class="split-grid">
       <div class="panel">
         <div class="panel__header">
-          <h2>Resources Needing Attention</h2>
-          <span>{{ hotResources.length }} shown</span>
+          <h2>{{ t('overview.attention') }}</h2>
+          <span>{{ hotResources.length }} {{ t('state.shown') }}</span>
         </div>
         <EmptyState
           v-if="hotResources.length === 0"
-          title="No resources yet"
-          message="Run a sample or hit a governed path to populate resource diagnostics."
+          :title="t('state.noResources')"
+          :message="t('state.noResourcesMessage')"
         />
-        <ResourceTable v-else :resources="hotResources" @select="emit('selectResource', $event)" />
+        <ResourceTable v-else :resources="hotResources" compact @select="emit('selectResource', $event)" />
       </div>
 
       <div class="panel">
         <div class="panel__header">
-          <h2>Recent Events</h2>
-          <span>{{ recentEvents.length }} shown</span>
+          <h2>{{ t('overview.recentEvents') }}</h2>
+          <span>{{ recentEvents.length }} {{ t('state.shown') }}</span>
         </div>
         <EmptyState
           v-if="recentEvents.length === 0"
-          title="No events retained"
-          message="Trigger governed calls to see success, failure, rejection, and fallback events."
+          :title="t('state.noEvents')"
+          :message="t('state.noEventsMessage')"
         />
         <ul v-else class="event-list">
           <li v-for="event in recentEvents" :key="`${event.timestamp}-${event.resourceKey}`">
-            <span>{{ event.outcome }}</span>
+            <span>{{ enumLabel(event.outcome) }}</span>
             <strong>{{ event.resourceKey }}</strong>
-            <small>{{ event.rejectionReason }}</small>
+            <small>{{ enumLabel(event.rejectionReason) }}</small>
           </li>
         </ul>
       </div>

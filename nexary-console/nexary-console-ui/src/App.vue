@@ -6,6 +6,8 @@ import ResourceDetailView from './views/ResourceDetailView.vue';
 import EventsView from './views/EventsView.vue';
 import SettingsReadonlyView from './views/SettingsReadonlyView.vue';
 import { useConsoleData } from './composables/useConsoleData';
+import { useLocale } from './composables/useLocale';
+import logoUrl from './assets/nexary-logo.svg';
 
 type ViewId = 'overview' | 'resources' | 'resource-detail' | 'events' | 'settings';
 
@@ -14,23 +16,28 @@ interface RouteState {
   resourceKey: string | null;
 }
 
-const navigationItems: Array<{ id: ViewId; label: string }> = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'resources', label: 'Resources' },
-  { id: 'events', label: 'Events' },
-  { id: 'settings', label: 'Settings' },
+const navigationItems: Array<{ id: ViewId; labelKey: 'nav.overview' | 'nav.resources' | 'nav.events' | 'nav.settings' }> = [
+  { id: 'overview', labelKey: 'nav.overview' },
+  { id: 'resources', labelKey: 'nav.resources' },
+  { id: 'events', labelKey: 'nav.events' },
+  { id: 'settings', labelKey: 'nav.settings' },
 ];
 
 const route = ref<RouteState>(routeFromHash());
 const { isLoading, lastRefreshAt, refreshAll } = useConsoleData();
+const { locale, setLocale, t } = useLocale();
 
 const title = computed(() => {
   if (route.value.view === 'resource-detail') {
-    return 'Resource Detail';
+    return t('title.resourceDetail');
   }
   const item = navigationItems.find((entry) => entry.id === route.value.view);
-  return item?.label ?? 'Overview';
+  return item ? t(item.labelKey) : t('nav.overview');
 });
+
+const refreshLabel = computed(() =>
+  lastRefreshAt.value ? `${t('app.updated')} ${lastRefreshAt.value}` : t('app.notRefreshed'),
+);
 
 function navigate(view: ViewId): void {
   setHash(view, null);
@@ -83,10 +90,10 @@ onBeforeUnmount(() => {
   <div class="app-shell">
     <aside class="sidebar" aria-label="Console navigation">
       <div class="brand-block">
-        <span class="brand-mark">N</span>
-        <div>
+        <img class="brand-logo" :src="logoUrl" alt="Nexary" />
+        <div class="brand-copy">
           <strong>Nexary Console</strong>
-          <span>readonly diagnostics</span>
+          <span>{{ t('app.subtitle') }}</span>
         </div>
       </div>
       <nav class="nav-list">
@@ -97,7 +104,7 @@ onBeforeUnmount(() => {
           :class="{ 'is-active': route.view === item.id }"
           @click="navigate(item.id)"
         >
-          {{ item.label }}
+          {{ t(item.labelKey) }}
         </button>
       </nav>
     </aside>
@@ -105,13 +112,18 @@ onBeforeUnmount(() => {
     <main class="main-area">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Local governance runtime</p>
+          <p class="eyebrow">{{ t('app.scope') }}</p>
           <h1>{{ title }}</h1>
+          <p class="topbar__note">{{ t('app.jvmNote') }}</p>
         </div>
         <div class="topbar__actions">
-          <span class="refresh-state">{{ lastRefreshAt ? `Updated ${lastRefreshAt}` : 'Not refreshed' }}</span>
+          <div class="locale-segment" :aria-label="t('app.language')">
+            <button type="button" :class="{ 'is-active': locale === 'zh' }" @click="setLocale('zh')">中文</button>
+            <button type="button" :class="{ 'is-active': locale === 'en' }" @click="setLocale('en')">EN</button>
+          </div>
+          <span class="refresh-state">{{ refreshLabel }}</span>
           <button class="button button--primary" type="button" :disabled="isLoading" @click="refreshAll">
-            {{ isLoading ? 'Refreshing' : 'Refresh' }}
+            {{ isLoading ? t('app.refreshing') : t('app.refresh') }}
           </button>
         </div>
       </header>

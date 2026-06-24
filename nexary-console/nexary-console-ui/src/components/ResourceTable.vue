@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import type { ConsoleResource } from '../types/console';
+import { useLocale } from '../composables/useLocale';
 import StatusBadge from './StatusBadge.vue';
 
 defineProps<{
   resources: readonly ConsoleResource[];
+  compact?: boolean;
 }>();
 
 defineEmits<{
   select: [resourceKey: string];
 }>();
+
+const { enumLabel, t } = useLocale();
 
 function circuitLabel(resource: ConsoleResource): string {
   return resource.runtimeSnapshot?.circuitState ?? 'NO_STATE';
@@ -26,17 +30,17 @@ function rejectionLabel(resource: ConsoleResource): string {
 
 <template>
   <div class="table-wrap">
-    <table class="data-table">
+    <table class="data-table" :class="{ 'data-table--compact': compact }">
       <thead>
         <tr>
-          <th scope="col">Resource</th>
-          <th scope="col">Kind</th>
-          <th scope="col">Provider</th>
-          <th scope="col">Priority</th>
-          <th scope="col">Circuit</th>
-          <th scope="col">Calls / Fail / Slow</th>
-          <th scope="col">Rejected</th>
-          <th scope="col">Last reason</th>
+          <th scope="col">{{ t('table.resource') }}</th>
+          <th scope="col">{{ t('table.kind') }}</th>
+          <th v-if="!compact" scope="col">{{ t('table.provider') }}</th>
+          <th v-if="!compact" scope="col">{{ t('table.priority') }}</th>
+          <th scope="col">{{ t('table.circuit') }}</th>
+          <th scope="col">{{ t('table.calls') }}</th>
+          <th scope="col">{{ t('table.rejected') }}</th>
+          <th scope="col">{{ t('table.lastReason') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -47,9 +51,9 @@ function rejectionLabel(resource: ConsoleResource): string {
               <span class="table-secondary">{{ resource.operation }}</span>
             </button>
           </td>
-          <td>{{ resource.kind }}</td>
-          <td>{{ resource.provider }}</td>
-          <td>{{ resource.priority }}</td>
+          <td>{{ enumLabel(resource.kind) }}</td>
+          <td v-if="!compact">{{ resource.provider }}</td>
+          <td v-if="!compact">{{ resource.priority }}</td>
           <td><StatusBadge :label="circuitLabel(resource)" :state="circuitLabel(resource)" /></td>
           <td>{{ callsLabel(resource) }}</td>
           <td>{{ resource.runtimeSnapshot?.totalRejections ?? 0 }}</td>
