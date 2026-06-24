@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.10.x` governance docs only close local diagnostics hardening: Console direct URLs and deep links, static assets that must not regress to a blank page, local sample visual verification, and a stable release gate. It does not add policy writes, remote configuration, multi-instance aggregation, login and permissions, or a separately deployed console.
+The `0.10.x` governance docs only close local diagnostics hardening: Console direct URLs and deep links, static assets that must not regress to a blank page, local sample visual verification, a Docker sample, and a stable release gate. It does not add policy writes, remote configuration, multi-instance aggregation, login and permissions, or a separately deployed console.
 
 ## Add Dependencies
 
@@ -245,6 +245,16 @@ open http://localhost:8080/nexary/console
 ```
 
 The Console reads the GET-only API under `/nexary/console/api`. It shows summary, resources, resource detail, events, and read-only settings for the current JVM. It does not write policies, push configuration, or aggregate multiple instances.
+
+To inspect the governance page first, run the Docker sample:
+
+```bash
+./scripts/console/up.sh
+./scripts/console/smoke.sh
+open http://127.0.0.1:18090/nexary/console
+```
+
+This container runs `nexary-sample-governance`; it is not a separate control service. The page and diagnostics APIs read local governance state from the same sample process.
 
 ## Messaging Publish Policy
 

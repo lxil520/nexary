@@ -10,6 +10,9 @@ dependencies {
 def consoleUiDir = rootProject.layout.projectDirectory.dir('nexary-console/nexary-console-ui')
 def consoleUiDistDir = consoleUiDir.dir('dist')
 def npmCommand = System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('windows') ? 'npm.cmd' : 'npm'
+def skipConsoleUiBuild = providers.gradleProperty('skipConsoleUiBuild')
+        .map { value -> Boolean.parseBoolean(value) }
+        .orElse(false)
 
 tasks.register('installConsoleUi', Exec) {
     workingDir consoleUiDir.asFile
@@ -37,7 +40,9 @@ tasks.register('buildConsoleUi', Exec) {
 }
 
 tasks.named('processResources') {
-    dependsOn tasks.named('buildConsoleUi')
+    if (!skipConsoleUiBuild.get()) {
+        dependsOn tasks.named('buildConsoleUi')
+    }
     from(consoleUiDistDir) {
         into 'static/nexary/console'
     }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1
+
+- Added a Docker Compose demo for the governance sample so the read-only Console can be opened through one local script.
+- Added console smoke commands that trigger sample governance events and verify diagnostics JSON plus packaged Console HTML.
+- Kept the Console as a local read-only page inside the sample process; this patch does not add remote policy writes, cross-instance aggregation, or a separate control service.
+
 ## 0.5.1
 
 - Fixed the Maven Central release workflow so a deployment that is already visible in Maven Central is treated as complete even if the Central Portal status API keeps reporting `PUBLISHING`.

@@ -1,0 +1,14 @@
+services:
+  governance-console:
+    build:
+      context: ../..
+      dockerfile: deploy/console/Dockerfile
+    image: nexary/governance-console-demo:0.10.1
+    container_name: nexary-governance-console-demo
+    ports:
+      - "${NEXARY_CONSOLE_PORT:-18090}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec '</dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20

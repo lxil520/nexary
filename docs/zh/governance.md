@@ -4,7 +4,7 @@
 
 它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
-`0.10.x` 的治理文档只收口本地诊断硬化：Console 直接 URL / deep link、静态资源防空白回归、本地 sample 可视验证和 release gate 稳定。它不增加写策略、远程配置、多实例聚合、登录权限或独立控制台。
+`0.10.x` 的治理文档只收口本地诊断硬化：Console 直接 URL / deep link、静态资源防空白回归、本地 sample 可视验证、Docker 样例和 release gate 稳定。它不增加写策略、远程配置、多实例聚合、登录权限或独立控制台。
 
 ## 引入依赖
 
@@ -245,6 +245,16 @@ open http://localhost:8080/nexary/console
 ```
 
 Console 读取 `/nexary/console/api` 下的只读接口。它展示当前 JVM 的 summary、resources、resource detail、events 和只读设置提示。它不会写策略，不会下发配置，也不会汇总多个实例。
+
+如果只想先看治理页面，可以直接运行 Docker 样例：
+
+```bash
+./scripts/console/up.sh
+./scripts/console/smoke.sh
+open http://127.0.0.1:18090/nexary/console
+```
+
+这个容器运行的是 `nexary-sample-governance`，不是独立控制台。页面和诊断接口读取同一个样例进程里的本地治理状态。
 
 ## Messaging publish 策略
 

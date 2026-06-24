@@ -343,7 +343,7 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - Console 直接 URL：`/nexary/console`、`/nexary/console/`、`/nexary/console/resources`、`/nexary/console/resources/{resourceKey}`、`/nexary/console/events`、`/nexary/console/settings` 都应能返回可渲染页面。
 - 静态资源：打入 `nexary-console-server` jar 后，入口 HTML、JS 和 CSS 路径要稳定；资源缺失或空白页回归应被测试或 release gate 发现。
 - 本地 sample 可视验证：启动 `nexary-sample-governance` 后，用 curl 触发成功、失败、限流、并发隔离、熔断打开、半开恢复，再用浏览器验证 Overview、Resources、Resource Detail、Events、Settings Readonly 非空且可跳转。
-- Release gate：`0.10.0` 发布前继续跑 release preflight、Gradle check、Console UI build、静态资源打包检查和公开文档扫描。
+- Release gate：`0.10.1` 发布前继续跑 release preflight、Gradle check、Console UI build、静态资源打包检查、Docker 样例 smoke 和公开文档扫描。
 
 `0.10.x` 不包含：
 

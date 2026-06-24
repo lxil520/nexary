@@ -343,7 +343,7 @@ Included scope:
 - Console direct URLs: `/nexary/console`, `/nexary/console/`, `/nexary/console/resources`, `/nexary/console/resources/{resourceKey}`, `/nexary/console/events`, and `/nexary/console/settings` should all return a renderable page.
 - Static assets: after packaging into the `nexary-console-server` jar, entry HTML, JS, and CSS paths must stay stable; missing assets or blank-page regressions should be caught by tests or the release gate.
 - Local sample visual verification: after starting `nexary-sample-governance`, use curl to trigger success, failure, rate limit, bulkhead rejection, open circuit, and half-open recovery, then verify Overview, Resources, Resource Detail, Events, and Settings Readonly are non-empty and navigable in a browser.
-- Release gate: before publishing `0.10.0`, continue running release preflight, Gradle check, Console UI build, static-resource packaging checks, and public documentation scans.
+- Release gate: before publishing `0.10.1`, continue running release preflight, Gradle check, Console UI build, static-resource packaging checks, Docker sample smoke, and public documentation scans.
 
 `0.10.x` does not include:
 

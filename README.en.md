@@ -15,9 +15,9 @@ Chinese documentation: [README.md](README.md)
 
 Nexary adds a thin Java API between business code and middleware SDKs. Services call stable entries such as `CacheClient`, `MessagePublisher`, and `NexaryJob`; Redis, Valkey, Kafka, RocketMQ, ActiveMQ Classic, XXL-JOB, and PowerJob wiring stays in framework modules. When infrastructure needs to be upgraded, replaced, or worked around, most changes stay in dependencies and configuration instead of spreading through business code.
 
-The current `0.10.0` line uses Spring Boot 3.3 / Java 17+ as the mainline. The verified capabilities remain cache, messaging, jobs, observation bridging, the local governance runtime, and the read-only governance diagnostic Console. The governance sample shows resources, policy snapshots, runtime snapshots, recent events, slow-call records, open circuit, half-open probes, and recovery. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
+The current `0.10.1` line uses Spring Boot 3.3 / Java 17+ as the mainline. The verified capabilities remain cache, messaging, jobs, observation bridging, the local governance runtime, and the read-only governance diagnostic Console. The governance sample shows resources, policy snapshots, runtime snapshots, recent events, slow-call records, open circuit, half-open probes, and recovery. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
 
-The `0.10.x` line does not add a new platform scope. It hardens the `0.9.x` read-only page before 1.0: direct URLs and deep links must open, static assets must not regress to a blank page, the local sample must support visual verification, and the release gate must stay stable. It does not write policies, push configuration, aggregate multiple instances, or provide login and permissions.
+The `0.10.x` line does not add a new platform scope. It hardens the `0.9.x` read-only page before 1.0: direct URLs and deep links must open, static assets must not regress to a blank page, the local sample must support visual verification, Docker can open the governance sample directly, and the release gate must stay stable. It does not write policies, push configuration, aggregate multiple instances, or provide login and permissions.
 
 ## When to Use It
 
@@ -41,6 +41,14 @@ To validate against real middleware directly:
 ./scripts/middleware/up.sh
 ./scripts/middleware/smoke.sh
 ./scripts/middleware/run-integration-tests.sh
+```
+
+To inspect the local governance Console first:
+
+```bash
+./scripts/console/up.sh
+./scripts/console/smoke.sh
+open http://127.0.0.1:18090/nexary/console
 ```
 
 ## Status
