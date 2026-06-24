@@ -13,12 +13,15 @@ import org.nexary.samples.governance.common.CircuitProfileResult;
 import org.nexary.samples.governance.api.GovernanceSampleController;
 import org.nexary.samples.governance.service.LocalCircuitBreakerProfileGateway;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
-@SpringBootTest(classes = org.nexary.samples.governance.app.GovernanceSampleApplication.class)
+@SpringBootTest(
+        classes = org.nexary.samples.governance.app.GovernanceSampleApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(GovernanceSampleApplicationTest.MetricsTestConfiguration.class)
 class GovernanceSampleApplicationTest {
     @Autowired
@@ -29,6 +32,9 @@ class GovernanceSampleApplicationTest {
 
     @Autowired
     private MeterRegistry meterRegistry;
+
+    @Autowired
+    private TestRestTemplate restTemplate;
 
     @BeforeEach
     void resetCircuit() {
@@ -107,6 +113,36 @@ class GovernanceSampleApplicationTest {
         assertThat(opened.getCircuitState()).isEqualTo(GovernanceCircuitState.OPEN);
         assertThat(opened.getWindowSlowCalls()).isEqualTo(2);
         assertThat(opened.getOutcome()).isEqualTo("slow_opened");
+    }
+
+    @Test
+    void exposesReadOnlyDiagnosticsEndpoints() throws Exception {
+        controller.profile("u-40");
+        controller.profile("u-41");
+        controller.profile("u-42");
+        controller.circuitProfile("u-43", "failure");
+        controller.circuitProfile("u-44", "failure");
+
+        String summary = restTemplate.getForObject("/nexary/governance/summary", String.class);
+        String resources = restTemplate.getForObject("/nexary/governance/resources", String.class);
+        String events = restTemplate.getForObject("/nexary/governance/events", String.class);
+
+        assertThat(summary)
+                .contains("\"resourceCount\"")
+                .contains("\"rejectedCount\"")
+                .contains("\"openCircuitCount\"");
+        assertThat(resources)
+                .contains("\"resourceKey\"")
+                .contains("\"policySnapshot\"")
+                .contains("\"runtimeSnapshot\"")
+                .contains("profile-api")
+                .contains("profile-service");
+        assertThat(events)
+                .contains("\"action\"")
+                .contains("\"outcome\"")
+                .contains("\"rejectionReason\"")
+                .contains("\"durationBucket\"")
+                .doesNotContain("u-40", "u-41", "u-42", "u-43", "u-44");
     }
 
     @TestConfiguration

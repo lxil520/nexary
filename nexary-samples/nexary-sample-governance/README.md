@@ -1,11 +1,14 @@
 # nexary-sample-governance
 
-这个样例演示两件事：
+这个样例演示三件事：
 
 - Spring Boot starter 如何用 `application.yml` 配置 deadline、限流、并发隔离和手动降级。
-- v0.6 本地熔断流程如何在一个下游调用上跑起来：正常调用、多次失败、慢调用、熔断打开、fallback、半开探测、恢复或重开。
+- 本地治理数据平面如何把 `GovernanceContext`、`GovernanceRuntime`、fallback 和低数量诊断快照串起来。
+- 本地熔断流程如何在一个下游调用上跑起来：正常调用、多次失败、慢调用、熔断打开、fallback、半开探测、恢复或重开。
 
 样例引入 `nexary-observation-micrometer-spring-boot-starter`，并在测试里注册 `SimpleMeterRegistry`。触发限流、降级或并发隔离时，治理事件会写入 `nexary.observation.events.total` 和 `nexary.observation.events.duration`。
+
+这个样例不是 UI、远程控制台、sidecar、agent 或多实例治理服务。所有窗口、计数和诊断字段都来自当前 JVM。
 
 ## 运行
 
@@ -30,6 +33,45 @@ curl http://localhost:8080/governance/degraded/u-1
 ```
 
 返回里的 `source` 是 `fallback`，因为 `inventory-service/reserve` 配了 `degraded=true`。
+
+## 只读诊断端点
+
+样例打开了 `nexary.governance.diagnostics.enabled=true`。查看当前进程里的本地治理汇总、资源目录和最近事件：
+
+```bash
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+为了看到熔断和拒绝字段，可以先打开熔断再查询：
+
+```bash
+curl -s -X POST http://localhost:8080/governance/circuit/reset
+curl -s "http://localhost:8080/governance/circuit/profiles/u-2?mode=failure"
+curl -s "http://localhost:8080/governance/circuit/profiles/u-3?mode=failure"
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+常看字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `resourceKey` | 稳定资源 key。 |
+| `kind` / `name` / `provider` / `operation` | 资源目录字段。 |
+| `priority` | 本地计数使用的优先级桶。 |
+| `policySnapshot` | 当前资源最近一次应用到的策略。 |
+| `runtimeSnapshot` | 当前资源最近一次运行后的窗口、熔断和拒绝状态。 |
+| `circuitState` | `CLOSED`、`OPEN` 或 `HALF_OPEN`。 |
+| `windowCalls` / `windowFailures` / `windowSlowCalls` | 当前滑动窗口内的完成调用、失败调用和慢调用数量。 |
+| `totalRejections` | 当前 JVM 内的本地治理拒绝次数。 |
+| `lastRejectionReason` | 最近一次拒绝原因，例如 `CIRCUIT_OPEN`、`RATE_LIMITED`、`CONCURRENCY_LIMITED`。 |
+| `lastOutcome` | 最近一次结果，例如 `SUCCESS`、`FAILURE`、`REJECTED`。 |
+| `action` | 最近事件动作，例如 `EXECUTE`、`REJECT`、`FALLBACK`。 |
+| `durationBucket` | 粗粒度耗时桶。 |
+
+这些端点只读，默认不会暴露；starter 只有在显式配置 `nexary.governance.diagnostics.enabled=true` 后才注册 HTTP 路径。
 
 ## 熔断流程
 
@@ -90,6 +132,8 @@ nexary:
   governance:
     runtime:
       enabled: true
+    diagnostics:
+      enabled: true
     resources:
       profile-api:
         kind: http
@@ -134,3 +178,9 @@ nexary:
 - `ProfileQueryService`：主逻辑、慢调用、失败调用和 fallback 分开写。
 
 资源名要稳定，例如 `profile-api/get-profile`。Micrometer 指标只保留 `resource_kind`、`governance_action`、`traffic_channel`、`traffic_priority`、`outcome` 等低数量标签。
+
+## 不包含什么
+
+- 不提供 UI、远程控制台、sidecar 或 agent。
+- 不做远程策略下发。
+- 不同步多实例之间的熔断、限流、并发隔离或诊断状态。

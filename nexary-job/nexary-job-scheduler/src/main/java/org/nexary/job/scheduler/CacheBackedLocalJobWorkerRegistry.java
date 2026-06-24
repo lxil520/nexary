@@ -62,7 +62,7 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
             Map<String, Long> topology = topology();
             long now = Instant.now().toEpochMilli();
             long expiresBefore = now - properties.getHeartbeatTtl().toMillis();
-            topology.entrySet().removeIf(entry -> entry.getValue() < expiresBefore);
+            topology.entrySet().removeIf(entry -> entry.getValue() <= expiresBefore);
             topology.put(workerId, now);
             cache.put(topologyKey(), topology, properties.getHeartbeatTtl().plus(properties.getHeartbeatInterval()));
         }
@@ -77,7 +77,7 @@ class CacheBackedLocalJobWorkerRegistry implements LocalJobWorkerRegistry {
         Map<String, Long> topology = topology();
         long expiresBefore = Instant.now().toEpochMilli() - properties.getHeartbeatTtl().toMillis();
         return JobCompatibilityCollections.collectList(topology.entrySet().stream()
-                .filter(entry -> entry.getValue() >= expiresBefore)
+                .filter(entry -> entry.getValue() > expiresBefore)
                 .map(Map.Entry::getKey)
                 .sorted());
     }

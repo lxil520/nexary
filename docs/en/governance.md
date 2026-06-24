@@ -1,8 +1,8 @@
 # Governance
 
-Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. The v0.6 sample also shows a local circuit flow: normal calls, repeated failures, slow calls, open circuit, fallback, half-open probing, recovery, and reopening.
+Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. v0.8 tightens that path into a local governance data plane: business entries call `GovernanceRuntime`, the runtime handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM, and diagnostic snapshots expose bounded local state.
 
-The boundary is deliberate: this is local SDK-level governance, not a console, sidecar, agent, remote config push, or global service-governance platform.
+The boundary is deliberate: this is local SDK-level governance, not a UI, remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
 ## Add Dependencies
 
@@ -28,6 +28,8 @@ Use `application.yml` first for deadlines, rate limits, bulkheads, and explicit 
 nexary:
   governance:
     runtime:
+      enabled: true
+    diagnostics:
       enabled: true
     default-policy:
       max-requests-per-window: 100
@@ -107,6 +109,21 @@ return governanceRuntime.execute(
 
 The deadline is also written to the older `DeadlineContext`, so existing cache, messaging, and job code can continue to read the same deadline.
 
+`nexary.governance.diagnostics.enabled` is `false` by default. Enable it only when local diagnostics are needed; the endpoints are GET-only and cannot change policies.
+
+## v0.8 Local Governance Data
+
+v0.8 describes the governance path in four layers:
+
+| Layer | Role | What to do |
+| --- | --- | --- |
+| `GovernanceContext` | Describes the stable resource, traffic tag, priority, and deadline for one call. | Build it at the business entry point; do not put user ids, order ids, cache keys, or message ids in resource names. |
+| `GovernanceRuntime` | Applies deadline, rate limit, bulkhead, degradation, circuit decisions, and fallback in the current JVM. | Pass the primary action and fallback to `execute(...)` instead of duplicating governance branches in business code. |
+| `GovernanceResourceDescriptor` | Lists configured or already-used resources, priorities, and policy snapshots. | Use it to confirm resource name, provider, operation, and policy binding. |
+| `GovernanceRuntimeSnapshot` / `GovernanceRuntimeEvent` | Exposes low-cardinality fields for this process. | Use it for local debugging only; do not treat it as a remote console or multi-instance view. |
+
+The starter auto-configures `GovernancePolicyRegistry`, `GovernanceRuntime`, and `GovernanceExecution`. If the application provides one of those beans, the starter backs off.
+
 ## Run the Circuit Sample
 
 The circuit flow is demonstrated by `LocalCircuitBreakerProfileGateway` in `nexary-sample-governance`. The class creates a local `GovernanceRuntime` with the same policy; `reset` only clears sample state so you can repeat the commands below. The `application.yml` snippet above is what starter-based applications should copy.
@@ -159,12 +176,38 @@ The second response has `circuitState=OPEN`, `windowSlowCalls=2`, and `outcome=s
 
 These fields are local in-process policy settings. They are not pushed from a remote console, and their windows are not shared across service instances.
 
-## Inspect the Runtime Diagnostic Snapshot
+## Inspect the Read-Only Diagnostic Endpoints
 
-The sample exposes a read-only endpoint for local circuit and rejection state:
+The sample enables `nexary.governance.diagnostics.enabled=true` in `application.yml`, so you can call the starter's read-only endpoints directly. Start the sample first:
 
 ```bash
-curl -s http://localhost:8080/governance/circuit/state
+./gradlew :nexary-samples:nexary-sample-governance:run
+```
+
+From another terminal, trigger a few calls:
+
+```bash
+curl -s http://localhost:8080/governance/profiles/u-1
+curl -s http://localhost:8080/governance/profiles/u-2
+curl -s http://localhost:8080/governance/profiles/u-3
+```
+
+Inspect summary, resources, and recent events:
+
+```bash
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+Open the circuit and inspect diagnostics again:
+
+```bash
+curl -s -X POST http://localhost:8080/governance/circuit/reset
+curl -s "http://localhost:8080/governance/circuit/profiles/u-1?mode=failure"
+curl -s "http://localhost:8080/governance/circuit/profiles/u-2?mode=failure"
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
 ```
 
 Useful fields:
@@ -172,16 +215,21 @@ Useful fields:
 | Field | Meaning |
 | --- | --- |
 | `resourceKey` | Stable resource key; the sample uses a profile downstream call. |
+| `kind` / `name` / `provider` / `operation` | Resource catalog fields that show which resource owns the policy. |
 | `priority` | Priority bucket used for local policy accounting. |
+| `policySnapshot` | Policy snapshot last applied to this resource. |
+| `runtimeSnapshot` | Window, circuit, and rejection state after the latest local run. |
 | `circuitState` | `CLOSED`, `OPEN`, or `HALF_OPEN`. |
 | `windowCalls` / `windowFailures` / `windowSlowCalls` | Completed, failed, and slow calls in the sliding window. |
 | `totalRejections` | Total local governance rejections seen in this JVM. |
-| `lastRejectionReason` | Most recent rejection reason, for example `CIRCUIT_OPEN`, `RATE_LIMITED`, or `BULKHEAD_FULL`. |
+| `lastRejectionReason` | Most recent rejection reason, for example `CIRCUIT_OPEN`, `RATE_LIMITED`, or `CONCURRENCY_LIMITED`. |
 | `activeConcurrency` / `maxConcurrency` | Current concurrency and configured limit. |
 | `maxRequestsPerWindow` / `rateLimitWindow` | Rate-limit window settings. |
 | `lastOutcome` | Most recent local governance result, commonly `SUCCESS`, `FAILURE`, or `REJECTED`. |
+| `action` | Recent event action, commonly `EXECUTE`, `REJECT`, or `FALLBACK`. |
+| `durationBucket` | Coarse duration bucket; exact business latency is not exposed. |
 
-The snapshot is intentionally low-cardinality. It does not include user ids, order ids, message ids, cache keys, exception text, or stack traces.
+The diagnostics are intentionally low-cardinality. They do not include user ids, order ids, message ids, cache keys, payloads, exception text, or stack traces. The endpoints are read-only, and the starter does not expose these HTTP paths unless explicitly enabled.
 
 ## Messaging Publish Policy
 
@@ -238,6 +286,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.
+- v0.8 does not include a UI, remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.
 - Messaging deadline headers apply to newly published messages. Older queued messages do not gain a deadline retroactively.
 - Job `execution-timeout` still controls in-flight timeout. `start-deadline` only decides whether a trigger should start.
 - There is no console, sidecar, agent, remote dynamic config, or policy push service here.

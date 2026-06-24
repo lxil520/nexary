@@ -441,6 +441,171 @@ class LocalGovernanceRuntimeTest {
         assertThat(rejected.totalRejections()).isEqualTo(1);
     }
 
+    @Test
+    void resourcesEventsAndSummaryExposeOnlyLowCardinalityFields() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("catalog-api", "list");
+        LocalGovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(resource, GovernancePolicy.builder()
+                                .maxRequestsPerWindow(1)
+                                .rateLimitWindow(Duration.ofMinutes(1))
+                                .maxConcurrency(4)
+                                .build())
+                        .build(),
+                new RecordingPublisher());
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .tenant("tenant-42")
+                        .bizKey("user-42")
+                        .priority(TrafficTag.Priority.HIGH)
+                        .build())
+                .attribute("message_id", "m-1")
+                .attribute("cache_key", "cache-user-42")
+                .attribute("payload", "payload-secret")
+                .build();
+
+        assertThat(runtime.execute(context, () -> "ok")).isEqualTo("ok");
+        assertThat(runtime.execute(context, () -> "fallback", () -> "fallback")).isEqualTo("fallback");
+
+        GovernanceResourceDescriptor descriptor = runtime.resources().get(0);
+        assertThat(descriptor.resourceKey()).isEqualTo(resource.key());
+        assertThat(descriptor.kind()).isEqualTo(resource.kind());
+        assertThat(descriptor.name()).isEqualTo("catalog-api");
+        assertThat(descriptor.provider()).isEqualTo("nexary");
+        assertThat(descriptor.operation()).isEqualTo("list");
+        assertThat(descriptor.priority()).isEqualTo("high");
+        assertThat(descriptor.policySnapshot().maxRequestsPerWindow()).isEqualTo(1);
+        assertThat(descriptor.runtimeSnapshot().lastRejectionReason()).isEqualTo(GovernanceRejectionReason.RATE_LIMITED);
+
+        assertThat(runtime.recentEvents())
+                .hasSize(2)
+                .extracting(GovernanceRuntimeEvent::outcome)
+                .containsExactly(GovernanceCallOutcome.SUCCESS, GovernanceCallOutcome.REJECTED);
+        GovernanceRuntimeEvent rejected = runtime.recentEvents().get(1);
+        assertThat(rejected.action()).isEqualTo(GovernanceRuntimeAction.FALLBACK);
+        assertThat(rejected.rejectionReason()).isEqualTo(GovernanceRejectionReason.RATE_LIMITED);
+        assertThat(rejected.durationBucket()).isNotNull();
+
+        GovernanceRuntimeSummary summary = runtime.summary();
+        assertThat(summary.resourceCount()).isEqualTo(2);
+        assertThat(summary.snapshotCount()).isEqualTo(1);
+        assertThat(summary.eventCount()).isEqualTo(2);
+        assertThat(summary.successCount()).isEqualTo(1);
+        assertThat(summary.rejectedCount()).isEqualTo(1);
+        assertThat(summary.fallbackCount()).isEqualTo(1);
+        assertThat(summary.lastEventAt()).isPresent();
+
+        assertThat(descriptor.toString())
+                .doesNotContain("tenant-42", "user-42", "m-1", "cache-user-42", "payload-secret");
+        assertThat(runtime.recentEvents().toString())
+                .doesNotContain("tenant-42", "user-42", "m-1", "cache-user-42", "payload-secret");
+        assertThat(summary.toString())
+                .doesNotContain("tenant-42", "user-42", "m-1", "cache-user-42", "payload-secret");
+    }
+
+    @Test
+    void recentEventsUseFixedSizeOldestToNewestRingBuffer() throws Exception {
+        GovernanceResource firstResource = GovernanceResource.http("audit-api", "first");
+        GovernanceResource secondResource = GovernanceResource.http("audit-api", "second");
+        GovernanceResource thirdResource = GovernanceResource.http("audit-api", "third");
+        LocalGovernanceRuntime runtime = new LocalGovernanceRuntime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(firstResource, GovernancePolicy.allowAll())
+                        .policy(secondResource, GovernancePolicy.allowAll())
+                        .policy(thirdResource, GovernancePolicy.allowAll())
+                        .build(),
+                new RecordingPublisher(),
+                2);
+
+        runtime.execute(GovernanceContext.builder().resource(firstResource).build(), () -> "one");
+        runtime.execute(GovernanceContext.builder().resource(secondResource).build(), () -> "two");
+        runtime.execute(GovernanceContext.builder().resource(thirdResource).build(), () -> "three");
+
+        assertThat(runtime.recentEvents()).hasSize(2);
+        assertThat(runtime.recentEvents())
+                .extracting(GovernanceRuntimeEvent::resourceKey)
+                .containsExactly(secondResource.key(), thirdResource.key());
+        assertThat(runtime.summary().eventCount()).isEqualTo(2);
+    }
+
+    @Test
+    void summaryAggregatesSuccessFailureRejectedFallbackAndCircuitState() throws Exception {
+        GovernanceResource degradedResource = GovernanceResource.http("summary-api", "degraded");
+        GovernanceResource circuitResource = GovernanceResource.http("summary-api", "circuit");
+        LocalGovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(degradedResource, GovernancePolicy.builder().degraded(true).build())
+                        .policy(circuitResource, GovernancePolicy.builder()
+                                .consecutiveFailureThreshold(1)
+                                .openStateDuration(Duration.ofSeconds(5))
+                                .build())
+                        .build(),
+                new RecordingPublisher());
+        GovernanceContext degraded = GovernanceContext.builder().resource(degradedResource).build();
+        GovernanceContext circuit = GovernanceContext.builder().resource(circuitResource).build();
+
+        assertThat(runtime.execute(circuit, () -> "ok")).isEqualTo("ok");
+        assertThatThrownBy(() -> runtime.execute(circuit, () -> {
+            throw new IllegalStateException("downstream userId=42 payload=secret");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(runtime.execute(circuit, () -> "main", () -> "fallback")).isEqualTo("fallback");
+        assertThat(runtime.execute(degraded, () -> "main", () -> "degraded-fallback")).isEqualTo("degraded-fallback");
+
+        GovernanceRuntimeSummary summary = runtime.summary();
+        assertThat(summary.resourceCount()).isEqualTo(2);
+        assertThat(summary.snapshotCount()).isEqualTo(2);
+        assertThat(summary.eventCount()).isEqualTo(4);
+        assertThat(summary.successCount()).isEqualTo(1);
+        assertThat(summary.failureCount()).isEqualTo(1);
+        assertThat(summary.rejectedCount()).isEqualTo(2);
+        assertThat(summary.fallbackCount()).isEqualTo(2);
+        assertThat(summary.openCircuitCount()).isEqualTo(1);
+        assertThat(summary.degradedResourceCount()).isEqualTo(1);
+        assertThat(runtime.recentEvents().toString()).doesNotContain("userId=42", "payload=secret");
+    }
+
+    @Test
+    void resourcePolicySnapshotMatchesRuntimeSnapshotPolicyFields() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("policy-api", "read");
+        LocalGovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(resource, GovernancePolicy.builder()
+                                .maxRequestsPerWindow(7)
+                                .rateLimitWindow(Duration.ofSeconds(8))
+                                .maxConcurrency(9)
+                                .minimumRequests(10)
+                                .failureRateThreshold(11.0)
+                                .slowCallThreshold(12.0)
+                                .slowCallDuration(Duration.ofMillis(13))
+                                .openStateDuration(Duration.ofSeconds(14))
+                                .halfOpenMaxCalls(15)
+                                .slidingWindowSize(16)
+                                .slidingWindowDuration(Duration.ofSeconds(17))
+                                .consecutiveFailureThreshold(18)
+                                .build())
+                        .build(),
+                new RecordingPublisher());
+
+        assertThat(runtime.execute(GovernanceContext.builder().resource(resource).build(), () -> "ok")).isEqualTo("ok");
+
+        GovernanceRuntimeSnapshot runtimeSnapshot = runtime.snapshots().get(0);
+        GovernancePolicySnapshot policySnapshot = runtime.resources().get(0).policySnapshot();
+        assertThat(policySnapshot.maxRequestsPerWindow()).isEqualTo(runtimeSnapshot.maxRequestsPerWindow());
+        assertThat(policySnapshot.rateLimitWindow()).isEqualTo(runtimeSnapshot.rateLimitWindow());
+        assertThat(policySnapshot.maxConcurrency()).isEqualTo(runtimeSnapshot.maxConcurrency());
+        assertThat(policySnapshot.degraded()).isEqualTo(runtimeSnapshot.degraded());
+        assertThat(policySnapshot.minimumRequests()).isEqualTo(runtimeSnapshot.minimumRequests());
+        assertThat(policySnapshot.failureRateThreshold()).isEqualTo(runtimeSnapshot.failureRateThreshold());
+        assertThat(policySnapshot.slowCallThreshold()).isEqualTo(runtimeSnapshot.slowCallThreshold());
+        assertThat(policySnapshot.slowCallDuration()).isEqualTo(runtimeSnapshot.slowCallDuration());
+        assertThat(policySnapshot.openStateDuration()).isEqualTo(runtimeSnapshot.openStateDuration());
+        assertThat(policySnapshot.halfOpenMaxCalls()).isEqualTo(runtimeSnapshot.halfOpenMaxCalls());
+        assertThat(policySnapshot.slidingWindowSize()).isEqualTo(runtimeSnapshot.slidingWindowSize());
+        assertThat(policySnapshot.slidingWindowDuration()).isEqualTo(runtimeSnapshot.slidingWindowDuration());
+        assertThat(policySnapshot.consecutiveFailureThreshold()).isEqualTo(runtimeSnapshot.consecutiveFailureThreshold());
+    }
+
     private static LocalGovernanceRuntime runtime(GovernancePolicyRegistry registry, RecordingPublisher publisher) {
         return new LocalGovernanceRuntime(registry, publisher);
     }

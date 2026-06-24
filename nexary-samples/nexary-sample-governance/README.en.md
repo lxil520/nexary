@@ -1,11 +1,14 @@
 # nexary-sample-governance
 
-This sample shows two paths:
+This sample shows three paths:
 
 - How the Spring Boot starter reads `application.yml` for deadlines, rate limits, bulkheads, and explicit degradation.
-- How the v0.6 local circuit flow behaves for one downstream call: normal calls, repeated failures, slow calls, open circuit, fallback, half-open probing, recovery, and reopening.
+- How the local governance data plane connects `GovernanceContext`, `GovernanceRuntime`, fallback, and bounded diagnostic snapshots.
+- How the local circuit flow behaves for one downstream call: normal calls, repeated failures, slow calls, open circuit, fallback, half-open probing, recovery, and reopening.
 
 The sample also adds `nexary-observation-micrometer-spring-boot-starter`. Tests register a local `SimpleMeterRegistry`, so rate-limit, degradation, and bulkhead events are recorded in `nexary.observation.events.total` and `nexary.observation.events.duration`.
+
+This sample is not a UI, remote console, sidecar, agent, or multi-instance governance service. All windows, counters, and diagnostic fields come from the current JVM.
 
 ## Run
 
@@ -30,6 +33,45 @@ curl http://localhost:8080/governance/degraded/u-1
 ```
 
 The response `source` is `fallback` because `inventory-service/reserve` has `degraded=true`.
+
+## Read-Only Diagnostic Endpoints
+
+The sample enables `nexary.governance.diagnostics.enabled=true`. Inspect local summary, resources, and recent events for the current process:
+
+```bash
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+To see circuit and rejection fields, open the circuit first and then inspect diagnostics:
+
+```bash
+curl -s -X POST http://localhost:8080/governance/circuit/reset
+curl -s "http://localhost:8080/governance/circuit/profiles/u-2?mode=failure"
+curl -s "http://localhost:8080/governance/circuit/profiles/u-3?mode=failure"
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+Useful fields:
+
+| Field | Meaning |
+| --- | --- |
+| `resourceKey` | Stable resource key. |
+| `kind` / `name` / `provider` / `operation` | Resource catalog fields. |
+| `priority` | Priority bucket used for local accounting. |
+| `policySnapshot` | Policy last applied to this resource. |
+| `runtimeSnapshot` | Window, circuit, and rejection state after the latest local run. |
+| `circuitState` | `CLOSED`, `OPEN`, or `HALF_OPEN`. |
+| `windowCalls` / `windowFailures` / `windowSlowCalls` | Completed, failed, and slow calls in the current sliding window. |
+| `totalRejections` | Local governance rejections in this JVM. |
+| `lastRejectionReason` | Most recent rejection reason, such as `CIRCUIT_OPEN`, `RATE_LIMITED`, or `CONCURRENCY_LIMITED`. |
+| `lastOutcome` | Most recent result, such as `SUCCESS`, `FAILURE`, or `REJECTED`. |
+| `action` | Recent event action, such as `EXECUTE`, `REJECT`, or `FALLBACK`. |
+| `durationBucket` | Coarse duration bucket. |
+
+These endpoints are read-only and disabled by default; the starter registers them only when `nexary.governance.diagnostics.enabled=true`.
 
 ## Circuit Flow
 
@@ -90,6 +132,8 @@ nexary:
   governance:
     runtime:
       enabled: true
+    diagnostics:
+      enabled: true
     resources:
       profile-api:
         kind: http
@@ -134,3 +178,9 @@ The circuit flow is demonstrated by `LocalCircuitBreakerProfileGateway` through 
 - `ProfileQueryService`: main logic, slow call, failed call, and fallback are kept separate.
 
 Keep resource names stable, such as `profile-api/get-profile`. Micrometer meters keep only bounded tags such as `resource_kind`, `governance_action`, `traffic_channel`, `traffic_priority`, and `outcome`.
+
+## What This Does Not Include
+
+- No UI, remote console, sidecar, or agent.
+- No remote policy push.
+- No cross-instance sync for circuit, rate-limit, bulkhead, or diagnostic state.

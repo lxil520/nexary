@@ -296,6 +296,26 @@ Included scope:
 - exactly-once, global ordering, or cross-provider transaction guarantees.
 - README support claims that have not passed sample and real-middleware verification.
 
+## `0.8.x` Governance Data Plane And Policy Snapshots
+
+`0.8.x` turns local governance runtime state into stable read-only data. Users can inspect governance resources, policy snapshots, runtime snapshots, and recent events inside one JVM. The data is meant for diagnosing the current service and for future read-only Console fields. It is still not a console, sidecar, agent, or remote configuration platform.
+
+Included scope:
+
+- Runtime: add `GovernanceDiagnostics`, `GovernanceResourceDescriptor`, `GovernancePolicySnapshot`, `GovernanceRuntimeEvent`, and `GovernanceRuntimeSummary`.
+- Runtime: keep the existing `GovernanceRuntime` execute behavior and add read-only `resources()`, `snapshots()`, `recentEvents()`, and `summary()` methods.
+- Runtime: keep recent events in a bounded ring buffer and return them oldest-to-newest.
+- Diagnostics: event fields are limited to `resourceKey`, `action`, `outcome`, `rejectionReason`, `circuitState`, `timestamp`, and `durationBucket`.
+- Boot: `nexary-governance-spring-boot-starter` exposes `GET /nexary/governance/summary`, `/resources`, `/resources/{resourceKey}`, and `/events` only after `nexary.governance.diagnostics.enabled=true`.
+- Samples: `nexary-sample-governance` adds diagnostics config and curl commands for success, failure, rate limit, bulkhead rejection, open circuit, half-open probe, and recovery.
+
+`0.8.x` does not include:
+
+- policy writes, config push, remote control, login, permissions, audit backends, or UI pages.
+- userId, tenant, bizKey, messageId, cache key, payload, full exception messages, or stack traces.
+- cross-instance windows, centralized state storage, or automatic provider switching.
+- Boot2 / Boot4 / provider support claims that have not passed real samples and middleware tests.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

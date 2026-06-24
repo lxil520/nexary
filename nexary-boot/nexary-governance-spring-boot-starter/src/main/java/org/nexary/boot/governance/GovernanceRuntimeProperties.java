@@ -12,6 +12,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "nexary.governance")
 public class GovernanceRuntimeProperties {
     private RuntimeSettings runtime = new RuntimeSettings();
+    private Diagnostics diagnostics = new Diagnostics();
     private Policy defaultPolicy = new Policy();
     private Map<String, ResourcePolicy> resources = new LinkedHashMap<>();
 
@@ -23,6 +24,16 @@ public class GovernanceRuntimeProperties {
     /** Sets runtime lifecycle settings. */
     public void setRuntime(RuntimeSettings runtime) {
         this.runtime = runtime == null ? new RuntimeSettings() : runtime;
+    }
+
+    /** Returns read-only diagnostics endpoint settings. */
+    public Diagnostics getDiagnostics() {
+        return diagnostics;
+    }
+
+    /** Sets read-only diagnostics endpoint settings. */
+    public void setDiagnostics(Diagnostics diagnostics) {
+        this.diagnostics = diagnostics == null ? new Diagnostics() : diagnostics;
     }
 
     /** Returns the default policy used when no resource policy matches. */
@@ -68,6 +79,34 @@ public class GovernanceRuntimeProperties {
         /** Sets the legacy runtime-scoped default policy. */
         public void setDefaultPolicy(Policy defaultPolicy) {
             this.defaultPolicy = defaultPolicy;
+        }
+    }
+
+    /** Read-only diagnostics endpoint settings. */
+    public static class Diagnostics {
+        private boolean enabled;
+        private String pathPrefix = "/nexary/governance";
+
+        /** Returns whether read-only diagnostics HTTP endpoints are enabled. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether read-only diagnostics HTTP endpoints are enabled. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns the HTTP path prefix used by diagnostics endpoints. */
+        public String getPathPrefix() {
+            return pathPrefix;
+        }
+
+        /** Sets the HTTP path prefix used by diagnostics endpoints. */
+        public void setPathPrefix(String pathPrefix) {
+            this.pathPrefix = pathPrefix == null || pathPrefix.trim().isEmpty()
+                    ? "/nexary/governance"
+                    : pathPrefix.trim();
         }
     }
 

@@ -12,10 +12,15 @@ import org.nexary.governance.runtime.GovernancePolicy;
 import org.nexary.governance.runtime.GovernancePolicyRegistry;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 
 class GovernanceRuntimeAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(GovernanceRuntimeAutoConfiguration.class));
+    private final WebApplicationContextRunner webContextRunner = new WebApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(
+                    GovernanceRuntimeAutoConfiguration.class,
+                    GovernanceDiagnosticsAutoConfiguration.class));
 
     @Test
     void createsLocalRuntimeByDefault() {
@@ -134,6 +139,20 @@ class GovernanceRuntimeAutoConfigurationTest {
                     assertThat(policy.slidingWindowSize()).isEqualTo(8);
                     assertThat(policy.slidingWindowDuration()).hasSeconds(20);
                     assertThat(policy.consecutiveFailureThreshold()).isEqualTo(3);
-                });
+	                });
+    }
+
+    @Test
+    void diagnosticsEndpointIsDisabledByDefault() {
+        webContextRunner.run(context -> assertThat(context)
+                .doesNotHaveBean(GovernanceDiagnosticsAutoConfiguration.GovernanceDiagnosticsEndpoint.class));
+    }
+
+    @Test
+    void diagnosticsEndpointIsEnabledExplicitly() {
+        webContextRunner
+                .withPropertyValues("nexary.governance.diagnostics.enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(GovernanceDiagnosticsAutoConfiguration.GovernanceDiagnosticsEndpoint.class));
     }
 }

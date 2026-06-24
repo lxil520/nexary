@@ -15,6 +15,7 @@ import java.util.concurrent.Semaphore;
 import org.nexary.core.fault.FaultSignal;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceObservationEvents;
+import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.observation.NexaryObservationPublisher;
 
 /** Default local governance runtime. */
@@ -22,17 +23,47 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
     private final GovernancePolicyRegistry policyRegistry;
     private final NexaryObservationPublisher observationPublisher;
     private final Map<String, State> states = new ConcurrentHashMap<>();
+    private final ArrayDeque<GovernanceRuntimeEvent> recentEvents = new ArrayDeque<>();
+    private final int recentEventCapacity;
 
+    /** Creates a runtime with the default bounded diagnostics event capacity. */
     public LocalGovernanceRuntime(GovernancePolicyRegistry policyRegistry, NexaryObservationPublisher observationPublisher) {
+        this(policyRegistry, observationPublisher, 256);
+    }
+
+    /** Creates a runtime with an explicit bounded diagnostics event capacity. */
+    public LocalGovernanceRuntime(
+            GovernancePolicyRegistry policyRegistry,
+            NexaryObservationPublisher observationPublisher,
+            int recentEventCapacity) {
         this.policyRegistry = policyRegistry == null
                 ? LocalGovernancePolicyRegistry.builder().build()
                 : policyRegistry;
         this.observationPublisher = observationPublisher == null
                 ? NexaryObservationPublisher.noop()
                 : observationPublisher;
+        this.recentEventCapacity = Math.max(1, recentEventCapacity);
+    }
+
+    @Override
+    public List<GovernanceResourceDescriptor> resources() {
+        Map<String, GovernanceResourceDescriptor> resources = new ConcurrentHashMap<>();
+        for (GovernanceResourceDescriptor descriptor : policyRegistry.resources()) {
+            resources.put(descriptor.resourceKey() + ":" + descriptor.priority(), descriptor);
+        }
+        for (State state : states.values()) {
+            GovernanceResourceDescriptor descriptor = state.descriptor();
+            resources.put(descriptor.resourceKey() + ":" + descriptor.priority(), descriptor);
+        }
+        List<GovernanceResourceDescriptor> sorted = new ArrayList<>(resources.values());
+        sorted.sort(Comparator
+                .comparing(GovernanceResourceDescriptor::resourceKey)
+                .thenComparing(GovernanceResourceDescriptor::priority));
+        return sorted;
     }
 
     /** Returns low-cardinality diagnostic snapshots for current local resource states. */
+    @Override
     public List<GovernanceRuntimeSnapshot> snapshots() {
         List<GovernanceRuntimeSnapshot> snapshots = new ArrayList<>();
         for (State state : states.values()) {
@@ -42,6 +73,60 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 .comparing(GovernanceRuntimeSnapshot::resourceKey)
                 .thenComparing(GovernanceRuntimeSnapshot::priority));
         return snapshots;
+    }
+
+    @Override
+    public List<GovernanceRuntimeEvent> recentEvents() {
+        synchronized (recentEvents) {
+            return new ArrayList<>(recentEvents);
+        }
+    }
+
+    @Override
+    public GovernanceRuntimeSummary summary() {
+        List<GovernanceRuntimeSnapshot> currentSnapshots = snapshots();
+        List<GovernanceRuntimeEvent> currentEvents = recentEvents();
+        long successes = 0L;
+        long failures = 0L;
+        long rejected = 0L;
+        long fallback = 0L;
+        Instant lastEventAt = null;
+        for (GovernanceRuntimeEvent event : currentEvents) {
+            if (event.outcome() == GovernanceCallOutcome.SUCCESS) {
+                successes++;
+            } else if (event.outcome() == GovernanceCallOutcome.FAILURE) {
+                failures++;
+            } else if (event.outcome() == GovernanceCallOutcome.REJECTED) {
+                rejected++;
+            }
+            if (event.action() == GovernanceRuntimeAction.FALLBACK) {
+                fallback++;
+            }
+            if (lastEventAt == null || event.timestamp().isAfter(lastEventAt)) {
+                lastEventAt = event.timestamp();
+            }
+        }
+        long openCircuits = currentSnapshots.stream()
+                .filter(snapshot -> snapshot.circuitState() == GovernanceCircuitState.OPEN)
+                .count();
+        long halfOpenCircuits = currentSnapshots.stream()
+                .filter(snapshot -> snapshot.circuitState() == GovernanceCircuitState.HALF_OPEN)
+                .count();
+        long degradedResources = currentSnapshots.stream()
+                .filter(GovernanceRuntimeSnapshot::degraded)
+                .count();
+        return new GovernanceRuntimeSummary(
+                resources().size(),
+                currentSnapshots.size(),
+                currentEvents.size(),
+                successes,
+                failures,
+                rejected,
+                fallback,
+                openCircuits,
+                halfOpenCircuits,
+                degradedResources,
+                lastEventAt);
     }
 
     @Override
@@ -64,6 +149,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         GovernanceDecision rejected = rejectBeforeAcquire(effectiveContext, state, policy);
         if (rejected != null) {
             publishRejection(effectiveContext, rejected, startedAt);
+            recordRuntimeEvent(
+                    state,
+                    fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
+                    GovernanceCallOutcome.REJECTED,
+                    state.lastRejectionReason,
+                    startedAt,
+                    Instant.now());
             return fallbackOrThrow(fallback, rejected);
         }
         CircuitPermit circuitPermit = state.tryEnterCircuit(policy);
@@ -78,6 +170,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     startedAt,
                     Instant.now()));
             publishRetryStopped(effectiveContext, decision, startedAt);
+            recordRuntimeEvent(
+                    state,
+                    fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
+                    GovernanceCallOutcome.REJECTED,
+                    circuitPermit.rejectionReason(),
+                    startedAt,
+                    Instant.now());
             return fallbackOrThrow(fallback, decision);
         }
         if (!state.allowRate(policy)) {
@@ -87,6 +186,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     GovernanceDecision.Decision.RATE_LIMITED,
                     new FaultSignal(FaultSignal.FaultType.RATE_LIMITED, "governance", "rate limited", Instant.now(), true));
             publishRejection(effectiveContext, decision, startedAt);
+            recordRuntimeEvent(
+                    state,
+                    fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
+                    GovernanceCallOutcome.REJECTED,
+                    GovernanceRejectionReason.RATE_LIMITED,
+                    startedAt,
+                    Instant.now());
             return fallbackOrThrow(fallback, decision);
         }
         if (!state.tryAcquire()) {
@@ -98,6 +204,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             observationPublisher.publish(GovernanceObservationEvents.bulkheadRejected(
                     effectiveContext.resource(), effectiveContext.trafficTag(), startedAt, Instant.now()));
             publishRetryStopped(effectiveContext, decision, startedAt);
+            recordRuntimeEvent(
+                    state,
+                    fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
+                    GovernanceCallOutcome.REJECTED,
+                    GovernanceRejectionReason.CONCURRENCY_LIMITED,
+                    startedAt,
+                    Instant.now());
             return fallbackOrThrow(fallback, decision);
         }
         long actionStartedNanos = System.nanoTime();
@@ -109,6 +222,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             return rethrow(error);
         } finally {
             state.recordCall(policy, actionStartedNanos, System.nanoTime(), failure != null, circuitPermit);
+            recordRuntimeEvent(
+                    state,
+                    GovernanceRuntimeAction.EXECUTE,
+                    failure == null ? GovernanceCallOutcome.SUCCESS : GovernanceCallOutcome.FAILURE,
+                    GovernanceRejectionReason.NONE,
+                    startedAt,
+                    Instant.now());
             state.release();
         }
     }
@@ -204,12 +324,42 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             if (current != null && current.maxConcurrency == policy.maxConcurrency()) {
                 return current;
             }
-            return new State(context.resource().key(), priority, policy.maxConcurrency());
+            return new State(context.resource(), priority, policy.maxConcurrency());
         });
+    }
+
+    private void recordRuntimeEvent(
+            State state,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            Instant startedAt,
+            Instant endedAt) {
+        Duration duration = startedAt == null || endedAt == null
+                ? null
+                : Duration.between(startedAt, endedAt);
+        GovernanceRuntimeEvent event = new GovernanceRuntimeEvent(
+                state.resourceKey,
+                action,
+                outcome,
+                rejectionReason,
+                state.currentCircuitState(),
+                endedAt,
+                GovernanceDurationBucket.from(duration));
+        synchronized (recentEvents) {
+            recentEvents.addLast(event);
+            while (recentEvents.size() > recentEventCapacity) {
+                recentEvents.removeFirst();
+            }
+        }
     }
 
     private static final class State {
         private final String resourceKey;
+        private final GovernanceResource.ResourceKind kind;
+        private final String name;
+        private final String provider;
+        private final String operation;
         private final String priority;
         private final int maxConcurrency;
         private final Semaphore semaphore;
@@ -240,9 +390,15 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private Duration lastSlidingWindowDuration = Duration.ofSeconds(60);
         private long lastSlidingWindowNanos = Duration.ofSeconds(60).toNanos();
         private int lastConsecutiveFailureThreshold = Integer.MAX_VALUE;
+        private GovernancePolicySnapshot lastPolicySnapshot = GovernancePolicySnapshot.from(GovernancePolicy.allowAll());
 
-        private State(String resourceKey, String priority, int maxConcurrency) {
-            this.resourceKey = resourceKey;
+        private State(GovernanceResource resource, String priority, int maxConcurrency) {
+            GovernanceResource safeResource = resource == null ? GovernanceResource.custom("unknown", "default") : resource;
+            this.resourceKey = safeResource.key();
+            this.kind = safeResource.kind();
+            this.name = safeResource.name();
+            this.provider = safeResource.provider();
+            this.operation = safeResource.operation();
             this.priority = priority;
             this.maxConcurrency = maxConcurrency;
             this.semaphore = new Semaphore(maxConcurrency);
@@ -262,6 +418,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             lastSlidingWindowDuration = policy.slidingWindowDuration();
             lastSlidingWindowNanos = lastSlidingWindowDuration.toNanos();
             lastConsecutiveFailureThreshold = policy.consecutiveFailureThreshold();
+            lastPolicySnapshot = GovernancePolicySnapshot.from(policy);
             pruneCalls(System.nanoTime());
         }
 
@@ -385,6 +542,18 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             lastOutcomeAt = Instant.now();
         }
 
+        private synchronized GovernanceResourceDescriptor descriptor() {
+            return new GovernanceResourceDescriptor(
+                    resourceKey,
+                    kind,
+                    name,
+                    provider,
+                    operation,
+                    priority,
+                    lastPolicySnapshot,
+                    snapshot());
+        }
+
         private synchronized GovernanceRuntimeSnapshot snapshot() {
             transitionOpenToHalfOpenIfReady();
             pruneCalls(System.nanoTime());
@@ -417,6 +586,11 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     lastStateTransitionAt,
                     lastOutcome,
                     lastOutcomeAt);
+        }
+
+        private synchronized GovernanceCircuitState currentCircuitState() {
+            transitionOpenToHalfOpenIfReady();
+            return circuitState;
         }
 
         private void transitionOpenToHalfOpenIfReady() {

@@ -296,6 +296,26 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - exactly-once、全局有序或跨 provider 事务一致性承诺。
 - 未经过样例和真实中间件验证的 README 支持声明。
 
+## `0.8.x` 治理数据面和策略快照
+
+`0.8.x` 把本地治理运行时的状态整理成稳定的只读数据。用户可以在一个 JVM 里看到治理资源、策略快照、运行时快照和最近事件；这些数据用于排查当前服务的本地治理行为，也为后续只读 Console 留出字段基础。它仍然不是控制台、sidecar、agent 或远程配置平台。
+
+已纳入范围：
+
+- Runtime：提供 `GovernanceDiagnostics`、`GovernanceResourceDescriptor`、`GovernancePolicySnapshot`、`GovernanceRuntimeEvent`、`GovernanceRuntimeSummary`。
+- Runtime：`GovernanceRuntime` 保留原有 execute 行为，同时提供 `resources()`、`snapshots()`、`recentEvents()`、`summary()` 只读方法。
+- Runtime：最近事件使用有上限的 ring buffer，按时间顺序返回。
+- Diagnostics：事件字段只包含 `resourceKey`、`action`、`outcome`、`rejectionReason`、`circuitState`、`timestamp`、`durationBucket`。
+- Boot：`nexary-governance-spring-boot-starter` 在显式开启 `nexary.governance.diagnostics.enabled=true` 后提供 `GET /nexary/governance/summary`、`/resources`、`/resources/{resourceKey}`、`/events`。
+- Samples：`nexary-sample-governance` 增加 diagnostics profile 和 curl 命令，用来触发成功、失败、限流、并发隔离、熔断打开、半开探测和恢复。
+
+`0.8.x` 不包含：
+
+- 写策略、下发配置、远程控制、登录权限、审计后台或可视化页面。
+- userId、tenant、bizKey、messageId、cache key、payload、完整异常消息或堆栈。
+- 跨实例窗口、集中状态存储、自动切换 provider。
+- 未通过真实样例和中间件测试的 Boot2 / Boot4 / provider 支持声明。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。

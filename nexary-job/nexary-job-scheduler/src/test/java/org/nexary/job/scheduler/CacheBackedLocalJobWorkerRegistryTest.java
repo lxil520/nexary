@@ -51,7 +51,7 @@ class CacheBackedLocalJobWorkerRegistryTest {
         nodeBProperties.setHeartbeatInterval(Duration.ofMillis(5));
         CacheBackedLocalJobWorkerRegistry nodeB =
                 new CacheBackedLocalJobWorkerRegistry(Optional.of(cacheClient), nodeBProperties);
-        Thread.sleep(30);
+        Thread.sleep(80);
         nodeB.heartbeat();
 
         assertThat(nodeB.workerIds(new JobSchedule("sample-job", "0 */10 * * * *", false, 2)))

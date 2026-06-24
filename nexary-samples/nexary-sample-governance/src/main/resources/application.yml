@@ -6,6 +6,8 @@ nexary:
   governance:
     runtime:
       enabled: true
+    diagnostics:
+      enabled: true
     default-policy:
       max-requests-per-window: 100
       rate-limit-window: 1s
