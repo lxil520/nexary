@@ -15,9 +15,9 @@ Chinese documentation: [README.md](README.md)
 
 Nexary adds a thin Java API between business code and middleware SDKs. Services call stable entries such as `CacheClient`, `MessagePublisher`, and `NexaryJob`; Redis, Valkey, Kafka, RocketMQ, ActiveMQ Classic, XXL-JOB, and PowerJob wiring stays in framework modules. When infrastructure needs to be upgraded, replaced, or worked around, most changes stay in dependencies and configuration instead of spreading through business code.
 
-The current `0.9.x` line uses Spring Boot 3.3 / Java 17+ as the mainline and covers cache, messaging, jobs, observation bridging, the local governance runtime, and a read-only governance diagnostic Console. The governance sample shows resources, policy snapshots, runtime snapshots, recent events, slow-call records, open circuit, half-open probes, and recovery. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
+The current `0.10.0` line uses Spring Boot 3.3 / Java 17+ as the mainline. The verified capabilities remain cache, messaging, jobs, observation bridging, the local governance runtime, and the read-only governance diagnostic Console. The governance sample shows resources, policy snapshots, runtime snapshots, recent events, slow-call records, open circuit, half-open probes, and recovery. Spring Boot 2.7 / Java 8+ and Spring Boot 4.1 / Java 21 entries are provided per verified module.
 
-The `0.9.x` line adds a read-only page on top of the local governance data plane. You can start `nexary-sample-governance`, trigger success, failure, rate-limit, bulkhead, and circuit paths with curl, then open `/nexary/console` to inspect resources, policies, windows, circuit state, rejection reasons, and recent events for the current JVM. It does not write policies, push configuration, or aggregate multiple instances.
+The `0.10.x` line does not add a new platform scope. It hardens the `0.9.x` read-only page before 1.0: direct URLs and deep links must open, static assets must not regress to a blank page, the local sample must support visual verification, and the release gate must stay stable. It does not write policies, push configuration, aggregate multiple instances, or provide login and permissions.
 
 ## When to Use It
 

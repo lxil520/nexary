@@ -16,6 +16,8 @@ interface RouteState {
   resourceKey: string | null;
 }
 
+const CONSOLE_BASE_PATH = '/nexary/console';
+
 const navigationItems: Array<{ id: ViewId; labelKey: 'nav.overview' | 'nav.resources' | 'nav.events' | 'nav.settings' }> = [
   { id: 'overview', labelKey: 'nav.overview' },
   { id: 'resources', labelKey: 'nav.resources' },
@@ -23,7 +25,7 @@ const navigationItems: Array<{ id: ViewId; labelKey: 'nav.overview' | 'nav.resou
   { id: 'settings', labelKey: 'nav.settings' },
 ];
 
-const route = ref<RouteState>(routeFromHash());
+const route = ref<RouteState>(routeFromLocation());
 const { isLoading, lastRefreshAt, refreshAll } = useConsoleData();
 const { locale, setLocale, t } = useLocale();
 
@@ -40,31 +42,62 @@ const refreshLabel = computed(() =>
 );
 
 function navigate(view: ViewId): void {
-  setHash(view, null);
+  pushRoute({ view, resourceKey: null });
 }
 
 function openResource(resourceKey: string): void {
-  setHash('resource-detail', resourceKey);
+  pushRoute({ view: 'resource-detail', resourceKey });
 }
 
-function setHash(view: ViewId, resourceKey: string | null): void {
-  if (view === 'overview') {
-    window.location.hash = '';
-    route.value = { view, resourceKey: null };
-    return;
+function isNavigationItemActive(view: ViewId): boolean {
+  if (view === 'resources') {
+    return route.value.view === 'resources' || route.value.view === 'resource-detail';
   }
-  const encodedKey = resourceKey == null ? '' : `/${encodeURIComponent(resourceKey)}`;
-  window.location.hash = `${view}${encodedKey}`;
-  route.value = { view, resourceKey };
+  return route.value.view === view;
+}
+
+function pushRoute(nextRoute: RouteState): void {
+  const nextPath = pathFromRoute(nextRoute);
+  if (window.location.pathname !== nextPath || window.location.hash !== '') {
+    window.history.pushState(null, '', nextPath);
+  }
+  route.value = nextRoute;
+}
+
+function pathFromRoute(nextRoute: RouteState): string {
+  if (nextRoute.view === 'resources') {
+    return `${CONSOLE_BASE_PATH}/resources`;
+  }
+  if (nextRoute.view === 'events') {
+    return `${CONSOLE_BASE_PATH}/events`;
+  }
+  if (nextRoute.view === 'settings') {
+    return `${CONSOLE_BASE_PATH}/settings`;
+  }
+  if (nextRoute.view === 'resource-detail' && nextRoute.resourceKey) {
+    return `${CONSOLE_BASE_PATH}/resources/${encodeURIComponent(nextRoute.resourceKey)}`;
+  }
+  return CONSOLE_BASE_PATH;
 }
 
 function syncRoute(): void {
-  route.value = routeFromHash();
+  route.value = routeFromLocation();
 }
 
-function routeFromHash(): RouteState {
-  const rawHash = window.location.hash.replace(/^#/, '');
-  if (rawHash.length === 0 || rawHash === 'overview') {
+function routeFromLocation(): RouteState {
+  const hashRoute = routeFromHash();
+  if (hashRoute) {
+    return hashRoute;
+  }
+  return routeFromPath(window.location.pathname);
+}
+
+function routeFromHash(): RouteState | null {
+  const rawHash = window.location.hash.replace(/^#\/?/, '');
+  if (rawHash.length === 0) {
+    return null;
+  }
+  if (rawHash === 'overview') {
     return { view: 'overview', resourceKey: null };
   }
   const [view, encodedKey] = rawHash.split('/');
@@ -72,17 +105,54 @@ function routeFromHash(): RouteState {
     return { view, resourceKey: null };
   }
   if (view === 'resource-detail' && encodedKey) {
-    return { view, resourceKey: decodeURIComponent(encodedKey) };
+    const resourceKey = decodePathSegment(encodedKey);
+    return resourceKey ? { view, resourceKey } : { view: 'overview', resourceKey: null };
   }
   return { view: 'overview', resourceKey: null };
 }
 
+function routeFromPath(pathname: string): RouteState {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  if (normalizedPath === CONSOLE_BASE_PATH || normalizedPath === `${CONSOLE_BASE_PATH}/overview`) {
+    return { view: 'overview', resourceKey: null };
+  }
+  if (!normalizedPath.startsWith(`${CONSOLE_BASE_PATH}/`)) {
+    return { view: 'overview', resourceKey: null };
+  }
+  const relativePath = normalizedPath.slice(CONSOLE_BASE_PATH.length + 1);
+  if (relativePath === 'resources') {
+    return { view: 'resources', resourceKey: null };
+  }
+  if (relativePath === 'events') {
+    return { view: 'events', resourceKey: null };
+  }
+  if (relativePath === 'settings') {
+    return { view: 'settings', resourceKey: null };
+  }
+  if (relativePath.startsWith('resources/')) {
+    const encodedKey = relativePath.slice('resources/'.length);
+    const resourceKey = decodePathSegment(encodedKey);
+    return resourceKey ? { view: 'resource-detail', resourceKey } : { view: 'resources', resourceKey: null };
+  }
+  return { view: 'overview', resourceKey: null };
+}
+
+function decodePathSegment(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
 onMounted(() => {
   window.addEventListener('hashchange', syncRoute);
+  window.addEventListener('popstate', syncRoute);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('hashchange', syncRoute);
+  window.removeEventListener('popstate', syncRoute);
 });
 </script>
 
@@ -101,7 +171,8 @@ onBeforeUnmount(() => {
           v-for="item in navigationItems"
           :key="item.id"
           type="button"
-          :class="{ 'is-active': route.view === item.id }"
+          :class="{ 'is-active': isNavigationItemActive(item.id) }"
+          :aria-current="isNavigationItemActive(item.id) ? 'page' : undefined"
           @click="navigate(item.id)"
         >
           {{ t(item.labelKey) }}

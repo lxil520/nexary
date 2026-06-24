@@ -334,6 +334,32 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 展示 userId、tenant、bizKey、messageId、cache key、payload、异常全文或堆栈。
 - 独立部署的前端服务、sidecar、agent 或跨服务管理页面。
 
+## `0.10.x` 1.0 前 Console 和本地诊断硬化
+
+`0.10.x` 是 1.0 前的硬化版本，不引入新的治理平台承诺。它继续服务单个 Spring Boot 应用内的本地排查，把 v0.9 只读 Console 做到更容易打开、更不容易在打包和发布时回归。
+
+已纳入范围：
+
+- Console 直接 URL：`/nexary/console`、`/nexary/console/`、`/nexary/console/resources`、`/nexary/console/resources/{resourceKey}`、`/nexary/console/events`、`/nexary/console/settings` 都应能返回可渲染页面。
+- 静态资源：打入 `nexary-console-server` jar 后，入口 HTML、JS 和 CSS 路径要稳定；资源缺失或空白页回归应被测试或 release gate 发现。
+- 本地 sample 可视验证：启动 `nexary-sample-governance` 后，用 curl 触发成功、失败、限流、并发隔离、熔断打开、半开恢复，再用浏览器验证 Overview、Resources、Resource Detail、Events、Settings Readonly 非空且可跳转。
+- Release gate：`0.10.0` 发布前继续跑 release preflight、Gradle check、Console UI build、静态资源打包检查和公开文档扫描。
+
+`0.10.x` 不包含：
+
+- 写策略、策略回滚、远程配置、动态下发。
+- 多实例聚合、跨进程状态同步、集中状态存储。
+- 登录、权限、RBAC、用户管理、审计后台。
+- sidecar、agent、独立部署控制台或跨服务管理页面。
+- 自动封禁、外部平台管理或事故处置流程。
+
+验收目标：
+
+- Console 直接 URL 和 deep link 在 Spring Boot jar 内都能打开，不依赖先访问首页。
+- 静态资源缺失时不能静默变成空白页。
+- 本地治理样例能完成可视验证，并覆盖空数据、正常数据和熔断打开数据。
+- release gate 稳定，失败时能指出是 Gradle、UI build、静态资源打包、文档扫描还是发布输入问题。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。

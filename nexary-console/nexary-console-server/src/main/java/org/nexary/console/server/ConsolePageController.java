@@ -12,8 +12,14 @@ public final class ConsolePageController {
         return "redirect:/nexary/console/";
     }
 
-    /** Forwards the console directory path to the packaged static UI entry point. */
-    @GetMapping("/nexary/console/")
+    /** Forwards console SPA paths to the packaged static UI entry point. */
+    @GetMapping({
+        "/nexary/console/",
+        "/nexary/console/resources",
+        "/nexary/console/resources/{resourceKey}",
+        "/nexary/console/events",
+        "/nexary/console/settings"
+    })
     public String index() {
         return "forward:/nexary/console/index.html";
     }

@@ -1,8 +1,10 @@
 # Governance
 
-Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. v0.9 adds a read-only page on top of the local governance data plane: business entries call `GovernanceRuntime`, the runtime handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM, and diagnostic snapshots can be inspected through HTTP and the page.
+Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. The verified path provides a read-only page on top of the local governance data plane: business entries call `GovernanceRuntime`, the runtime handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM, and diagnostic snapshots can be inspected through HTTP and the page.
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
+
+The `0.10.x` governance docs only close local diagnostics hardening: Console direct URLs and deep links, static assets that must not regress to a blank page, local sample visual verification, and a stable release gate. It does not add policy writes, remote configuration, multi-instance aggregation, login and permissions, or a separately deployed console.
 
 ## Add Dependencies
 
@@ -299,7 +301,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.
-- v0.9 only includes a local read-only page. It does not include a remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.
+- v0.10 continues to include only the local read-only page and local diagnostics hardening. It does not include a remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.
 - Messaging deadline headers apply to newly published messages. Older queued messages do not gain a deadline retroactively.
 - Job `execution-timeout` still controls in-flight timeout. `start-deadline` only decides whether a trigger should start.
 - There is no remote console, sidecar, agent, remote dynamic config, or policy push service here.

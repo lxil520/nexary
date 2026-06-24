@@ -10,10 +10,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class ConsolePageControllerTest {
+    private static final String CONSOLE_INDEX_FORWARD = "/nexary/console/index.html";
+
+    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ConsolePageController()).build();
+
     @Test
     void redirectsConsoleRootToDirectoryPath() throws Exception {
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ConsolePageController()).build();
-
         mockMvc.perform(get("/nexary/console"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/nexary/console/"));
@@ -21,10 +23,25 @@ class ConsolePageControllerTest {
 
     @Test
     void forwardsConsoleDirectoryPathToPackagedStaticIndex() throws Exception {
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ConsolePageController()).build();
-
         mockMvc.perform(get("/nexary/console/"))
                 .andExpect(status().isOk())
-                .andExpect(forwardedUrl("/nexary/console/index.html"));
+                .andExpect(forwardedUrl(CONSOLE_INDEX_FORWARD));
+    }
+
+    @Test
+    void forwardsConsoleSpaPathsToPackagedStaticIndex() throws Exception {
+        String[] paths = {
+            "/nexary/console/resources",
+            "/nexary/console/resources/cacheOrders",
+            "/nexary/console/resources/cache:orders",
+            "/nexary/console/events",
+            "/nexary/console/settings"
+        };
+
+        for (String path : paths) {
+            mockMvc.perform(get(path))
+                    .andExpect(status().isOk())
+                    .andExpect(forwardedUrl(CONSOLE_INDEX_FORWARD));
+        }
     }
 }

@@ -15,9 +15,9 @@
 
 Nexary 在业务代码和中间件 SDK 之间加一层很薄的 Java API。业务服务调用 `CacheClient`、`MessagePublisher`、`NexaryJob` 这些稳定入口；Redis、Valkey、Kafka、RocketMQ、ActiveMQ Classic、XXL-JOB、PowerJob 的接线留在框架模块里。后面中间件升级、替换或绕开瓶颈时，改动尽量收敛在依赖和配置上，不把业务系统从头改到尾。
 
-当前 `0.9.x` 以 Spring Boot 3.3 / Java 17+ 为主线，已经覆盖缓存、消息、任务调度、可观测性桥接、本地治理运行时和只读治理诊断 Console。治理样例可以看到资源目录、策略快照、运行时快照、最近事件、慢调用统计、熔断打开、半开探测和恢复过程；Spring Boot 2.7 / Java 8+ 与 Spring Boot 4.1 / Java 21 按模块提供已验证入口。
+当前 `0.10.0` 以 Spring Boot 3.3 / Java 17+ 为主线，已验证能力仍是缓存、消息、任务调度、可观测性桥接、本地治理运行时和只读治理诊断 Console。治理样例可以看到资源目录、策略快照、运行时快照、最近事件、慢调用统计、熔断打开、半开探测和恢复过程；Spring Boot 2.7 / Java 8+ 与 Spring Boot 4.1 / Java 21 按模块提供已验证入口。
 
-`0.9.x` 在本地治理数据面上加了一个只读页面。你可以启动 `nexary-sample-governance`，先用 curl 触发成功、失败、限流、并发隔离和熔断，再访问 `/nexary/console` 查看当前 JVM 的资源、策略、窗口、熔断状态、拒绝原因和最近事件。它不写策略，不下发配置，也不汇总多个实例。
+`0.10.x` 不增加新的平台范围。它在 `0.9.x` 只读页面基础上做 1.0 前硬化：直接 URL / deep link 能打开，静态资源不能回归为空白页，本地 sample 能完成可视验证，release gate 保持稳定。它不写策略，不下发配置，也不汇总多个实例或提供登录权限。
 
 ## 什么情况下值得用
 

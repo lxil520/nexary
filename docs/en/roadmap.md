@@ -334,6 +334,32 @@ Included scope:
 - userId, tenant, bizKey, messageId, cache key, payload, full exception messages, or stack traces.
 - separately deployed frontend services, sidecars, agents, or cross-service management pages.
 
+## `0.10.x` Pre-1.0 Console And Local Diagnostics Hardening
+
+`0.10.x` is a hardening line before 1.0, not a new governance platform promise. It keeps serving local debugging inside one Spring Boot application and makes the v0.9 read-only Console easier to open and harder to regress during packaging and release.
+
+Included scope:
+
+- Console direct URLs: `/nexary/console`, `/nexary/console/`, `/nexary/console/resources`, `/nexary/console/resources/{resourceKey}`, `/nexary/console/events`, and `/nexary/console/settings` should all return a renderable page.
+- Static assets: after packaging into the `nexary-console-server` jar, entry HTML, JS, and CSS paths must stay stable; missing assets or blank-page regressions should be caught by tests or the release gate.
+- Local sample visual verification: after starting `nexary-sample-governance`, use curl to trigger success, failure, rate limit, bulkhead rejection, open circuit, and half-open recovery, then verify Overview, Resources, Resource Detail, Events, and Settings Readonly are non-empty and navigable in a browser.
+- Release gate: before publishing `0.10.0`, continue running release preflight, Gradle check, Console UI build, static-resource packaging checks, and public documentation scans.
+
+`0.10.x` does not include:
+
+- Policy writes, policy rollback, remote configuration, or dynamic push.
+- Multi-instance aggregation, cross-process state sync, or centralized state storage.
+- Login, permissions, RBAC, user management, or audit backends.
+- Sidecars, agents, separately deployed consoles, or cross-service management pages.
+- Automatic blocking, external platform management, or incident response workflows.
+
+Acceptance targets:
+
+- Console direct URLs and deep links open inside the Spring Boot jar without visiting the overview first.
+- Missing static assets cannot silently become a blank page.
+- The local governance sample supports visual verification across empty data, normal data, and open circuit data.
+- The release gate is stable and points failures to Gradle, UI build, static-resource packaging, documentation scanning, or release input problems.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

@@ -156,3 +156,13 @@ Design: the UI should feel like a debugging tool, not a marketing page. Prefer d
 Backend: the Console API is a read model over governance diagnostics. DTOs may expose only low-cardinality fields and must not pass exception text, business identifiers, or provider-native types to the frontend.
 
 Frontend: the frontend consumes read-only APIs only. Filtering starts locally; do not add complex server-side queries. Build output should be packageable into the server jar's static resources.
+
+## v0.10 Hardening Acceptance
+
+v0.10 does not expand the product boundary from the v0.9 PRD. Hardening covers only routing, packaged assets, the local sample, and the release gate:
+
+- Direct visits to `/nexary/console/resources`, `/nexary/console/resources/{id}`, `/nexary/console/events`, and `/nexary/console/settings` should return the same renderable Console page from Spring Boot.
+- The packaged jar must contain the Console entry HTML, JS, and CSS; missing static assets must not silently appear as a blank page.
+- After starting the local governance sample, use curl to trigger success, failure, rate limit, bulkhead rejection, open circuit, and half-open recovery, then verify Overview, Resources, Resource Detail, Events, and Settings Readonly are non-empty and navigable in a browser.
+- Pre-release checks should cover Gradle check, Console UI build, static-resource packaging output, and documentation forbidden-term scanning.
+- Pages still have no policy edit, save, delete, login, permission, remote configuration, or multi-instance aggregation entry.

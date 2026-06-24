@@ -238,6 +238,8 @@ If the backend returns unknown fields, the first version ignores them. Do not au
 - Use local component CSS or light global variables. Do not add a heavy UI framework as a first-version dependency.
 - Under 768px, collapse left navigation into the top area and make tables horizontally scrollable. Do not reshape the page into marketing cards.
 - Playwright verification should cover non-empty rendering and no overlapping UI for Overview, Resources, Resource Detail, Events, and Settings Readonly, plus a visible error state.
+- v0.10 hardening requires direct visits to `/nexary/console/resources`, `/nexary/console/resources/{resourceKey}`, `/nexary/console/events`, and `/nexary/console/settings` to load the same static assets without visiting Overview first.
+- Packaging verification must confirm that the jar contains the entry HTML, JS, and CSS; tests should fail when static assets are missing instead of accepting a blank page.
 
 ## Acceptance Checklist
 
@@ -247,3 +249,5 @@ If the backend returns unknown fields, the first version ignores them. Do not au
 - Events can filter by kind, state, reason, and search text.
 - Settings Readonly states the read-only boundary and provides no policy editing entry.
 - No page displays high-cardinality business fields, payloads, full exception messages, or stack traces.
+- Direct URLs and deep links open the matching page and still work after refresh.
+- The local governance sample supports browser verification for key non-empty pages across empty data, normal data, and open circuit data.
