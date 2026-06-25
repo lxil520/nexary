@@ -1,10 +1,10 @@
 # 治理
 
-治理用来给本地 Java 调用加保护：deadline 到了就别再启动新动作，请求太密就拒绝，同一个资源并发过高就让后面的调用走 fallback，需要临时停用某个下游时也不改业务代码。当前已验证路径是在本地治理数据面上提供只读页面：业务入口把调用交给 `GovernanceRuntime`，运行时在当前 JVM 内完成 deadline、限流、并发隔离、显式降级和熔断判断，并提供低数量诊断快照和页面查看入口。
+治理用来给本地 Java 调用加保护：deadline 到了就别再启动新动作，请求太密就拒绝，同一个资源并发过高就让后面的调用走 fallback，需要临时停用某个下游时也不改业务代码。当前已验证路径提供两种执行引擎：默认本地引擎在当前 JVM 内完成 deadline、限流、并发隔离、显式降级和熔断判断；Boot3 Sentinel provider 可以把限流、线程数隔离、慢调用熔断和异常熔断交给 Sentinel 执行。两种路径都复用 Nexary 的资源目录、策略快照、低基数诊断和只读 Console。
 
 它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
-`0.11.1` 的治理目标不是替代 Sentinel。它先解决一个更窄、更容易验证的问题：请求已经过期、上游已经取消或 Gateway 发现客户端断开时，Nexary 在业务动作开始前取消或拒绝；业务动作已经开始的路径，通过 `CancellationContext` 做协作式停止，避免继续占用线程、连接和下游额度。Sentinel provider 放在 `0.12.x`；retry stop 在重试链路里的继续传播放在 `0.13.x`。
+`0.12.0` 不替代 Sentinel Dashboard、集群限流或远程规则平台。它解决的是接入边界：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；retry stop 在重试链路里的继续传播放在 `0.13.x`。
 
 ## 引入依赖
 
@@ -15,6 +15,12 @@ implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation "com.aweimao:nexary-governance-spring-boot-starter"
 implementation "com.aweimao:nexary-console-spring-boot-starter"
 implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
+```
+
+如果要使用 Boot3 Sentinel provider，再加：
+
+```groovy
+implementation "com.aweimao:nexary-governance-sentinel-spring-boot-starter"
 ```
 
 如果应用本身是 Spring Cloud Gateway 入口，再加：
@@ -28,6 +34,63 @@ implementation "com.aweimao:nexary-governance-gateway-spring-boot-starter"
 ```bash
 ./gradlew :nexary-samples:nexary-sample-governance:run
 ```
+
+## v0.12 Sentinel provider
+
+Sentinel provider 是可选执行引擎。默认仍使用本地引擎；只有显式配置 `provider: sentinel` 后才启用：
+
+```yaml
+nexary:
+  governance:
+    provider: sentinel
+    sentinel:
+      enabled: true
+      transport:
+        enabled: false
+    diagnostics:
+      enabled: true
+  console:
+    enabled: true
+```
+
+策略字段会映射到 Sentinel 规则：
+
+| Nexary policy | Sentinel rule |
+| --- | --- |
+| `max-requests-per-window` + `rate-limit-window` | QPS flow rule |
+| `max-concurrency` | thread-count flow rule |
+| `failure-rate-threshold` / `consecutive-failure-threshold` | exception degrade rule |
+| `slow-call-threshold` / `slow-call-rate-threshold` / `minimum-calls` | slow-call degrade rule |
+| `degraded=true` | Nexary fallback 语义，不伪装成 Sentinel block |
+
+运行样例：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance-sentinel:run
+```
+
+另开终端触发 Sentinel 限流并查看诊断：
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/rate
+curl -s http://localhost:8080/governance/sentinel/rate
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
+```
+
+新增诊断字段保持低基数：
+
+| 字段 | 说明 |
+| --- | --- |
+| `engine` | `LOCAL` 或 `SENTINEL`。 |
+| `blockReason` | 最近事件的 Sentinel 拦截原因，例如 `RATE_LIMITED`、`BULKHEAD_FULL`、`CIRCUIT_OPEN`。 |
+| `lastBlockReason` | 资源快照里的最近 Sentinel 拦截原因。 |
+| `blockedCount` | 当前 JVM 内 Sentinel 拦截次数。 |
+| `sentinelResourceCount` | 当前 JVM 内由 Sentinel 执行的资源数量。 |
+
+Sentinel transport 默认关闭，不要求 Sentinel Dashboard。只有显式设置 `nexary.governance.sentinel.transport.enabled=true` 并配置 dashboard server 时，才会设置 Sentinel dashboard 地址。v0.12.0 只声明 Spring Boot 3.3 主线 Sentinel provider；Boot2 / Boot4 Sentinel starter 要等独立样例和 gate 通过后再写入支持矩阵。
 
 ## 配置 starter 策略
 
@@ -280,6 +343,9 @@ curl -s http://localhost:8080/nexary/governance/events
 | `lastOutcome` | 最近一次本地治理结果，常见值有 `SUCCESS`、`FAILURE`、`REJECTED`。 |
 | `action` | 最近事件动作，常见值有 `EXECUTE`、`REJECT`、`FALLBACK`。 |
 | `durationBucket` | 粗粒度耗时桶，不暴露精确业务耗时。 |
+| `engine` | 当前资源或事件由 `LOCAL` 还是 `SENTINEL` 执行。 |
+| `blockReason` / `lastBlockReason` | Sentinel 拦截原因，只保留固定枚举，不写 Sentinel origin 或业务标识。 |
+| `blockedCount` / `sentinelResourceCount` | 当前 JVM 内 Sentinel 拦截次数和 Sentinel 资源数量。 |
 
 这些字段是诊断用的低基数字段，不包含 userId、订单号、messageId、cache key、payload、异常全文或堆栈。端点只读；starter 默认不打开这些 HTTP 路径。
 
@@ -329,6 +395,7 @@ nexary:
 | `GovernanceRuntime` | 执行前检查 deadline、限流、并发隔离和显式降级；拒绝时发布治理事件；有 fallback 就执行 fallback，否则抛出 `GovernanceRejectedException`。 |
 | v0.6 样例熔断 | `LocalCircuitBreakerProfileGateway` 通过本地 `GovernanceRuntime` 演示 `CLOSED`、`OPEN`、`HALF_OPEN` 状态转换，覆盖失败、慢调用、拒绝、fallback、恢复和重开。 |
 | v0.11 请求失效终止 | deadline 已过期、上游取消或客户端断开时，进入业务前取消或拒绝；执行中路径通过 `CancellationContext` 协作式停止，并记录本地诊断和 observation 事件。 |
+| v0.12 Sentinel provider | Spring Boot 3.3 主线可选择 `provider=sentinel`，由 Sentinel 执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；Nexary 继续提供稳定 Java API、fallback、低基数诊断和 Console。 |
 | Cache Redis 主线 | Spring Boot 3 Redis `CacheClient` Bean 会被治理运行时包一层；资源名是 `cache-client`，后端标签是 `redis`，操作名如 `cache.get`、`cache.put`、`cache.batch_get`。 |
 | Messaging | publish / consume 会传递 `nexary-deadline-epoch-millis` header；过期消息会在业务 handler 前被拒绝；重试结束和降级会发布治理事件。 |
 | Job | 本地 scheduler、XXL-JOB bridge、PowerJob bridge 支持 `start-deadline` 和 `max-concurrent-executions`；被跳过时记录 bounded skip reason。 |
@@ -358,7 +425,8 @@ nexary:
 
 - deadline 是启动前检查和上下文传播，不会强行杀掉已经进入业务方法的普通 Java 代码。
 - v0.11 的取消语义覆盖启动前取消和执行中协作式停止；不承诺强制中断已经运行的业务线程，也不替代应用服务器或客户端的连接取消机制。
-- Nexary 不替代 Sentinel。`0.12.x` 才规划 Sentinel provider；当前文档不能把 Sentinel 规则、dashboard 或 cluster flow control 写成已交付。
+- Nexary 不替代 Sentinel Dashboard、cluster flow control 或远程规则平台；v0.12.0 只声明 Boot3 主线的 Sentinel provider。
+- Boot2 / Boot4 Sentinel provider 还没有写入支持矩阵；通过独立样例和 gate 前不要复制 Boot3 starter 到 Boot2 / Boot4 应用。
 - 熔断窗口是当前 JVM 内的本地状态；多实例之间不会共享失败计数、慢调用计数或半开探测结果。
 - Cache 的治理包裹只声明在 Spring Boot 3 Redis 主线；Boot2 / Boot4 的 cache 入口要按对应样例和测试结果再扩大说明。
 - v0.10 继续只包含本地只读页面和本地诊断硬化，不包含远程控制台、sidecar、agent、远程动态配置或跨实例状态同步。
@@ -370,6 +438,10 @@ nexary:
 
 ```bash
 ./gradlew :nexary-boot:nexary-governance-spring-boot-starter:check
+./gradlew :nexary-governance:nexary-governance-sentinel:check
+./gradlew :nexary-boot:nexary-governance-sentinel-spring-boot-starter:check
 ./gradlew :nexary-samples:nexary-sample-governance:check
+./gradlew :nexary-samples:nexary-sample-governance-sentinel:check
+./scripts/governance-sentinel/smoke.sh
 ./gradlew check
 ```

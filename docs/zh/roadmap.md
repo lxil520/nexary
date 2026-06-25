@@ -389,7 +389,27 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 ## `0.12.x` Sentinel provider
 
-`0.12.x` 规划 Sentinel provider，用来把 Nexary 的本地治理资源和决策映射到 Sentinel 能力。它仍然不是替代 Sentinel：Sentinel 规则、dashboard、集群限流和运行时行为由 Sentinel 生态负责，Nexary 只提供 Java 接入边界和样例。
+`0.12.x` 把 Nexary 的本地治理资源接到 Sentinel 执行面。它仍然不是替代 Sentinel：Sentinel Dashboard、集群限流、远程规则平台和 Sentinel 运行时行为由 Sentinel 生态负责，Nexary 只提供 Java 接入边界、低基数诊断、样例和只读 Console。
+
+已纳入范围：
+
+- `0.12.0`：Spring Boot 3.3 / Java 17+ 主线新增 `nexary-governance-sentinel` 和 `nexary-governance-sentinel-spring-boot-starter`。
+- Runtime：`nexary.governance.provider=sentinel` 后，Sentinel resource name 使用 `GovernanceResource.key()`；`provider`、`operation`、`priority` 只进入 Nexary 诊断字段。
+- Policy mapping：`max-requests-per-window` 映射 QPS flow rule，`max-concurrency` 映射 thread-count flow rule，失败率 / 连续失败 / 慢调用映射 Sentinel degrade rule。
+- Runtime：v0.11 cancellation 仍在 Sentinel entry 前检查，已取消请求不进入 Sentinel 统计窗口。
+- Diagnostics / Console：新增 `engine`、`blockReason`、`lastBlockReason`、`blockedCount`、`sentinelResourceCount`。
+- Samples：新增 `nexary-sample-governance-sentinel` 和 `scripts/governance-sentinel/smoke.sh`，覆盖限流、并发隔离、慢调用熔断、异常熔断、fallback、diagnostics 和 Console。
+
+后续 patch：
+
+- `0.12.1`：Boot2 Sentinel 兼容线，只有 Java 8 / Boot2 样例和 gate 通过后才更新 README。
+- `0.12.2`：Boot4 Sentinel 兼容线，只有 Java 21 / Boot4 样例和 gate 通过后才更新 README。
+
+`0.12.x` 不包含：
+
+- Sentinel Dashboard 替代品。
+- 集群限流、远程规则中心或规则编辑页面。
+- 未通过样例和 gate 的 Boot2 / Boot4 Sentinel 支持声明。
 
 ## `0.13.x` retry stop 传播
 

@@ -5,6 +5,7 @@ package org.nexary.console.api;
  */
 public final class ConsoleResourceItem {
     private final String resourceKey;
+    private final String engine;
     private final String kind;
     private final String name;
     private final String provider;
@@ -25,7 +26,24 @@ public final class ConsoleResourceItem {
             String priority,
             ConsolePolicySnapshot policySnapshot,
             ConsoleRuntimeSnapshot runtimeSnapshot) {
+        this(resourceKey, null, kind, name, provider, operation, priority, policySnapshot, runtimeSnapshot);
+    }
+
+    /**
+     * Creates a resource item from bounded resource, policy, runtime, and engine fields.
+     */
+    public ConsoleResourceItem(
+            String resourceKey,
+            String engine,
+            String kind,
+            String name,
+            String provider,
+            String operation,
+            String priority,
+            ConsolePolicySnapshot policySnapshot,
+            ConsoleRuntimeSnapshot runtimeSnapshot) {
         this.resourceKey = resourceKey;
+        this.engine = engine;
         this.kind = kind;
         this.name = name;
         this.provider = provider;
@@ -38,6 +56,11 @@ public final class ConsoleResourceItem {
     /** Returns the stable governed resource key. */
     public String getResourceKey() {
         return resourceKey;
+    }
+
+    /** Returns the governance engine used by this resource. */
+    public String getEngine() {
+        return engine;
     }
 
     /** Returns the resource kind. */

@@ -5,6 +5,7 @@ package org.nexary.console.api;
  */
 public final class ConsoleRuntimeSnapshot {
     private final String resourceKey;
+    private final String engine;
     private final String priority;
     private final String circuitState;
     private final int windowCalls;
@@ -13,6 +14,7 @@ public final class ConsoleRuntimeSnapshot {
     private final int consecutiveFailures;
     private final long totalRejections;
     private final String lastRejectionReason;
+    private final String lastBlockReason;
     private final String lastCancellationReason;
     private final String openUntil;
     private final int activeConcurrency;
@@ -65,7 +67,75 @@ public final class ConsoleRuntimeSnapshot {
             String lastStateTransitionAt,
             String lastOutcome,
             String lastOutcomeAt) {
+        this(
+                resourceKey,
+                null,
+                priority,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                null,
+                lastCancellationReason,
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    /**
+     * Creates a runtime snapshot with low-cardinality counters, state labels, and engine state.
+     */
+    public ConsoleRuntimeSnapshot(
+            String resourceKey,
+            String engine,
+            String priority,
+            String circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            String lastRejectionReason,
+            String lastBlockReason,
+            String lastCancellationReason,
+            String openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            String rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            Double failureRateThreshold,
+            Double slowCallThreshold,
+            String slowCallDuration,
+            String openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            String slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            String lastStateTransitionAt,
+            String lastOutcome,
+            String lastOutcomeAt) {
         this.resourceKey = resourceKey;
+        this.engine = engine;
         this.priority = priority;
         this.circuitState = circuitState;
         this.windowCalls = windowCalls;
@@ -74,6 +144,7 @@ public final class ConsoleRuntimeSnapshot {
         this.consecutiveFailures = consecutiveFailures;
         this.totalRejections = totalRejections;
         this.lastRejectionReason = lastRejectionReason;
+        this.lastBlockReason = lastBlockReason;
         this.lastCancellationReason = lastCancellationReason;
         this.openUntil = openUntil;
         this.activeConcurrency = activeConcurrency;
@@ -98,6 +169,11 @@ public final class ConsoleRuntimeSnapshot {
     /** Returns the stable governed resource key. */
     public String getResourceKey() {
         return resourceKey;
+    }
+
+    /** Returns the governance engine that produced this snapshot. */
+    public String getEngine() {
+        return engine;
     }
 
     /** Returns the request priority bucket for this runtime state. */
@@ -138,6 +214,11 @@ public final class ConsoleRuntimeSnapshot {
     /** Returns the low-cardinality reason for the latest local rejection. */
     public String getLastRejectionReason() {
         return lastRejectionReason;
+    }
+
+    /** Returns the latest low-cardinality engine block reason. */
+    public String getLastBlockReason() {
+        return lastBlockReason;
     }
 
     /** Returns the low-cardinality reason for the latest cooperative cancellation. */

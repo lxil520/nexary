@@ -26,7 +26,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Auto-configuration for read-only local governance diagnostics endpoints. */
-@AutoConfiguration(after = GovernanceRuntimeAutoConfiguration.class)
+@AutoConfiguration(
+        after = GovernanceRuntimeAutoConfiguration.class,
+        afterName = "org.nexary.boot.governance.sentinel.GovernanceSentinelAutoConfiguration")
 @EnableConfigurationProperties(GovernanceRuntimeProperties.class)
 @ConditionalOnClass(RestController.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -88,6 +90,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("provider", descriptor.provider());
             body.put("operation", descriptor.operation());
             body.put("priority", descriptor.priority());
+            body.put("engine", descriptor.engine().name());
             body.put("policySnapshot", policy(descriptor.policySnapshot()));
             body.put("runtimeSnapshot", snapshot(descriptor.runtimeSnapshot()));
             return body;
@@ -144,6 +147,8 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("lastStateTransitionAt", optionalInstant(snapshot.lastStateTransitionAt()));
             body.put("lastOutcome", snapshot.lastOutcome().name());
             body.put("lastOutcomeAt", optionalInstant(snapshot.lastOutcomeAt()));
+            body.put("engine", snapshot.engine().name());
+            body.put("lastBlockReason", snapshot.lastBlockReason().name());
             return body;
         }
 
@@ -154,6 +159,8 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("outcome", event.outcome().name());
             body.put("rejectionReason", event.rejectionReason().name());
             body.put("cancellationReason", event.cancellationReason().name());
+            body.put("engine", event.engine().name());
+            body.put("blockReason", event.blockReason().name());
             body.put("circuitState", event.circuitState().name());
             body.put("timestamp", instant(event.timestamp()));
             body.put("durationBucket", event.durationBucket().name());
@@ -169,10 +176,12 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("failureCount", summary.failureCount());
             body.put("rejectedCount", summary.rejectedCount());
             body.put("cancelledCount", summary.cancelledCount());
+            body.put("blockedCount", summary.blockedCount());
             body.put("fallbackCount", summary.fallbackCount());
             body.put("openCircuitCount", summary.openCircuitCount());
             body.put("halfOpenCircuitCount", summary.halfOpenCircuitCount());
             body.put("degradedResourceCount", summary.degradedResourceCount());
+            body.put("sentinelResourceCount", summary.sentinelResourceCount());
             body.put("lastEventAt", optionalInstant(summary.lastEventAt()));
             return body;
         }

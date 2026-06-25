@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0
+
+- Added the optional Sentinel governance provider on the Spring Boot 3.3 / Java 17+ mainline.
+- Added `nexary-governance-sentinel` and `nexary-governance-sentinel-spring-boot-starter`, using Sentinel `1.8.10`.
+- Added `nexary.governance.provider=sentinel` so business code can keep calling Nexary APIs while Sentinel executes QPS flow control, thread-count flow control, slow-call circuit breaking, and exception circuit breaking.
+- Added low-cardinality diagnostics and Console fields for governance engine, Sentinel block reason, blocked count, and Sentinel resource count.
+- Added `nexary-sample-governance-sentinel` and `scripts/governance-sentinel/smoke.sh` for local Sentinel provider validation.
+- Kept Boot2 and Boot4 Sentinel support out of the public matrix until their independent samples and gates pass.
+
 ## 0.11.1
 
 - Added the Spring Boot 2.7 Gateway cancellation starter.

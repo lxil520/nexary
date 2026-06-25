@@ -1,10 +1,10 @@
 # Governance
 
-Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. The verified path provides a read-only page on top of the local governance data plane: business entries call `GovernanceRuntime`, the runtime handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM, and diagnostic snapshots can be inspected through HTTP and the page.
+Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. The verified path now has two execution engines. The default local engine handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM. The Boot3 Sentinel provider can execute flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking through Sentinel. Both paths reuse Nexary resources, policy snapshots, low-cardinality diagnostics, and the read-only Console.
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.11.1` governance target is not to replace Sentinel. It solves a narrower, testable problem first: when a request has already expired, the upstream has canceled, or Gateway sees the client disconnect, Nexary cancels or rejects before business work starts; if business work has already started, code can stop cooperatively through `CancellationContext` so threads, connections, and downstream quotas are not spent on stale work. The Sentinel provider is planned for `0.12.x`; retry stop propagation through retry chains is planned for `0.13.x`.
+The `0.12.0` line does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms. It fixes the integration boundary: business code keeps calling Nexary APIs; after `nexary.governance.provider=sentinel` is set, Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. Retry stop propagation through retry chains is planned for `0.13.x`.
 
 ## Add Dependencies
 
@@ -15,6 +15,12 @@ implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation "com.aweimao:nexary-governance-spring-boot-starter"
 implementation "com.aweimao:nexary-console-spring-boot-starter"
 implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
+```
+
+For the Boot3 Sentinel provider, add:
+
+```groovy
+implementation "com.aweimao:nexary-governance-sentinel-spring-boot-starter"
 ```
 
 If the application is a Spring Cloud Gateway entry, add:
@@ -28,6 +34,63 @@ Run the sample:
 ```bash
 ./gradlew :nexary-samples:nexary-sample-governance:run
 ```
+
+## v0.12 Sentinel Provider
+
+The Sentinel provider is optional. The local engine remains the default; Sentinel is enabled only when `provider: sentinel` is configured explicitly:
+
+```yaml
+nexary:
+  governance:
+    provider: sentinel
+    sentinel:
+      enabled: true
+      transport:
+        enabled: false
+    diagnostics:
+      enabled: true
+  console:
+    enabled: true
+```
+
+Policy fields map to Sentinel rules:
+
+| Nexary policy | Sentinel rule |
+| --- | --- |
+| `max-requests-per-window` + `rate-limit-window` | QPS flow rule |
+| `max-concurrency` | thread-count flow rule |
+| `failure-rate-threshold` / `consecutive-failure-threshold` | exception degrade rule |
+| `slow-call-threshold` / `slow-call-rate-threshold` / `minimum-calls` | slow-call degrade rule |
+| `degraded=true` | Nexary fallback semantics, not a fake Sentinel block |
+
+Run the sample:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance-sentinel:run
+```
+
+From another terminal, trigger Sentinel rate limiting and inspect diagnostics:
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/rate
+curl -s http://localhost:8080/governance/sentinel/rate
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/resources
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
+```
+
+The added diagnostic fields stay low-cardinality:
+
+| Field | Meaning |
+| --- | --- |
+| `engine` | `LOCAL` or `SENTINEL`. |
+| `blockReason` | Sentinel block reason for a recent event, such as `RATE_LIMITED`, `BULKHEAD_FULL`, or `CIRCUIT_OPEN`. |
+| `lastBlockReason` | Most recent Sentinel block reason on a resource snapshot. |
+| `blockedCount` | Sentinel blocks seen in the current JVM. |
+| `sentinelResourceCount` | Resources executed by Sentinel in the current JVM. |
+
+Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. v0.12.0 only claims the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
 
 ## Configure Starter Policies
 
@@ -280,6 +343,9 @@ Useful fields:
 | `lastOutcome` | Most recent local governance result, commonly `SUCCESS`, `FAILURE`, or `REJECTED`. |
 | `action` | Recent event action, commonly `EXECUTE`, `REJECT`, or `FALLBACK`. |
 | `durationBucket` | Coarse duration bucket; exact business latency is not exposed. |
+| `engine` | Whether the resource or event ran through `LOCAL` or `SENTINEL`. |
+| `blockReason` / `lastBlockReason` | Sentinel block reason as a fixed enum; Sentinel origin and business identifiers are not exposed. |
+| `blockedCount` / `sentinelResourceCount` | Sentinel block count and Sentinel resource count in the current JVM. |
 
 The diagnostics are intentionally low-cardinality. They do not include user ids, order ids, message ids, cache keys, payloads, exception text, or stack traces. The endpoints are read-only, and the starter does not expose these HTTP paths unless explicitly enabled.
 
@@ -329,6 +395,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 | `GovernanceRuntime` | Checks deadline, rate limit, bulkhead, and explicit degradation before the action starts; publishes governance events when it rejects; runs fallback when provided, otherwise throws `GovernanceRejectedException`. |
 | v0.6 circuit sample | `LocalCircuitBreakerProfileGateway` uses the local `GovernanceRuntime` to demonstrate `CLOSED`, `OPEN`, and `HALF_OPEN` transitions for failures, slow calls, rejection, fallback, recovery, and reopening. |
 | v0.11 request cancellation for stale work | When a deadline has expired, upstream has canceled, or the client has disconnected, cancel or reject before business work starts; running work stops cooperatively through `CancellationContext`, with local diagnostics and observation events. |
+| v0.12 Sentinel provider | The Spring Boot 3.3 mainline can choose `provider=sentinel`, letting Sentinel execute QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking while Nexary keeps the stable Java API, fallback, low-cardinality diagnostics, and Console. |
 | Cache Redis mainline | The Spring Boot 3 Redis `CacheClient` Bean is wrapped by the governance runtime; resource name is `cache-client`, provider tag is `redis`, and operations include `cache.get`, `cache.put`, and `cache.batch_get`. |
 | Messaging | publish / consume propagates the `nexary-deadline-epoch-millis` header; expired messages are rejected before the business handler; retry-stop and degradation publish governance events. |
 | Job | local scheduler, XXL-JOB bridge, and PowerJob bridge support `start-deadline` and `max-concurrent-executions`; skipped runs record bounded skip reasons. |
@@ -358,7 +425,8 @@ This policy only affects publish calls made by the current JVM. Check the result
 
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - v0.11 cancellation covers pre-start cancellation and cooperative stop checks while business code is running. It does not promise forced interruption of running business threads, and it does not replace application-server or client connection cancellation.
-- Nexary does not replace Sentinel. The Sentinel provider is planned for `0.12.x`; current docs must not claim Sentinel rules, dashboard, or cluster flow control as shipped.
+- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; v0.12.0 only claims the Boot3 mainline Sentinel provider.
+- Boot2 / Boot4 Sentinel provider support is not in the support matrix yet. Do not copy the Boot3 starter into Boot2 / Boot4 applications before their independent samples and gates pass.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.
 - v0.10 continues to include only the local read-only page and local diagnostics hardening. It does not include a remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.
@@ -370,6 +438,10 @@ This policy only affects publish calls made by the current JVM. Check the result
 
 ```bash
 ./gradlew :nexary-boot:nexary-governance-spring-boot-starter:check
+./gradlew :nexary-governance:nexary-governance-sentinel:check
+./gradlew :nexary-boot:nexary-governance-sentinel-spring-boot-starter:check
 ./gradlew :nexary-samples:nexary-sample-governance:check
+./gradlew :nexary-samples:nexary-sample-governance-sentinel:check
+./scripts/governance-sentinel/smoke.sh
 ./gradlew check
 ```

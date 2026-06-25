@@ -18,12 +18,14 @@ const { resources, isLoading, errorMessage, hasLoaded, refreshAll } = useConsole
 const { t } = useLocale();
 const filters = ref<ResourceFilters>({
   keyword: '',
+  engine: 'ALL',
   kind: 'ALL',
   circuitState: 'ALL',
   provider: 'ALL',
 });
 
 const filteredResources = useFilteredResources(resources, filters);
+const engineOptions = computed(() => uniqueSorted(resources.value.map((resource) => resource.engine ?? 'LOCAL')));
 const kindOptions = computed(() => uniqueSorted(resources.value.map((resource) => resource.kind)));
 const circuitOptions = computed(() =>
   uniqueSorted(resources.value.map((resource) => resource.runtimeSnapshot?.circuitState ?? 'NO_STATE')),
@@ -48,6 +50,7 @@ onMounted(() => {
   <div v-else class="view-stack">
     <ResourceFilterBar
       :filters="filters"
+      :engine-options="engineOptions"
       :kind-options="kindOptions"
       :circuit-options="circuitOptions"
       :provider-options="providerOptions"

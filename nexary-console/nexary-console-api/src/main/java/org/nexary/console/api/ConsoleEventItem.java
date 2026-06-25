@@ -5,9 +5,11 @@ package org.nexary.console.api;
  */
 public final class ConsoleEventItem {
     private final String resourceKey;
+    private final String engine;
     private final String action;
     private final String outcome;
     private final String rejectionReason;
+    private final String blockReason;
     private final String cancellationReason;
     private final String circuitState;
     private final String timestamp;
@@ -25,10 +27,29 @@ public final class ConsoleEventItem {
             String circuitState,
             String timestamp,
             String durationBucket) {
+        this(resourceKey, null, action, outcome, rejectionReason, null, cancellationReason, circuitState, timestamp, durationBucket);
+    }
+
+    /**
+     * Creates an event item from low-cardinality event fields, including the governance engine.
+     */
+    public ConsoleEventItem(
+            String resourceKey,
+            String engine,
+            String action,
+            String outcome,
+            String rejectionReason,
+            String blockReason,
+            String cancellationReason,
+            String circuitState,
+            String timestamp,
+            String durationBucket) {
         this.resourceKey = resourceKey;
+        this.engine = engine;
         this.action = action;
         this.outcome = outcome;
         this.rejectionReason = rejectionReason;
+        this.blockReason = blockReason;
         this.cancellationReason = cancellationReason;
         this.circuitState = circuitState;
         this.timestamp = timestamp;
@@ -38,6 +59,11 @@ public final class ConsoleEventItem {
     /** Returns the stable governed resource key. */
     public String getResourceKey() {
         return resourceKey;
+    }
+
+    /** Returns the governance engine that produced this event. */
+    public String getEngine() {
+        return engine;
     }
 
     /** Returns the low-cardinality runtime action. */
@@ -53,6 +79,11 @@ public final class ConsoleEventItem {
     /** Returns the low-cardinality rejection reason. */
     public String getRejectionReason() {
         return rejectionReason;
+    }
+
+    /** Returns the low-cardinality engine block reason, if any. */
+    public String getBlockReason() {
+        return blockReason;
     }
 
     /** Returns the low-cardinality cancellation reason. */

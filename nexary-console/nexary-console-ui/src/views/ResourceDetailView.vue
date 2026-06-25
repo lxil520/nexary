@@ -56,12 +56,13 @@ watch(
   <div v-else class="view-stack">
     <section class="detail-header">
       <div>
-        <p class="eyebrow">{{ enumLabel(resource.kind) }} / {{ resource.provider }}</p>
+        <p class="eyebrow">{{ enumLabel(resource.engine ?? 'LOCAL') }} / {{ enumLabel(resource.kind) }} / {{ resource.provider }}</p>
         <h1>{{ resource.name }}</h1>
         <p class="resource-key">{{ resource.resourceKey }}</p>
       </div>
       <div class="detail-header__badges">
         <StatusBadge :label="resource.priority" :state="resource.priority" />
+        <StatusBadge :label="resource.engine ?? 'LOCAL'" :state="resource.engine ?? 'LOCAL'" />
         <StatusBadge
           :label="resource.runtimeSnapshot?.circuitState ?? 'NO_STATE'"
           :state="resource.runtimeSnapshot?.circuitState ?? 'NO_STATE'"

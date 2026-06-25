@@ -4,6 +4,7 @@ import type { ResourceFilters } from '../types/console';
 
 const props = defineProps<{
   filters: ResourceFilters;
+  engineOptions: string[];
   kindOptions: string[];
   circuitOptions: string[];
   providerOptions: string[];
@@ -30,6 +31,13 @@ function updateFilter(key: keyof ResourceFilters, value: string): void {
         :placeholder="t('filters.searchResourcesPlaceholder')"
         @input="updateFilter('keyword', ($event.target as HTMLInputElement).value)"
       />
+    </label>
+    <label class="field">
+      <span>{{ t('filters.engine') }}</span>
+      <select :value="filters.engine" @change="updateFilter('engine', ($event.target as HTMLSelectElement).value)">
+        <option value="ALL">{{ t('filters.all') }}</option>
+        <option v-for="engine in engineOptions" :key="engine" :value="engine">{{ enumLabel(engine) }}</option>
+      </select>
     </label>
     <label class="field">
       <span>{{ t('filters.kind') }}</span>

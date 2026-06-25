@@ -14,6 +14,8 @@ public final class GovernanceRuntimeSummary {
     private final long rejectedCount;
     private final long fallbackCount;
     private final long cancelledCount;
+    private final long blockedCount;
+    private final long sentinelResourceCount;
     private final long openCircuitCount;
     private final long halfOpenCircuitCount;
     private final long degradedResourceCount;
@@ -38,6 +40,8 @@ public final class GovernanceRuntimeSummary {
                 successCount,
                 failureCount,
                 rejectedCount,
+                0L,
+                0L,
                 0L,
                 0L,
                 openCircuitCount,
@@ -68,6 +72,8 @@ public final class GovernanceRuntimeSummary {
                 rejectedCount,
                 fallbackCount,
                 0L,
+                0L,
+                0L,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -88,6 +94,39 @@ public final class GovernanceRuntimeSummary {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             Instant lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                fallbackCount,
+                cancelledCount,
+                0L,
+                0L,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /** Creates a runtime summary with retained-event fallback, cancellation, and engine counts. */
+    public GovernanceRuntimeSummary(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long fallbackCount,
+            long cancelledCount,
+            long blockedCount,
+            long sentinelResourceCount,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            Instant lastEventAt) {
         this.resourceCount = Math.max(0, resourceCount);
         this.snapshotCount = Math.max(0, snapshotCount);
         this.eventCount = Math.max(0, eventCount);
@@ -96,6 +135,8 @@ public final class GovernanceRuntimeSummary {
         this.rejectedCount = Math.max(0L, rejectedCount);
         this.fallbackCount = Math.max(0L, fallbackCount);
         this.cancelledCount = Math.max(0L, cancelledCount);
+        this.blockedCount = Math.max(0L, blockedCount);
+        this.sentinelResourceCount = Math.max(0L, sentinelResourceCount);
         this.openCircuitCount = Math.max(0L, openCircuitCount);
         this.halfOpenCircuitCount = Math.max(0L, halfOpenCircuitCount);
         this.degradedResourceCount = Math.max(0L, degradedResourceCount);
@@ -142,6 +183,16 @@ public final class GovernanceRuntimeSummary {
         return cancelledCount;
     }
 
+    /** Returns the retained recent-event count blocked by a governance engine. */
+    public long blockedCount() {
+        return blockedCount;
+    }
+
+    /** Returns the number of known Sentinel-backed resource descriptors. */
+    public long sentinelResourceCount() {
+        return sentinelResourceCount;
+    }
+
     /** Returns the number of snapshots with an open circuit. */
     public long openCircuitCount() {
         return openCircuitCount;
@@ -179,6 +230,8 @@ public final class GovernanceRuntimeSummary {
                 && rejectedCount == that.rejectedCount
                 && fallbackCount == that.fallbackCount
                 && cancelledCount == that.cancelledCount
+                && blockedCount == that.blockedCount
+                && sentinelResourceCount == that.sentinelResourceCount
                 && openCircuitCount == that.openCircuitCount
                 && halfOpenCircuitCount == that.halfOpenCircuitCount
                 && degradedResourceCount == that.degradedResourceCount
@@ -196,6 +249,8 @@ public final class GovernanceRuntimeSummary {
                 rejectedCount,
                 fallbackCount,
                 cancelledCount,
+                blockedCount,
+                sentinelResourceCount,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,

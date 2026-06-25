@@ -11,6 +11,7 @@ public final class GovernanceResourceDescriptor {
     private final String provider;
     private final String operation;
     private final String priority;
+    private final GovernanceEngine engine;
     private final GovernancePolicySnapshot policySnapshot;
     private final GovernanceRuntimeSnapshot runtimeSnapshot;
 
@@ -24,12 +25,36 @@ public final class GovernanceResourceDescriptor {
             String priority,
             GovernancePolicySnapshot policySnapshot,
             GovernanceRuntimeSnapshot runtimeSnapshot) {
+        this(
+                resourceKey,
+                kind,
+                name,
+                provider,
+                operation,
+                priority,
+                GovernanceEngine.LOCAL,
+                policySnapshot,
+                runtimeSnapshot);
+    }
+
+    /** Creates a descriptor for a resource priority bucket and governance engine. */
+    public GovernanceResourceDescriptor(
+            String resourceKey,
+            GovernanceResource.ResourceKind kind,
+            String name,
+            String provider,
+            String operation,
+            String priority,
+            GovernanceEngine engine,
+            GovernancePolicySnapshot policySnapshot,
+            GovernanceRuntimeSnapshot runtimeSnapshot) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.kind = kind == null ? GovernanceResource.ResourceKind.CUSTOM : kind;
         this.name = name == null ? "unknown" : name;
         this.provider = provider == null ? "unknown" : provider;
         this.operation = operation == null ? "default" : operation;
         this.priority = priority == null ? "normal" : priority;
+        this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
         this.policySnapshot = policySnapshot == null
                 ? GovernancePolicySnapshot.from(GovernancePolicy.allowAll())
                 : policySnapshot;
@@ -66,6 +91,11 @@ public final class GovernanceResourceDescriptor {
         return priority;
     }
 
+    /** Returns the low-cardinality governance engine label. */
+    public GovernanceEngine engine() {
+        return engine;
+    }
+
     /** Returns the latest policy snapshot for this resource priority bucket. */
     public GovernancePolicySnapshot policySnapshot() {
         return policySnapshot;
@@ -91,12 +121,13 @@ public final class GovernanceResourceDescriptor {
                 && provider.equals(that.provider)
                 && operation.equals(that.operation)
                 && priority.equals(that.priority)
+                && engine == that.engine
                 && policySnapshot.equals(that.policySnapshot)
                 && Objects.equals(runtimeSnapshot, that.runtimeSnapshot);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(resourceKey, kind, name, provider, operation, priority, policySnapshot, runtimeSnapshot);
+        return Objects.hash(resourceKey, kind, name, provider, operation, priority, engine, policySnapshot, runtimeSnapshot);
     }
 }

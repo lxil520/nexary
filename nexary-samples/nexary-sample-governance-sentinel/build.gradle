@@ -1,0 +1,15 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation project(':nexary-boot:nexary-console-spring-boot-starter')
+    implementation project(':nexary-boot:nexary-governance-sentinel-spring-boot-starter')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.governance.sentinel.app.SentinelGovernanceSampleApplication'
+}

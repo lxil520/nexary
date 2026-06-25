@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: nexary-sample-governance-sentinel
+
+nexary:
+  governance:
+    provider: sentinel
+    runtime:
+      enabled: true
+    sentinel:
+      enabled: true
+      transport:
+        enabled: false
+    diagnostics:
+      enabled: true
+    default-policy:
+      max-requests-per-window: 100
+      rate-limit-window: 1s
+      max-concurrency: 64
+    resources:
+      sentinel-rate:
+        kind: http
+        name: sentinel-api
+        provider: nexary
+        operation: rate
+        max-requests-per-window: 1
+        rate-limit-window: 1m
+        max-concurrency: 64
+      sentinel-bulkhead:
+        kind: http
+        name: sentinel-api
+        provider: nexary
+        operation: bulkhead
+        max-requests-per-window: 100
+        rate-limit-window: 1s
+        max-concurrency: 1
+      sentinel-slow:
+        kind: downstream
+        name: sentinel-slow-service
+        provider: nexary
+        operation: load
+        circuit-breaker:
+          enabled: true
+          window: 5s
+          minimum-calls: 2
+          failure-rate-threshold: 100
+          slow-call-threshold: 50ms
+          slow-call-rate-threshold: 100
+          open-state-duration: 1s
+          half-open-probe-calls: 1
+          sliding-window-size: 8
+          consecutive-failure-threshold: 8
+      sentinel-failure:
+        kind: downstream
+        name: sentinel-failure-service
+        provider: nexary
+        operation: load
+        circuit-breaker:
+          enabled: true
+          window: 5s
+          minimum-calls: 2
+          failure-rate-threshold: 100
+          open-state-duration: 1s
+          half-open-probe-calls: 1
+          sliding-window-size: 8
+          consecutive-failure-threshold: 2
+      sentinel-degraded:
+        kind: downstream
+        name: sentinel-degraded-service
+        provider: nexary
+        operation: load
+        degraded: true
+  console:
+    enabled: true

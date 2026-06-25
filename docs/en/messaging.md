@@ -17,7 +17,7 @@ Messaging has the most provider variation and the highest risk of blurred bounda
 
 ## Version And Adoption Entry
 
-Choose the entry point from your Spring Boot and JDK line first. Examples use the current development version `0.11.1`; after Maven Central publication, replace it with the latest release.
+Choose the entry point from your Spring Boot and JDK line first. Examples use the current development version `0.12.0`; after Maven Central publication, replace it with the latest release.
 
 | Spring Boot | JDK | Messaging Status | Starter Mode | Single-provider Mode |
 | --- | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Choose the entry point from your Spring Boot and JDK line first. Examples use th
 Spring Boot 3.3 / Java 17+ starter mode:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     // Use the Nexary BOM to lock the currently verified Boot3 / Java17+ Messaging dependency versions.
@@ -46,7 +46,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ currently verifies only the Redis-only Messaging starter:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
@@ -66,7 +66,7 @@ nexary:
 The Spring Boot 4.1 Messaging starter provides Nexary-level core auto-configuration only. Add exactly one provider artifact explicitly; do not put all four providers into the same Boot4 starter classpath:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -95,7 +95,7 @@ Spring Boot 3.3 / Java 17+ single-provider mode is selected per provider. Every 
 Disruptor:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -107,7 +107,7 @@ dependencies {
 Redis queue:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -119,7 +119,7 @@ dependencies {
 Kafka:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -131,7 +131,7 @@ dependencies {
 RocketMQ:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -143,7 +143,7 @@ dependencies {
 ActiveMQ Classic:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -155,7 +155,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ single-provider mode is currently verified only for Redis-only:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -166,7 +166,7 @@ dependencies {
 Spring Boot 4.1 / Java 21 primary validation runtime single-provider mode:
 
 ```gradle
-def nexaryVersion = "0.11.1"
+def nexaryVersion = "0.12.0"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"

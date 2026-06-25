@@ -10,6 +10,7 @@ import org.nexary.core.context.CancellationReason;
 public final class GovernanceRuntimeSnapshot {
     private final String resourceKey;
     private final String priority;
+    private final GovernanceEngine engine;
     private final GovernanceCircuitState circuitState;
     private final int windowCalls;
     private final int windowFailures;
@@ -17,6 +18,7 @@ public final class GovernanceRuntimeSnapshot {
     private final int consecutiveFailures;
     private final long totalRejections;
     private final GovernanceRejectionReason lastRejectionReason;
+    private final GovernanceBlockReason lastBlockReason;
     private final CancellationReason lastCancellationReason;
     private final Instant openUntil;
     private final int activeConcurrency;
@@ -170,8 +172,74 @@ public final class GovernanceRuntimeSnapshot {
             Instant lastStateTransitionAt,
             GovernanceCallOutcome lastOutcome,
             Instant lastOutcomeAt) {
+        this(
+                resourceKey,
+                priority,
+                GovernanceEngine.LOCAL,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                GovernanceBlockReason.NONE,
+                lastCancellationReason,
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    /** Creates a snapshot with runtime counters, policy diagnostic values, and engine metadata. */
+    public GovernanceRuntimeSnapshot(
+            String resourceKey,
+            String priority,
+            GovernanceEngine engine,
+            GovernanceCircuitState circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            GovernanceRejectionReason lastRejectionReason,
+            GovernanceBlockReason lastBlockReason,
+            CancellationReason lastCancellationReason,
+            Instant openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            Duration rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            double failureRateThreshold,
+            double slowCallThreshold,
+            Duration slowCallDuration,
+            Duration openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            Duration slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            Instant lastStateTransitionAt,
+            GovernanceCallOutcome lastOutcome,
+            Instant lastOutcomeAt) {
         this.resourceKey = resourceKey == null ? "default:default" : resourceKey;
         this.priority = priority == null ? "normal" : priority;
+        this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
         this.windowCalls = Math.max(0, windowCalls);
         this.windowFailures = Math.max(0, windowFailures);
@@ -179,6 +247,7 @@ public final class GovernanceRuntimeSnapshot {
         this.consecutiveFailures = Math.max(0, consecutiveFailures);
         this.totalRejections = Math.max(0L, totalRejections);
         this.lastRejectionReason = lastRejectionReason == null ? GovernanceRejectionReason.NONE : lastRejectionReason;
+        this.lastBlockReason = lastBlockReason == null ? GovernanceBlockReason.NONE : lastBlockReason;
         this.lastCancellationReason =
                 lastCancellationReason == null ? CancellationReason.NONE : lastCancellationReason;
         this.openUntil = openUntil;
@@ -209,6 +278,11 @@ public final class GovernanceRuntimeSnapshot {
     /** Returns the request priority bucket for this resource state. */
     public String priority() {
         return priority;
+    }
+
+    /** Returns the low-cardinality governance engine label. */
+    public GovernanceEngine engine() {
+        return engine;
     }
 
     /** Returns the current circuit state. */
@@ -244,6 +318,11 @@ public final class GovernanceRuntimeSnapshot {
     /** Returns the low-cardinality reason for the most recent local governance rejection. */
     public GovernanceRejectionReason lastRejectionReason() {
         return lastRejectionReason;
+    }
+
+    /** Returns the low-cardinality block reason reported by the governance engine. */
+    public GovernanceBlockReason lastBlockReason() {
+        return lastBlockReason;
     }
 
     /** Returns the low-cardinality reason for the most recent cancellation. */
@@ -367,8 +446,10 @@ public final class GovernanceRuntimeSnapshot {
                 && consecutiveFailureThreshold == that.consecutiveFailureThreshold
                 && resourceKey.equals(that.resourceKey)
                 && priority.equals(that.priority)
+                && engine == that.engine
                 && circuitState == that.circuitState
                 && lastRejectionReason == that.lastRejectionReason
+                && lastBlockReason == that.lastBlockReason
                 && lastCancellationReason == that.lastCancellationReason
                 && Objects.equals(openUntil, that.openUntil)
                 && rateLimitWindow.equals(that.rateLimitWindow)
@@ -385,6 +466,7 @@ public final class GovernanceRuntimeSnapshot {
         return Objects.hash(
                 resourceKey,
                 priority,
+                engine,
                 circuitState,
                 windowCalls,
                 windowFailures,
@@ -392,6 +474,7 @@ public final class GovernanceRuntimeSnapshot {
                 consecutiveFailures,
                 totalRejections,
                 lastRejectionReason,
+                lastBlockReason,
                 lastCancellationReason,
                 openUntil,
                 activeConcurrency,

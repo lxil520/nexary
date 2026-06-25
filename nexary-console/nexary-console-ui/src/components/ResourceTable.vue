@@ -24,7 +24,7 @@ function callsLabel(resource: ConsoleResource): string {
 }
 
 function rejectionLabel(resource: ConsoleResource): string {
-  return resource.runtimeSnapshot?.lastRejectionReason ?? 'NONE';
+  return resource.runtimeSnapshot?.lastBlockReason ?? resource.runtimeSnapshot?.lastRejectionReason ?? 'NONE';
 }
 </script>
 
@@ -35,6 +35,7 @@ function rejectionLabel(resource: ConsoleResource): string {
         <tr>
           <th scope="col">{{ t('table.resource') }}</th>
           <th scope="col">{{ t('table.kind') }}</th>
+          <th v-if="!compact" scope="col">{{ t('table.engine') }}</th>
           <th v-if="!compact" scope="col">{{ t('table.provider') }}</th>
           <th v-if="!compact" scope="col">{{ t('table.priority') }}</th>
           <th scope="col">{{ t('table.circuit') }}</th>
@@ -52,6 +53,7 @@ function rejectionLabel(resource: ConsoleResource): string {
             </button>
           </td>
           <td>{{ enumLabel(resource.kind) }}</td>
+          <td v-if="!compact"><StatusBadge :label="resource.engine ?? 'LOCAL'" :state="resource.engine ?? 'LOCAL'" /></td>
           <td v-if="!compact">{{ resource.provider }}</td>
           <td v-if="!compact">{{ resource.priority }}</td>
           <td><StatusBadge :label="circuitLabel(resource)" :state="circuitLabel(resource)" /></td>

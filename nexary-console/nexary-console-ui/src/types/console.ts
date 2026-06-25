@@ -6,6 +6,10 @@ export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'NO
 
 export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | string;
 
+export type GovernanceEngine = 'LOCAL' | 'SENTINEL' | string;
+
+export type BlockReason = 'NONE' | 'RATE_LIMITED' | 'BULKHEAD_FULL' | 'CIRCUIT_OPEN' | 'DEGRADED' | 'UNKNOWN' | string;
+
 export type CancellationReason =
   | 'NONE'
   | 'CLIENT_DISCONNECTED'
@@ -36,6 +40,8 @@ export interface ConsoleSummary {
   rejectedCount: number;
   cancelledCount: number;
   fallbackCount: number;
+  blockedCount?: number;
+  sentinelResourceCount?: number;
   openCircuitCount: number;
   halfOpenCircuitCount: number;
   degradedResourceCount: number;
@@ -60,6 +66,7 @@ export interface ConsolePolicySnapshot {
 
 export interface ConsoleRuntimeSnapshot {
   resourceKey: string;
+  engine?: GovernanceEngine | null;
   priority: string;
   circuitState: CircuitState;
   windowCalls: number;
@@ -68,6 +75,7 @@ export interface ConsoleRuntimeSnapshot {
   consecutiveFailures: number;
   totalRejections: number;
   lastRejectionReason: RejectionReason;
+  lastBlockReason?: BlockReason | null;
   lastCancellationReason: CancellationReason;
   openUntil: string | null;
   activeConcurrency: number;
@@ -91,6 +99,7 @@ export interface ConsoleRuntimeSnapshot {
 
 export interface ConsoleResource {
   resourceKey: string;
+  engine?: GovernanceEngine | null;
   kind: ResourceKind;
   name: string;
   provider: string;
@@ -102,9 +111,11 @@ export interface ConsoleResource {
 
 export interface ConsoleEvent {
   resourceKey: string;
+  engine?: GovernanceEngine | null;
   action: RuntimeAction;
   outcome: CallOutcome;
   rejectionReason: RejectionReason;
+  blockReason?: BlockReason | null;
   cancellationReason: CancellationReason;
   circuitState: CircuitState;
   timestamp: string | null;
@@ -133,6 +144,7 @@ export interface ConsoleDataSet {
 
 export interface ResourceFilters {
   keyword: string;
+  engine: string;
   kind: string;
   circuitState: string;
   provider: string;

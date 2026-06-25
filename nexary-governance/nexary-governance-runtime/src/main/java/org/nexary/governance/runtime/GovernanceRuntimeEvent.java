@@ -11,6 +11,8 @@ public final class GovernanceRuntimeEvent {
     private final GovernanceCallOutcome outcome;
     private final GovernanceRejectionReason rejectionReason;
     private final CancellationReason cancellationReason;
+    private final GovernanceEngine engine;
+    private final GovernanceBlockReason blockReason;
     private final GovernanceCircuitState circuitState;
     private final Instant timestamp;
     private final GovernanceDurationBucket durationBucket;
@@ -37,11 +39,38 @@ public final class GovernanceRuntimeEvent {
             GovernanceCircuitState circuitState,
             Instant timestamp,
             GovernanceDurationBucket durationBucket) {
+        this(
+                resourceKey,
+                action,
+                outcome,
+                rejectionReason,
+                cancellationReason,
+                GovernanceEngine.LOCAL,
+                GovernanceBlockReason.NONE,
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /** Creates a low-cardinality runtime event with engine and block metadata. */
+    public GovernanceRuntimeEvent(
+            String resourceKey,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            CancellationReason cancellationReason,
+            GovernanceEngine engine,
+            GovernanceBlockReason blockReason,
+            GovernanceCircuitState circuitState,
+            Instant timestamp,
+            GovernanceDurationBucket durationBucket) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.action = action == null ? GovernanceRuntimeAction.EXECUTE : action;
         this.outcome = outcome == null ? GovernanceCallOutcome.NONE : outcome;
         this.rejectionReason = rejectionReason == null ? GovernanceRejectionReason.NONE : rejectionReason;
         this.cancellationReason = cancellationReason == null ? CancellationReason.NONE : cancellationReason;
+        this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
+        this.blockReason = blockReason == null ? GovernanceBlockReason.NONE : blockReason;
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
         this.timestamp = timestamp == null ? Instant.now() : timestamp;
         this.durationBucket = durationBucket == null ? GovernanceDurationBucket.NOT_RUN : durationBucket;
@@ -70,6 +99,16 @@ public final class GovernanceRuntimeEvent {
     /** Returns the low-cardinality cancellation reason. */
     public CancellationReason cancellationReason() {
         return cancellationReason;
+    }
+
+    /** Returns the low-cardinality governance engine label. */
+    public GovernanceEngine engine() {
+        return engine;
+    }
+
+    /** Returns the low-cardinality block reason reported by the engine. */
+    public GovernanceBlockReason blockReason() {
+        return blockReason;
     }
 
     /** Returns the circuit state visible after this event. */
@@ -101,6 +140,8 @@ public final class GovernanceRuntimeEvent {
                 && outcome == that.outcome
                 && rejectionReason == that.rejectionReason
                 && cancellationReason == that.cancellationReason
+                && engine == that.engine
+                && blockReason == that.blockReason
                 && circuitState == that.circuitState
                 && timestamp.equals(that.timestamp)
                 && durationBucket == that.durationBucket;
@@ -108,6 +149,16 @@ public final class GovernanceRuntimeEvent {
 
     @Override
     public int hashCode() {
-        return Objects.hash(resourceKey, action, outcome, rejectionReason, cancellationReason, circuitState, timestamp, durationBucket);
+        return Objects.hash(
+                resourceKey,
+                action,
+                outcome,
+                rejectionReason,
+                cancellationReason,
+                engine,
+                blockReason,
+                circuitState,
+                timestamp,
+                durationBucket);
     }
 }

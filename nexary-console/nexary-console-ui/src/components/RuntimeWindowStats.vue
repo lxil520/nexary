@@ -22,6 +22,10 @@ function valueOrZero(value: number | undefined): number {
     </div>
     <dl class="stat-grid">
       <div>
+        <dt>{{ t('runtime.engine') }}</dt>
+        <dd>{{ enumLabel(runtime?.engine ?? 'LOCAL') }}</dd>
+      </div>
+      <div>
         <dt>{{ t('runtime.calls') }}</dt>
         <dd>{{ valueOrZero(runtime?.windowCalls) }}</dd>
       </div>
@@ -47,7 +51,7 @@ function valueOrZero(value: number | undefined): number {
       </div>
       <div>
         <dt>{{ t('runtime.lastReason') }}</dt>
-        <dd>{{ enumLabel(runtime?.lastRejectionReason ?? 'NONE') }}</dd>
+        <dd>{{ enumLabel(runtime?.lastBlockReason ?? runtime?.lastRejectionReason ?? 'NONE') }}</dd>
       </div>
       <div>
         <dt>{{ t('runtime.lastCancellation') }}</dt>

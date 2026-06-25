@@ -12,6 +12,8 @@ public final class ConsoleSummaryResponse {
     private final long rejectedCount;
     private final long cancelledCount;
     private final long fallbackCount;
+    private final long blockedCount;
+    private final long sentinelResourceCount;
     private final long openCircuitCount;
     private final long halfOpenCircuitCount;
     private final long degradedResourceCount;
@@ -33,6 +35,41 @@ public final class ConsoleSummaryResponse {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             String lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                cancelledCount,
+                fallbackCount,
+                0L,
+                0L,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /**
+     * Creates a summary response from bounded aggregate counters, including engine counters.
+     */
+    public ConsoleSummaryResponse(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long cancelledCount,
+            long fallbackCount,
+            long blockedCount,
+            long sentinelResourceCount,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            String lastEventAt) {
         this.resourceCount = resourceCount;
         this.snapshotCount = snapshotCount;
         this.eventCount = eventCount;
@@ -41,6 +78,8 @@ public final class ConsoleSummaryResponse {
         this.rejectedCount = rejectedCount;
         this.cancelledCount = cancelledCount;
         this.fallbackCount = fallbackCount;
+        this.blockedCount = blockedCount;
+        this.sentinelResourceCount = sentinelResourceCount;
         this.openCircuitCount = openCircuitCount;
         this.halfOpenCircuitCount = halfOpenCircuitCount;
         this.degradedResourceCount = degradedResourceCount;
@@ -85,6 +124,16 @@ public final class ConsoleSummaryResponse {
     /** Returns the retained recent-event fallback count. */
     public long getFallbackCount() {
         return fallbackCount;
+    }
+
+    /** Returns the retained recent-event count blocked by a governance engine. */
+    public long getBlockedCount() {
+        return blockedCount;
+    }
+
+    /** Returns the number of resources currently backed by Sentinel. */
+    public long getSentinelResourceCount() {
+        return sentinelResourceCount;
     }
 
     /** Returns the number of snapshots with an open circuit. */

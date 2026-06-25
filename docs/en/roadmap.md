@@ -389,7 +389,27 @@ Acceptance targets:
 
 ## `0.12.x` Sentinel Provider
 
-`0.12.x` plans a Sentinel provider that maps Nexary local governance resources and decisions into Sentinel capabilities. It still does not replace Sentinel: Sentinel rules, dashboard, cluster flow control, and runtime behavior stay owned by the Sentinel ecosystem. Nexary only provides the Java integration boundary and samples.
+`0.12.x` connects Nexary local governance resources to the Sentinel execution plane. It still does not replace Sentinel: Sentinel Dashboard, cluster flow control, remote rule platforms, and Sentinel runtime behavior stay owned by the Sentinel ecosystem. Nexary provides the Java integration boundary, low-cardinality diagnostics, samples, and the read-only Console.
+
+Included scope:
+
+- `0.12.0`: Spring Boot 3.3 / Java 17+ mainline adds `nexary-governance-sentinel` and `nexary-governance-sentinel-spring-boot-starter`.
+- Runtime: after `nexary.governance.provider=sentinel`, the Sentinel resource name uses `GovernanceResource.key()`; `provider`, `operation`, and `priority` stay in Nexary diagnostics fields.
+- Policy mapping: `max-requests-per-window` maps to a QPS flow rule, `max-concurrency` maps to a thread-count flow rule, and failure-rate / consecutive-failure / slow-call settings map to Sentinel degrade rules.
+- Runtime: v0.11 cancellation is still checked before Sentinel entry, so canceled requests do not enter Sentinel statistic windows.
+- Diagnostics / Console: add `engine`, `blockReason`, `lastBlockReason`, `blockedCount`, and `sentinelResourceCount`.
+- Samples: add `nexary-sample-governance-sentinel` and `scripts/governance-sentinel/smoke.sh` for rate limiting, bulkhead, slow-call circuit breaking, exception circuit breaking, fallback, diagnostics, and Console checks.
+
+Later patch versions:
+
+- `0.12.1`: Boot2 Sentinel compatibility line; update README only after Java 8 / Boot2 samples and gates pass.
+- `0.12.2`: Boot4 Sentinel compatibility line; update README only after Java 21 / Boot4 samples and gates pass.
+
+`0.12.x` does not include:
+
+- a Sentinel Dashboard replacement.
+- cluster flow control, a remote rule center, or rule-editing pages.
+- Boot2 / Boot4 Sentinel support claims before samples and gates pass.
 
 ## `0.13.x` Retry Stop Propagation
 

@@ -33,7 +33,7 @@ public final class ConsoleDiagnosticsService {
     public ConsoleSummaryResponse summary() {
         GovernanceRuntimeSummary summary = diagnostics == null ? null : diagnostics.summary();
         if (summary == null) {
-            return new ConsoleSummaryResponse(0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, null);
+            return new ConsoleSummaryResponse(0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, null);
         }
         return new ConsoleSummaryResponse(
                 summary.resourceCount(),
@@ -44,6 +44,8 @@ public final class ConsoleDiagnosticsService {
                 summary.rejectedCount(),
                 summary.cancelledCount(),
                 summary.fallbackCount(),
+                summary.blockedCount(),
+                summary.sentinelResourceCount(),
                 summary.openCircuitCount(),
                 summary.halfOpenCircuitCount(),
                 summary.degradedResourceCount(),
@@ -94,6 +96,7 @@ public final class ConsoleDiagnosticsService {
     private static ConsoleResourceItem resource(GovernanceResourceDescriptor descriptor) {
         return new ConsoleResourceItem(
                 descriptor.resourceKey(),
+                descriptor.engine().name(),
                 descriptor.kind().name(),
                 descriptor.name(),
                 descriptor.provider(),
@@ -130,6 +133,7 @@ public final class ConsoleDiagnosticsService {
         }
         return new ConsoleRuntimeSnapshot(
                 snapshot.resourceKey(),
+                snapshot.engine().name(),
                 snapshot.priority(),
                 snapshot.circuitState().name(),
                 snapshot.windowCalls(),
@@ -138,6 +142,7 @@ public final class ConsoleDiagnosticsService {
                 snapshot.consecutiveFailures(),
                 snapshot.totalRejections(),
                 snapshot.lastRejectionReason().name(),
+                snapshot.lastBlockReason().name(),
                 snapshot.lastCancellationReason().name(),
                 optionalInstant(snapshot.openUntil()),
                 snapshot.activeConcurrency(),
@@ -162,9 +167,11 @@ public final class ConsoleDiagnosticsService {
     private static ConsoleEventItem event(GovernanceRuntimeEvent event) {
         return new ConsoleEventItem(
                 event.resourceKey(),
+                event.engine().name(),
                 event.action().name(),
                 event.outcome().name(),
                 event.rejectionReason().name(),
+                event.blockReason().name(),
                 event.cancellationReason().name(),
                 event.circuitState().name(),
                 instant(event.timestamp()),

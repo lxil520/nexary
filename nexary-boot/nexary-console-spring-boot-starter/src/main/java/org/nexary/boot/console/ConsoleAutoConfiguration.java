@@ -14,7 +14,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Auto-configuration for the read-only local Nexary console API. */
-@AutoConfiguration(afterName = "org.nexary.boot.governance.GovernanceRuntimeAutoConfiguration")
+@AutoConfiguration(afterName = {
+        "org.nexary.boot.governance.GovernanceRuntimeAutoConfiguration",
+        "org.nexary.boot.governance.sentinel.GovernanceSentinelAutoConfiguration"
+})
 @ConditionalOnClass({RestController.class, GovernanceDiagnostics.class, ConsoleApiController.class, ConsolePageController.class})
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnProperty(prefix = "nexary.console", name = "enabled", havingValue = "true")

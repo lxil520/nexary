@@ -11,11 +11,23 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /** Configuration for the local Nexary governance runtime. */
 @ConfigurationProperties(prefix = "nexary.governance")
 public class GovernanceRuntimeProperties {
+    private Provider provider = Provider.LOCAL;
     private RuntimeSettings runtime = new RuntimeSettings();
+    private Sentinel sentinel = new Sentinel();
     private Diagnostics diagnostics = new Diagnostics();
     private Cancellation cancellation = new Cancellation();
     private Policy defaultPolicy = new Policy();
     private Map<String, ResourcePolicy> resources = new LinkedHashMap<>();
+
+    /** Returns the runtime provider used for governance execution. */
+    public Provider getProvider() {
+        return provider;
+    }
+
+    /** Sets the runtime provider used for governance execution. */
+    public void setProvider(Provider provider) {
+        this.provider = provider == null ? Provider.LOCAL : provider;
+    }
 
     /** Returns runtime lifecycle settings. */
     public RuntimeSettings getRuntime() {
@@ -27,9 +39,80 @@ public class GovernanceRuntimeProperties {
         this.runtime = runtime == null ? new RuntimeSettings() : runtime;
     }
 
+    /** Returns Sentinel provider settings. */
+    public Sentinel getSentinel() {
+        return sentinel;
+    }
+
+    /** Sets Sentinel provider settings. */
+    public void setSentinel(Sentinel sentinel) {
+        this.sentinel = sentinel == null ? new Sentinel() : sentinel;
+    }
+
     /** Returns read-only diagnostics endpoint settings. */
     public Diagnostics getDiagnostics() {
         return diagnostics;
+    }
+
+    /** Supported governance runtime providers. */
+    public enum Provider {
+        /** Nexary's in-process local governance runtime. */
+        LOCAL,
+
+        /** Alibaba Sentinel-backed governance runtime. */
+        SENTINEL
+    }
+
+    /** Sentinel provider settings. */
+    public static class Sentinel {
+        private boolean enabled = true;
+        private Transport transport = new Transport();
+
+        /** Returns whether Sentinel provider auto-configuration may create a runtime. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether Sentinel provider auto-configuration may create a runtime. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns optional Sentinel transport settings. */
+        public Transport getTransport() {
+            return transport;
+        }
+
+        /** Sets optional Sentinel transport settings. */
+        public void setTransport(Transport transport) {
+            this.transport = transport == null ? new Transport() : transport;
+        }
+    }
+
+    /** Optional Sentinel transport settings. */
+    public static class Transport {
+        private boolean enabled;
+        private String dashboardServer;
+
+        /** Returns whether Sentinel transport integration is enabled. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether Sentinel transport integration is enabled. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns the optional Sentinel dashboard server address. */
+        public String getDashboardServer() {
+            return dashboardServer;
+        }
+
+        /** Sets the optional Sentinel dashboard server address. */
+        public void setDashboardServer(String dashboardServer) {
+            this.dashboardServer = dashboardServer;
+        }
     }
 
     /** Sets read-only diagnostics endpoint settings. */
