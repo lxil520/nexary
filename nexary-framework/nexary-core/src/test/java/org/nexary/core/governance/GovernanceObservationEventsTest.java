@@ -10,6 +10,7 @@ import org.nexary.core.context.TrafficTag;
 import org.nexary.core.fault.FaultSignal;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.retry.RetrySignal;
+import org.nexary.core.retry.RetryStopReason;
 
 class GovernanceObservationEventsTest {
     @Test
@@ -58,7 +59,26 @@ class GovernanceObservationEventsTest {
                 Map.entry("governance_action", "retry_stopped"),
                 Map.entry("retry_decision", "stop"),
                 Map.entry("retry_phase", "stopped"),
+                Map.entry("retry_stop_reason", "none"),
                 Map.entry("retry_attempt_bucket", "6_10"));
+        assertThat(event.tags()).doesNotContainKey("reason");
+    }
+
+    @Test
+    void retryStoppedUsesBoundedStopReason() {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+
+        NexaryObservationEvent event = GovernanceObservationEvents.retryStopped(
+                GovernanceResource.messaging("payment-events", "kafka"),
+                TrafficTag.defaults(),
+                RetrySignal.stop(RetryStopReason.CIRCUIT_OPEN),
+                now,
+                now);
+
+        assertThat(event.tags()).contains(
+                Map.entry("retry_decision", "stop"),
+                Map.entry("retry_stop_reason", "circuit_open"),
+                Map.entry("retry_attempt_bucket", "0"));
         assertThat(event.tags()).doesNotContainKey("reason");
     }
 

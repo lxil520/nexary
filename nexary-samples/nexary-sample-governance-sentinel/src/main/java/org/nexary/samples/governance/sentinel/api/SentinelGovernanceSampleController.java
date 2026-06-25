@@ -3,7 +3,10 @@ package org.nexary.samples.governance.sentinel.api;
 import java.time.Duration;
 import java.time.Instant;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.retry.RetrySignal;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.governance.runtime.GovernanceRuntime;
+import org.nexary.governance.runtime.GovernanceRejectedException;
 import org.nexary.samples.governance.sentinel.config.SentinelGovernanceSampleResources;
 import org.nexary.samples.governance.sentinel.service.SentinelGovernanceSampleService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -83,5 +86,26 @@ public class SentinelGovernanceSampleController {
                         .build(),
                 service::ok,
                 service::fallback);
+    }
+
+    /** Demonstrates that a retry loop stops when governance returns a STOP retry signal. */
+    @GetMapping("/retry-stop")
+    public SentinelSampleResult retryStop(@RequestParam(defaultValue = "3") int maxAttempts) throws Exception {
+        int boundedAttempts = Math.max(1, Math.min(maxAttempts, 5));
+        for (int attempt = 1; attempt <= boundedAttempts; attempt++) {
+            try {
+                governanceRuntime.execute(
+                        GovernanceContext.builder()
+                                .resource(SentinelGovernanceSampleResources.RATE_RESOURCE)
+                                .deadline(Instant.now().plusSeconds(2))
+                                .build(),
+                        service::ok);
+            } catch (GovernanceRejectedException ex) {
+                RetrySignal signal = ex.decision() == null ? null : ex.decision().retrySignal();
+                RetryStopReason reason = signal == null ? RetryStopReason.UNKNOWN : signal.stopReason();
+                return new SentinelSampleResult("retry-stop", "stopped", attempt, reason.name());
+            }
+        }
+        return new SentinelSampleResult("retry-stop", "completed", boundedAttempts, "NONE");
     }
 }

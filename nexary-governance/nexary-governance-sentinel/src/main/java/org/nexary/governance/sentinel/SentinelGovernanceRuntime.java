@@ -30,6 +30,8 @@ import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceObservationEvents;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetryStopClassifier;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.governance.runtime.GovernanceBlockReason;
 import org.nexary.governance.runtime.GovernanceCallOutcome;
 import org.nexary.governance.runtime.GovernanceCircuitState;
@@ -130,6 +132,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         long rejected = 0L;
         long fallback = 0L;
         long cancelled = 0L;
+        long retryStopped = 0L;
         long blocked = 0L;
         Instant lastEventAt = null;
         for (GovernanceRuntimeEvent event : currentEvents) {
@@ -144,6 +147,9 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             }
             if (event.action() == GovernanceRuntimeAction.FALLBACK) {
                 fallback++;
+            }
+            if (event.retryStopReason() != RetryStopReason.NONE) {
+                retryStopped++;
             }
             if (event.blockReason() != GovernanceBlockReason.NONE) {
                 blocked++;
@@ -173,6 +179,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 rejected,
                 fallback,
                 cancelled,
+                retryStopped,
                 blocked,
                 sentinelResources,
                 openCircuits,
@@ -209,6 +216,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     GovernanceRejectionReason.NONE,
                     GovernanceBlockReason.NONE,
                     state.lastCancellationReason,
+                    RetryStopClassifier.fromCancellationReason(state.lastCancellationReason),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, cancelled);
@@ -223,6 +231,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     state.lastRejectionReason,
                     state.lastBlockReason,
                     CancellationReason.NONE,
+                    retryStopReason(rejected),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, rejected);
@@ -254,6 +263,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     rejectionReason,
                     blockReason,
                     CancellationReason.NONE,
+                    retryStopReason(decision),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
@@ -283,6 +293,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                         GovernanceRejectionReason.NONE,
                         GovernanceBlockReason.NONE,
                         completionCancellationReason,
+                        RetryStopClassifier.fromCancellationReason(completionCancellationReason),
                         startedAt,
                         Instant.now());
             }
@@ -509,6 +520,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             GovernanceRejectionReason rejectionReason,
             GovernanceBlockReason blockReason,
             CancellationReason cancellationReason,
+            RetryStopReason retryStopReason,
             Instant startedAt,
             Instant endedAt) {
         Duration duration = startedAt == null || endedAt == null
@@ -522,15 +534,23 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 cancellationReason,
                 GovernanceEngine.SENTINEL,
                 blockReason,
+                retryStopReason,
                 state.currentCircuitState(),
                 endedAt,
                 GovernanceDurationBucket.from(duration));
+        state.recordRetryStop(retryStopReason);
         synchronized (recentEvents) {
             recentEvents.addLast(event);
             while (recentEvents.size() > recentEventCapacity) {
                 recentEvents.removeFirst();
             }
         }
+    }
+
+    private static RetryStopReason retryStopReason(GovernanceDecision decision) {
+        return decision == null || decision.retrySignal() == null
+                ? RetryStopReason.NONE
+                : decision.retrySignal().stopReason();
     }
 
     private static GovernanceResourceDescriptor sentinelDescriptor(GovernanceResourceDescriptor descriptor) {
@@ -583,6 +603,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         private GovernanceRejectionReason lastRejectionReason = GovernanceRejectionReason.NONE;
         private GovernanceBlockReason lastBlockReason = GovernanceBlockReason.NONE;
         private CancellationReason lastCancellationReason = CancellationReason.NONE;
+        private RetryStopReason lastRetryStopReason = RetryStopReason.NONE;
         private Instant lastStateTransitionAt = Instant.now();
         private GovernanceCallOutcome lastOutcome = GovernanceCallOutcome.NONE;
         private Instant lastOutcomeAt;
@@ -649,6 +670,12 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             lastOutcomeAt = Instant.now();
         }
 
+        private synchronized void recordRetryStop(RetryStopReason reason) {
+            if (reason != null && reason != RetryStopReason.NONE) {
+                lastRetryStopReason = reason;
+            }
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -679,6 +706,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     lastRejectionReason,
                     lastBlockReason,
                     lastCancellationReason,
+                    lastRetryStopReason,
                     null,
                     activeConcurrency.get(),
                     policy.maxConcurrency(),

@@ -54,6 +54,12 @@ Explicit degradation:
 curl -s http://localhost:8080/governance/sentinel/fallback
 ```
 
+Retry stop propagation:
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/retry-stop
+```
+
 ## Inspect Diagnostics and Console
 
 ```bash
@@ -74,7 +80,10 @@ Important fields:
 - `engine`: `SENTINEL`
 - `blockReason`: `RATE_LIMITED`, `BULKHEAD_FULL`, or `CIRCUIT_OPEN`
 - `lastBlockReason`: most recent Sentinel block reason on the resource snapshot
+- `retryStopReason`: retry-stop reason on recent events
+- `lastRetryStopReason`: most recent retry-stop reason on the resource snapshot
 - `blockedCount`: Sentinel blocks in the current JVM
+- `retryStoppedCount`: retry-stop events in the current JVM
 - `sentinelResourceCount`: Sentinel resources in the current JVM
 
 Diagnostics and Console do not expose Sentinel origin, cancellation id, user id, tenant, order id, cache key, message id, payload, exception text, or stack traces.

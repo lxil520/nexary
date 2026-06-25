@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import org.nexary.core.context.CancellationReason;
+import org.nexary.core.retry.RetryStopReason;
 
 /** Low-cardinality diagnostic snapshot for one local runtime resource state. */
 public final class GovernanceRuntimeSnapshot {
@@ -20,6 +21,7 @@ public final class GovernanceRuntimeSnapshot {
     private final GovernanceRejectionReason lastRejectionReason;
     private final GovernanceBlockReason lastBlockReason;
     private final CancellationReason lastCancellationReason;
+    private final RetryStopReason lastRetryStopReason;
     private final Instant openUntil;
     private final int activeConcurrency;
     private final int maxConcurrency;
@@ -62,6 +64,7 @@ public final class GovernanceRuntimeSnapshot {
                 totalRejections,
                 lastRejectionReason,
                 CancellationReason.NONE,
+                RetryStopReason.NONE,
                 openUntil,
                 0,
                 Integer.MAX_VALUE,
@@ -122,6 +125,7 @@ public final class GovernanceRuntimeSnapshot {
                 totalRejections,
                 lastRejectionReason,
                 CancellationReason.NONE,
+                RetryStopReason.NONE,
                 openUntil,
                 activeConcurrency,
                 maxConcurrency,
@@ -175,6 +179,69 @@ public final class GovernanceRuntimeSnapshot {
         this(
                 resourceKey,
                 priority,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                lastCancellationReason,
+                RetryStopReason.NONE,
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    /** Creates a snapshot with runtime counters, policy diagnostic values, cancellation, and retry-stop reason. */
+    public GovernanceRuntimeSnapshot(
+            String resourceKey,
+            String priority,
+            GovernanceCircuitState circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            GovernanceRejectionReason lastRejectionReason,
+            CancellationReason lastCancellationReason,
+            RetryStopReason lastRetryStopReason,
+            Instant openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            Duration rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            double failureRateThreshold,
+            double slowCallThreshold,
+            Duration slowCallDuration,
+            Duration openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            Duration slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            Instant lastStateTransitionAt,
+            GovernanceCallOutcome lastOutcome,
+            Instant lastOutcomeAt) {
+        this(
+                resourceKey,
+                priority,
                 GovernanceEngine.LOCAL,
                 circuitState,
                 windowCalls,
@@ -185,6 +252,7 @@ public final class GovernanceRuntimeSnapshot {
                 lastRejectionReason,
                 GovernanceBlockReason.NONE,
                 lastCancellationReason,
+                lastRetryStopReason,
                 openUntil,
                 activeConcurrency,
                 maxConcurrency,
@@ -237,6 +305,73 @@ public final class GovernanceRuntimeSnapshot {
             Instant lastStateTransitionAt,
             GovernanceCallOutcome lastOutcome,
             Instant lastOutcomeAt) {
+        this(
+                resourceKey,
+                priority,
+                engine,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                lastBlockReason,
+                lastCancellationReason,
+                RetryStopReason.NONE,
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    /** Creates a snapshot with runtime counters, policy diagnostic values, engine, and retry-stop metadata. */
+    public GovernanceRuntimeSnapshot(
+            String resourceKey,
+            String priority,
+            GovernanceEngine engine,
+            GovernanceCircuitState circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            GovernanceRejectionReason lastRejectionReason,
+            GovernanceBlockReason lastBlockReason,
+            CancellationReason lastCancellationReason,
+            RetryStopReason lastRetryStopReason,
+            Instant openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            Duration rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            double failureRateThreshold,
+            double slowCallThreshold,
+            Duration slowCallDuration,
+            Duration openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            Duration slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            Instant lastStateTransitionAt,
+            GovernanceCallOutcome lastOutcome,
+            Instant lastOutcomeAt) {
         this.resourceKey = resourceKey == null ? "default:default" : resourceKey;
         this.priority = priority == null ? "normal" : priority;
         this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
@@ -250,6 +385,7 @@ public final class GovernanceRuntimeSnapshot {
         this.lastBlockReason = lastBlockReason == null ? GovernanceBlockReason.NONE : lastBlockReason;
         this.lastCancellationReason =
                 lastCancellationReason == null ? CancellationReason.NONE : lastCancellationReason;
+        this.lastRetryStopReason = lastRetryStopReason == null ? RetryStopReason.NONE : lastRetryStopReason;
         this.openUntil = openUntil;
         this.activeConcurrency = Math.max(0, activeConcurrency);
         this.maxConcurrency = Math.max(1, maxConcurrency);
@@ -328,6 +464,11 @@ public final class GovernanceRuntimeSnapshot {
     /** Returns the low-cardinality reason for the most recent cancellation. */
     public CancellationReason lastCancellationReason() {
         return lastCancellationReason;
+    }
+
+    /** Returns the low-cardinality reason for the most recent retry stop signal. */
+    public RetryStopReason lastRetryStopReason() {
+        return lastRetryStopReason;
     }
 
     /** Returns when the open circuit may begin half-open probing, if currently known. */
@@ -451,6 +592,7 @@ public final class GovernanceRuntimeSnapshot {
                 && lastRejectionReason == that.lastRejectionReason
                 && lastBlockReason == that.lastBlockReason
                 && lastCancellationReason == that.lastCancellationReason
+                && lastRetryStopReason == that.lastRetryStopReason
                 && Objects.equals(openUntil, that.openUntil)
                 && rateLimitWindow.equals(that.rateLimitWindow)
                 && Objects.equals(slowCallDuration, that.slowCallDuration)
@@ -476,6 +618,7 @@ public final class GovernanceRuntimeSnapshot {
                 lastRejectionReason,
                 lastBlockReason,
                 lastCancellationReason,
+                lastRetryStopReason,
                 openUntil,
                 activeConcurrency,
                 maxConcurrency,

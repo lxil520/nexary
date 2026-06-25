@@ -19,6 +19,8 @@ import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceObservationEvents;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetryStopClassifier;
+import org.nexary.core.retry.RetryStopReason;
 
 /** Default local governance runtime. */
 public final class LocalGovernanceRuntime implements GovernanceRuntime {
@@ -93,6 +95,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         long rejected = 0L;
         long fallback = 0L;
         long cancelled = 0L;
+        long retryStopped = 0L;
         Instant lastEventAt = null;
         for (GovernanceRuntimeEvent event : currentEvents) {
             if (event.outcome() == GovernanceCallOutcome.SUCCESS) {
@@ -106,6 +109,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             }
             if (event.action() == GovernanceRuntimeAction.FALLBACK) {
                 fallback++;
+            }
+            if (event.retryStopReason() != RetryStopReason.NONE) {
+                retryStopped++;
             }
             if (lastEventAt == null || event.timestamp().isAfter(lastEventAt)) {
                 lastEventAt = event.timestamp();
@@ -129,6 +135,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 rejected,
                 fallback,
                 cancelled,
+                retryStopped,
+                0L,
+                0L,
                 openCircuits,
                 halfOpenCircuits,
                 degradedResources,
@@ -160,6 +169,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     GovernanceCallOutcome.CANCELLED,
                     GovernanceRejectionReason.NONE,
                     state.lastCancellationReason,
+                    RetryStopClassifier.fromCancellationReason(state.lastCancellationReason),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, cancelled);
@@ -173,6 +183,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     GovernanceCallOutcome.REJECTED,
                     state.lastRejectionReason,
                     CancellationReason.NONE,
+                    retryStopReason(rejected),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, rejected);
@@ -195,6 +206,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     GovernanceCallOutcome.REJECTED,
                     circuitPermit.rejectionReason(),
                     CancellationReason.NONE,
+                    retryStopReason(decision),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
@@ -212,6 +224,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     GovernanceCallOutcome.REJECTED,
                     GovernanceRejectionReason.RATE_LIMITED,
                     CancellationReason.NONE,
+                    retryStopReason(decision),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
@@ -231,6 +244,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     GovernanceCallOutcome.REJECTED,
                     GovernanceRejectionReason.CONCURRENCY_LIMITED,
                     CancellationReason.NONE,
+                    retryStopReason(decision),
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
@@ -262,6 +276,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                             : GovernanceCallOutcome.FAILURE,
                     GovernanceRejectionReason.NONE,
                     completionCancellationReason,
+                    RetryStopClassifier.fromCancellationReason(completionCancellationReason),
                     startedAt,
                     Instant.now());
             state.release();
@@ -390,6 +405,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             GovernanceCallOutcome outcome,
             GovernanceRejectionReason rejectionReason,
             CancellationReason cancellationReason,
+            RetryStopReason retryStopReason,
             Instant startedAt,
             Instant endedAt) {
         Duration duration = startedAt == null || endedAt == null
@@ -401,15 +417,25 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 outcome,
                 rejectionReason,
                 cancellationReason,
+                GovernanceEngine.LOCAL,
+                GovernanceBlockReason.NONE,
+                retryStopReason,
                 state.currentCircuitState(),
                 endedAt,
                 GovernanceDurationBucket.from(duration));
+        state.recordRetryStop(retryStopReason);
         synchronized (recentEvents) {
             recentEvents.addLast(event);
             while (recentEvents.size() > recentEventCapacity) {
                 recentEvents.removeFirst();
             }
         }
+    }
+
+    private static RetryStopReason retryStopReason(GovernanceDecision decision) {
+        return decision == null || decision.retrySignal() == null
+                ? RetryStopReason.NONE
+                : decision.retrySignal().stopReason();
     }
 
     private static final class State {
@@ -433,6 +459,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private long totalRejections;
         private GovernanceRejectionReason lastRejectionReason = GovernanceRejectionReason.NONE;
         private CancellationReason lastCancellationReason = CancellationReason.NONE;
+        private RetryStopReason lastRetryStopReason = RetryStopReason.NONE;
         private Instant lastStateTransitionAt = Instant.now();
         private GovernanceCallOutcome lastOutcome = GovernanceCallOutcome.NONE;
         private Instant lastOutcomeAt;
@@ -607,6 +634,12 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             lastOutcomeAt = Instant.now();
         }
 
+        private synchronized void recordRetryStop(RetryStopReason reason) {
+            if (reason != null && reason != RetryStopReason.NONE) {
+                lastRetryStopReason = reason;
+            }
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -634,6 +667,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     totalRejections,
                     lastRejectionReason,
                     lastCancellationReason,
+                    lastRetryStopReason,
                     openUntil,
                     activeConcurrency(),
                     maxConcurrency,

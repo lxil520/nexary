@@ -413,7 +413,22 @@ Later patch versions:
 
 ## `0.13.x` Retry Stop Propagation
 
-`0.13.x` plans retry stop propagation so governance rejection, expired deadlines, and explicit stop-retry signals keep flowing into messaging, job, and other retry paths instead of being amplified by later retries.
+`0.13.0` implements retry stop propagation on the Boot3 mainline. Governance rejection, expired deadlines, request cancellation, and execution timeout map to fixed `RetryStopReason` values and continue into messaging consume and job execution retry loops so useless work is not amplified by later retries.
+
+Included scope:
+
+- Core: add `RetryStopReason` and `RetryStopClassifier`.
+- Runtime: local and Sentinel runtime events, snapshots, and summaries expose `retryStopReason`, `lastRetryStopReason`, and `retryStoppedCount`.
+- Messaging: consume paths stop the current retry loop after governance rejection, expired deadlines, cancellation, or timeout.
+- Job: execution paths stop the current retry loop after governance rejection or timeout.
+- Console: Overview, Events, and Resource detail show retry-stop counts and reasons.
+- Samples: `nexary-sample-governance-sentinel` adds `/governance/sentinel/retry-stop`.
+
+`0.13.x` does not include:
+
+- remote rule push.
+- a Sentinel Dashboard replacement.
+- Boot2 / Boot4 Sentinel provider claims before samples and gates pass.
 
 ## `1.0.0` Stability Target
 

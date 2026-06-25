@@ -27,6 +27,12 @@ public final class RetrySignal {
         return new RetrySignal(RetryDecision.STOP, 0, Duration.ZERO, reason);
     }
 
+    /** Creates a signal that asks upstream callers to stop retrying for a bounded reason. */
+    public static RetrySignal stop(RetryStopReason reason) {
+        RetryStopReason safeReason = reason == null ? RetryStopReason.UNKNOWN : reason;
+        return stop(safeReason.code());
+    }
+
     /** Returns the retry decision. */
     public RetryDecision decision() {
         return decision;
@@ -45,6 +51,11 @@ public final class RetrySignal {
     /** Returns the retry reason. */
     public String reason() {
         return reason;
+    }
+
+    /** Returns the bounded stop reason derived from {@link #reason()}. */
+    public RetryStopReason stopReason() {
+        return decision == RetryDecision.STOP ? RetryStopReason.from(reason) : RetryStopReason.NONE;
     }
 
     @Override

@@ -16,6 +16,7 @@ public final class ConsoleRuntimeSnapshot {
     private final String lastRejectionReason;
     private final String lastBlockReason;
     private final String lastCancellationReason;
+    private final String lastRetryStopReason;
     private final String openUntil;
     private final int activeConcurrency;
     private final int maxConcurrency;
@@ -80,6 +81,7 @@ public final class ConsoleRuntimeSnapshot {
                 lastRejectionReason,
                 null,
                 lastCancellationReason,
+                null,
                 openUntil,
                 activeConcurrency,
                 maxConcurrency,
@@ -134,6 +136,75 @@ public final class ConsoleRuntimeSnapshot {
             String lastStateTransitionAt,
             String lastOutcome,
             String lastOutcomeAt) {
+        this(
+                resourceKey,
+                engine,
+                priority,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                lastBlockReason,
+                lastCancellationReason,
+                null,
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    /**
+     * Creates a runtime snapshot from low-cardinality diagnostic fields.
+     */
+    public ConsoleRuntimeSnapshot(
+            String resourceKey,
+            String engine,
+            String priority,
+            String circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            String lastRejectionReason,
+            String lastBlockReason,
+            String lastCancellationReason,
+            String lastRetryStopReason,
+            String openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            String rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            Double failureRateThreshold,
+            Double slowCallThreshold,
+            String slowCallDuration,
+            String openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            String slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            String lastStateTransitionAt,
+            String lastOutcome,
+            String lastOutcomeAt) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.priority = priority;
@@ -146,6 +217,7 @@ public final class ConsoleRuntimeSnapshot {
         this.lastRejectionReason = lastRejectionReason;
         this.lastBlockReason = lastBlockReason;
         this.lastCancellationReason = lastCancellationReason;
+        this.lastRetryStopReason = lastRetryStopReason;
         this.openUntil = openUntil;
         this.activeConcurrency = activeConcurrency;
         this.maxConcurrency = maxConcurrency;
@@ -224,6 +296,11 @@ public final class ConsoleRuntimeSnapshot {
     /** Returns the low-cardinality reason for the latest cooperative cancellation. */
     public String getLastCancellationReason() {
         return lastCancellationReason;
+    }
+
+    /** Returns the low-cardinality reason for the most recent retry stop signal. */
+    public String getLastRetryStopReason() {
+        return lastRetryStopReason;
     }
 
     /** Returns when the open circuit may begin half-open probing, if known. */

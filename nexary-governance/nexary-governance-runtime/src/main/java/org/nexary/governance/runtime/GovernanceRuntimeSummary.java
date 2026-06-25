@@ -14,6 +14,7 @@ public final class GovernanceRuntimeSummary {
     private final long rejectedCount;
     private final long fallbackCount;
     private final long cancelledCount;
+    private final long retryStoppedCount;
     private final long blockedCount;
     private final long sentinelResourceCount;
     private final long openCircuitCount;
@@ -40,6 +41,7 @@ public final class GovernanceRuntimeSummary {
                 successCount,
                 failureCount,
                 rejectedCount,
+                0L,
                 0L,
                 0L,
                 0L,
@@ -74,6 +76,7 @@ public final class GovernanceRuntimeSummary {
                 0L,
                 0L,
                 0L,
+                0L,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -105,6 +108,7 @@ public final class GovernanceRuntimeSummary {
                 cancelledCount,
                 0L,
                 0L,
+                0L,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -127,6 +131,41 @@ public final class GovernanceRuntimeSummary {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             Instant lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                fallbackCount,
+                cancelledCount,
+                0L,
+                blockedCount,
+                sentinelResourceCount,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /** Creates a runtime summary with retained-event fallback, cancellation, retry-stop, and engine counts. */
+    public GovernanceRuntimeSummary(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long fallbackCount,
+            long cancelledCount,
+            long retryStoppedCount,
+            long blockedCount,
+            long sentinelResourceCount,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            Instant lastEventAt) {
         this.resourceCount = Math.max(0, resourceCount);
         this.snapshotCount = Math.max(0, snapshotCount);
         this.eventCount = Math.max(0, eventCount);
@@ -135,6 +174,7 @@ public final class GovernanceRuntimeSummary {
         this.rejectedCount = Math.max(0L, rejectedCount);
         this.fallbackCount = Math.max(0L, fallbackCount);
         this.cancelledCount = Math.max(0L, cancelledCount);
+        this.retryStoppedCount = Math.max(0L, retryStoppedCount);
         this.blockedCount = Math.max(0L, blockedCount);
         this.sentinelResourceCount = Math.max(0L, sentinelResourceCount);
         this.openCircuitCount = Math.max(0L, openCircuitCount);
@@ -181,6 +221,11 @@ public final class GovernanceRuntimeSummary {
     /** Returns the retained recent-event cancelled count. */
     public long cancelledCount() {
         return cancelledCount;
+    }
+
+    /** Returns the retained recent-event count that stopped retry propagation. */
+    public long retryStoppedCount() {
+        return retryStoppedCount;
     }
 
     /** Returns the retained recent-event count blocked by a governance engine. */
@@ -230,6 +275,7 @@ public final class GovernanceRuntimeSummary {
                 && rejectedCount == that.rejectedCount
                 && fallbackCount == that.fallbackCount
                 && cancelledCount == that.cancelledCount
+                && retryStoppedCount == that.retryStoppedCount
                 && blockedCount == that.blockedCount
                 && sentinelResourceCount == that.sentinelResourceCount
                 && openCircuitCount == that.openCircuitCount
@@ -249,6 +295,7 @@ public final class GovernanceRuntimeSummary {
                 rejectedCount,
                 fallbackCount,
                 cancelledCount,
+                retryStoppedCount,
                 blockedCount,
                 sentinelResourceCount,
                 openCircuitCount,

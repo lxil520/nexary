@@ -19,6 +19,7 @@ import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.job.JobContext;
 import org.nexary.job.JobExecutionListener;
 import org.nexary.job.JobResult;
@@ -101,6 +102,29 @@ class JobExecutionRunnerTest {
         assertThat(second.attempts()).isEqualTo(1);
         assertThat(calls).hasValue(1);
         assertThat(governanceExecution.executions).isEqualTo(1);
+    }
+
+    @Test
+    void stopsJobRetryWhenGovernanceRejects() {
+        RecordingObservationPublisher publisher = new RecordingObservationPublisher();
+        CircuitOpeningGovernanceExecution governanceExecution =
+                new CircuitOpeningGovernanceExecution(Duration.ZERO);
+        JobExecutionRunner runner = runner(publisher, governanceExecution);
+        NexaryJob job = job(context -> JobResult.success());
+        JobExecutionPolicy policy = JobExecutionPolicy.defaults()
+                .withRetryAttempts(3)
+                .withRetryBackoff(Duration.ZERO);
+
+        runner.execute(job, request(policy));
+        JobExecutionRecord rejected = runner.execute(job, request(policy));
+
+        assertThat(rejected.status()).isEqualTo(JobExecutionStatus.FAILED);
+        assertThat(rejected.attempts()).isEqualTo(1);
+        assertThat(publisher.events)
+                .filteredOn(event -> event.operation().equals("governance.retry.stopped"))
+                .anySatisfy(event -> assertThat(event.tags())
+                        .containsEntry("retry_stop_reason", RetryStopReason.CIRCUIT_OPEN.code()));
+        assertBoundedTags(publisher.events);
     }
 
     @Test
@@ -290,12 +314,20 @@ class JobExecutionRunnerTest {
                         "capability",
                         "operation",
                         "provider",
+                        "resource_kind",
+                        "resource",
                         "trigger",
                         "status",
                         "skip_reason",
                         "shard_presence",
+                        "traffic_channel",
+                        "traffic_priority",
+                        "governance_action",
+                        "outcome",
                         "failure_category",
+                        "retry_decision",
                         "retry_attempt_bucket",
+                        "retry_stop_reason",
                         "retry_phase",
                         "store")
                 .contains(key);

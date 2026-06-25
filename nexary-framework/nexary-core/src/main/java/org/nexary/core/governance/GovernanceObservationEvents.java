@@ -40,6 +40,7 @@ public final class GovernanceObservationEvents {
         tags.put("retry_decision", "stop");
         tags.put("retry_phase", "stopped");
         tags.put("retry_attempt_bucket", attemptBucket(retrySignal == null ? 0 : retrySignal.attempts()));
+        tags.put("retry_stop_reason", retrySignal == null ? "unknown" : retrySignal.stopReason().code());
         return event("governance.retry.stopped", startedAt, endedAt, trafficTag, null, tags);
     }
 

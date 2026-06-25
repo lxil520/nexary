@@ -2,9 +2,9 @@ export type ResourceKind = 'CACHE' | 'MESSAGING' | 'JOB' | 'GOVERNANCE' | 'CUSTO
 
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN' | string;
 
-export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'NONE' | string;
+export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'RETRY_STOPPED' | 'NONE' | string;
 
-export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | string;
+export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | 'STOP_RETRY' | string;
 
 export type GovernanceEngine = 'LOCAL' | 'SENTINEL' | string;
 
@@ -17,6 +17,23 @@ export type CancellationReason =
   | 'UPSTREAM_CANCELLED'
   | 'MANUAL'
   | 'SHUTDOWN'
+  | string;
+
+export type RetryStopReason =
+  | 'NONE'
+  | 'DEADLINE_EXPIRED'
+  | 'CANCELLED'
+  | 'CLIENT_DISCONNECTED'
+  | 'UPSTREAM_CANCELLED'
+  | 'SHUTDOWN'
+  | 'RATE_LIMITED'
+  | 'BULKHEAD_FULL'
+  | 'CIRCUIT_OPEN'
+  | 'DEGRADED'
+  | 'RETRY_EXHAUSTED'
+  | 'TIMEOUT'
+  | 'REJECTED'
+  | 'UNKNOWN'
   | string;
 
 export type RejectionReason =
@@ -40,6 +57,7 @@ export interface ConsoleSummary {
   rejectedCount: number;
   cancelledCount: number;
   fallbackCount: number;
+  retryStoppedCount?: number;
   blockedCount?: number;
   sentinelResourceCount?: number;
   openCircuitCount: number;
@@ -77,6 +95,7 @@ export interface ConsoleRuntimeSnapshot {
   lastRejectionReason: RejectionReason;
   lastBlockReason?: BlockReason | null;
   lastCancellationReason: CancellationReason;
+  lastRetryStopReason?: RetryStopReason | null;
   openUntil: string | null;
   activeConcurrency: number;
   maxConcurrency: number;
@@ -117,6 +136,7 @@ export interface ConsoleEvent {
   rejectionReason: RejectionReason;
   blockReason?: BlockReason | null;
   cancellationReason: CancellationReason;
+  retryStopReason?: RetryStopReason | null;
   circuitState: CircuitState;
   timestamp: string | null;
   durationBucket: DurationBucket;

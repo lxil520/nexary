@@ -14,10 +14,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernanceObservationEvents;
 import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.TimeoutDecision;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetrySignal;
+import org.nexary.core.retry.RetryStopClassifier;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.job.JobExecutionListener;
 import org.nexary.job.JobResult;
 import org.nexary.job.NexaryJob;
@@ -195,6 +199,8 @@ public class JobExecutionRunner {
                         ? new JobResult(JobResult.JobStatus.FAILED, "job execution timed out")
                         : JobResult.failed(error.getMessage());
                 if (error instanceof GovernanceRejection) {
+                    publishRetryStopped(request, RetryStopClassifier.fromGovernanceReason(
+                            ((GovernanceRejection) error).governanceRejectionReason()), startedAt);
                     return complete(request, startedAt, attempt, lastResult, lastError);
                 }
                 if (error instanceof TimeoutException) {
@@ -206,6 +212,11 @@ public class JobExecutionRunner {
                             "timeout",
                             JobObservationSupport.shardTags(request),
                             error);
+                }
+                RetryStopReason stopReason = RetryStopClassifier.classify(error);
+                if (stopReason != RetryStopReason.NONE) {
+                    publishRetryStopped(request, stopReason, startedAt);
+                    return complete(request, startedAt, attempt, lastResult, lastError);
                 }
             }
             if (attempt < maxAttempts) {
@@ -328,6 +339,19 @@ public class JobExecutionRunner {
                 .attribute("trigger", JobObservationSupport.trigger(request.trigger()));
         effectiveDeadline(request).ifPresent(builder::deadline);
         return builder.build();
+    }
+
+    private void publishRetryStopped(JobExecutionRequest request, RetryStopReason reason, Instant startedAt) {
+        if (reason == null || reason == RetryStopReason.NONE) {
+            return;
+        }
+        Instant now = Instant.now();
+        observationPublisher.publish(GovernanceObservationEvents.retryStopped(
+                governanceContext(request).resource(),
+                request.context().trafficTag(),
+                RetrySignal.stop(reason),
+                startedAt,
+                now));
     }
 
     private Optional<Instant> effectiveDeadline(JobExecutionRequest request) {

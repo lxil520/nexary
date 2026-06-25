@@ -12,6 +12,7 @@ public final class ConsoleSummaryResponse {
     private final long rejectedCount;
     private final long cancelledCount;
     private final long fallbackCount;
+    private final long retryStoppedCount;
     private final long blockedCount;
     private final long sentinelResourceCount;
     private final long openCircuitCount;
@@ -46,6 +47,7 @@ public final class ConsoleSummaryResponse {
                 fallbackCount,
                 0L,
                 0L,
+                0L,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -70,6 +72,43 @@ public final class ConsoleSummaryResponse {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             String lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                cancelledCount,
+                fallbackCount,
+                0L,
+                blockedCount,
+                sentinelResourceCount,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /**
+     * Creates a summary response from bounded aggregate counters, including retry-stop and engine counters.
+     */
+    public ConsoleSummaryResponse(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long cancelledCount,
+            long fallbackCount,
+            long retryStoppedCount,
+            long blockedCount,
+            long sentinelResourceCount,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            String lastEventAt) {
         this.resourceCount = resourceCount;
         this.snapshotCount = snapshotCount;
         this.eventCount = eventCount;
@@ -78,6 +117,7 @@ public final class ConsoleSummaryResponse {
         this.rejectedCount = rejectedCount;
         this.cancelledCount = cancelledCount;
         this.fallbackCount = fallbackCount;
+        this.retryStoppedCount = retryStoppedCount;
         this.blockedCount = blockedCount;
         this.sentinelResourceCount = sentinelResourceCount;
         this.openCircuitCount = openCircuitCount;
@@ -124,6 +164,11 @@ public final class ConsoleSummaryResponse {
     /** Returns the retained recent-event fallback count. */
     public long getFallbackCount() {
         return fallbackCount;
+    }
+
+    /** Returns the retained recent-event count that stopped retry propagation. */
+    public long getRetryStoppedCount() {
+        return retryStoppedCount;
     }
 
     /** Returns the retained recent-event count blocked by a governance engine. */

@@ -3,6 +3,7 @@ package org.nexary.governance.runtime;
 import java.util.Objects;
 import org.nexary.core.fault.FaultSignal;
 import org.nexary.core.retry.RetrySignal;
+import org.nexary.core.retry.RetryStopReason;
 
 /** Result returned by a local governance runtime decision. */
 public final class GovernanceDecision {
@@ -24,7 +25,7 @@ public final class GovernanceDecision {
     /** Creates a rejected decision and asks upstream retry loops to stop. */
     public static GovernanceDecision rejected(Decision decision, FaultSignal faultSignal) {
         Decision safeDecision = decision == null ? Decision.REJECTED : decision;
-        return new GovernanceDecision(safeDecision, faultSignal, RetrySignal.stop(safeDecision.name().toLowerCase()));
+        return new GovernanceDecision(safeDecision, faultSignal, RetrySignal.stop(retryStopReason(safeDecision)));
     }
 
     /** Returns true when the protected action may run. */
@@ -45,6 +46,28 @@ public final class GovernanceDecision {
     /** Returns the retry signal for rejected decisions. */
     public RetrySignal retrySignal() {
         return retrySignal;
+    }
+
+    private static RetryStopReason retryStopReason(Decision decision) {
+        if (decision == Decision.DEADLINE_EXPIRED) {
+            return RetryStopReason.DEADLINE_EXPIRED;
+        }
+        if (decision == Decision.RATE_LIMITED) {
+            return RetryStopReason.RATE_LIMITED;
+        }
+        if (decision == Decision.CONCURRENCY_LIMITED) {
+            return RetryStopReason.BULKHEAD_FULL;
+        }
+        if (decision == Decision.CIRCUIT_OPEN) {
+            return RetryStopReason.CIRCUIT_OPEN;
+        }
+        if (decision == Decision.DEGRADED) {
+            return RetryStopReason.DEGRADED;
+        }
+        if (decision == Decision.CANCELLED) {
+            return RetryStopReason.CANCELLED;
+        }
+        return RetryStopReason.REJECTED;
     }
 
     @Override

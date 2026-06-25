@@ -129,6 +129,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("totalRejections", snapshot.totalRejections());
             body.put("lastRejectionReason", snapshot.lastRejectionReason().name());
             body.put("lastCancellationReason", snapshot.lastCancellationReason().name());
+            body.put("lastRetryStopReason", snapshot.lastRetryStopReason().name());
             body.put("openUntil", optionalInstant(snapshot.openUntil()));
             body.put("activeConcurrency", snapshot.activeConcurrency());
             body.put("maxConcurrency", snapshot.maxConcurrency());
@@ -161,6 +162,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("cancellationReason", event.cancellationReason().name());
             body.put("engine", event.engine().name());
             body.put("blockReason", event.blockReason().name());
+            body.put("retryStopReason", event.retryStopReason().name());
             body.put("circuitState", event.circuitState().name());
             body.put("timestamp", instant(event.timestamp()));
             body.put("durationBucket", event.durationBucket().name());
@@ -176,6 +178,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("failureCount", summary.failureCount());
             body.put("rejectedCount", summary.rejectedCount());
             body.put("cancelledCount", summary.cancelledCount());
+            body.put("retryStoppedCount", summary.retryStoppedCount());
             body.put("blockedCount", summary.blockedCount());
             body.put("fallbackCount", summary.fallbackCount());
             body.put("openCircuitCount", summary.openCircuitCount());

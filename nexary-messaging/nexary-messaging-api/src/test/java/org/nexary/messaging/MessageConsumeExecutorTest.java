@@ -15,6 +15,7 @@ import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.observation.NexaryObservationEvent;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetryStopReason;
 
 class MessageConsumeExecutorTest {
     @Test
@@ -224,6 +225,7 @@ class MessageConsumeExecutorTest {
         assertThat(result.status()).isEqualTo(MessageConsumeResult.ConsumeStatus.FAILED);
         assertThat(result.retrySignal()).isNotNull();
         assertThat(result.retrySignal().decision().name()).isEqualTo("STOP");
+        assertThat(result.retrySignal().stopReason()).isEqualTo(RetryStopReason.DEADLINE_EXPIRED);
         assertThat(calls).hasValue(0);
         assertThat(events).extracting(NexaryObservationEvent::operation)
                 .contains("governance.deadline.exceeded", "governance.retry.stopped", "handler");
@@ -318,6 +320,7 @@ class MessageConsumeExecutorTest {
         assertThat(first.status()).isEqualTo(MessageConsumeResult.ConsumeStatus.SUCCESS);
         assertThat(second.status()).isEqualTo(MessageConsumeResult.ConsumeStatus.FAILED);
         assertThat(second.retrySignal().decision().name()).isEqualTo("STOP");
+        assertThat(second.retrySignal().stopReason()).isEqualTo(RetryStopReason.CIRCUIT_OPEN);
         assertThat(calls).hasValue(1);
         assertThat(governanceExecution.executions).isEqualTo(1);
         assertThat(deadLetters.records()).isEmpty();

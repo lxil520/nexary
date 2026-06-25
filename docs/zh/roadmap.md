@@ -411,9 +411,24 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 集群限流、远程规则中心或规则编辑页面。
 - 未通过样例和 gate 的 Boot2 / Boot4 Sentinel 支持声明。
 
-## `0.13.x` retry stop 传播
+## `0.13.x` 停止重试传播
 
-`0.13.x` 规划 retry stop propagation，把治理拒绝、deadline 过期和显式停止重试信号继续传到 messaging、job 或其他重试链路，避免已经判定无价值的请求被后续 retry 重新放大。
+`0.13.0` 已实现 Boot3 主线的停止重试传播。治理拒绝、deadline 过期、请求取消和执行超时会映射为固定的 `RetryStopReason`，继续传到 messaging consume 和 job execution 的 retry loop，避免已经判定无价值的请求被后续 retry 重新放大。
+
+已纳入范围：
+
+- Core：新增 `RetryStopReason` 和 `RetryStopClassifier`。
+- Runtime：本地 runtime 和 Sentinel runtime 的 event / snapshot / summary 输出 `retryStopReason`、`lastRetryStopReason`、`retryStoppedCount`。
+- Messaging：消费路径遇到治理拒绝、deadline 过期、取消或超时时停止当前 retry loop。
+- Job：任务执行路径遇到治理拒绝或超时时停止当前 retry loop。
+- Console：Overview、Events、Resource detail 显示停止重试数量和原因。
+- Samples：`nexary-sample-governance-sentinel` 增加 `/governance/sentinel/retry-stop`。
+
+`0.13.x` 不包含：
+
+- 远程规则下发。
+- Sentinel Dashboard 替代品。
+- 未通过样例和 gate 的 Boot2 / Boot4 Sentinel provider 声明。
 
 ## `1.0.0` 稳定版目标
 

@@ -12,5 +12,8 @@ public enum GovernanceRuntimeAction {
     FALLBACK,
 
     /** The protected action was cancelled before useful work should continue. */
-    CANCEL
+    CANCEL,
+
+    /** A retry loop was explicitly told not to schedule another attempt. */
+    STOP_RETRY
 }

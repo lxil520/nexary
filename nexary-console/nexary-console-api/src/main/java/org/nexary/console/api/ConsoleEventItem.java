@@ -11,6 +11,7 @@ public final class ConsoleEventItem {
     private final String rejectionReason;
     private final String blockReason;
     private final String cancellationReason;
+    private final String retryStopReason;
     private final String circuitState;
     private final String timestamp;
     private final String durationBucket;
@@ -44,6 +45,35 @@ public final class ConsoleEventItem {
             String circuitState,
             String timestamp,
             String durationBucket) {
+        this(
+                resourceKey,
+                engine,
+                action,
+                outcome,
+                rejectionReason,
+                blockReason,
+                cancellationReason,
+                null,
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /**
+     * Creates an event item from low-cardinality event fields, including retry-stop metadata.
+     */
+    public ConsoleEventItem(
+            String resourceKey,
+            String engine,
+            String action,
+            String outcome,
+            String rejectionReason,
+            String blockReason,
+            String cancellationReason,
+            String retryStopReason,
+            String circuitState,
+            String timestamp,
+            String durationBucket) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.action = action;
@@ -51,6 +81,7 @@ public final class ConsoleEventItem {
         this.rejectionReason = rejectionReason;
         this.blockReason = blockReason;
         this.cancellationReason = cancellationReason;
+        this.retryStopReason = retryStopReason;
         this.circuitState = circuitState;
         this.timestamp = timestamp;
         this.durationBucket = durationBucket;
@@ -89,6 +120,11 @@ public final class ConsoleEventItem {
     /** Returns the low-cardinality cancellation reason. */
     public String getCancellationReason() {
         return cancellationReason;
+    }
+
+    /** Returns the low-cardinality reason another retry should not be scheduled. */
+    public String getRetryStopReason() {
+        return retryStopReason;
     }
 
     /** Returns the circuit state visible after this event. */

@@ -17,6 +17,7 @@ import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.RequestPriority;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.core.observation.NexaryObservationEvent;
 
 class LocalGovernanceRuntimeTest {
@@ -80,6 +81,9 @@ class LocalGovernanceRuntimeTest {
                 .satisfies(error -> assertThat(((GovernanceRejectedException) error).decision().decision())
                         .isEqualTo(GovernanceDecision.Decision.DEADLINE_EXPIRED));
         assertThat(publisher.operations()).contains("governance.deadline.exceeded", "governance.retry.stopped");
+        assertThat(runtime.summary().retryStoppedCount()).isEqualTo(1);
+        assertThat(runtime.recentEvents().get(0).retryStopReason()).isEqualTo(RetryStopReason.DEADLINE_EXPIRED);
+        assertThat(runtime.snapshots().get(0).lastRetryStopReason()).isEqualTo(RetryStopReason.DEADLINE_EXPIRED);
     }
 
     @Test
@@ -109,7 +113,9 @@ class LocalGovernanceRuntimeTest {
         assertThat(event.action()).isEqualTo(GovernanceRuntimeAction.CANCEL);
         assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.CANCELLED);
         assertThat(event.cancellationReason()).isEqualTo(CancellationReason.CLIENT_DISCONNECTED);
+        assertThat(event.retryStopReason()).isEqualTo(RetryStopReason.CLIENT_DISCONNECTED);
         assertThat(runtime.summary().cancelledCount()).isEqualTo(1);
+        assertThat(runtime.summary().retryStoppedCount()).isEqualTo(1);
         assertThat(runtime.summary().rejectedCount()).isZero();
         assertThat(runtime.recentEvents().toString()).doesNotContain("cancel-hidden-id", "user-42");
     }
@@ -136,7 +142,9 @@ class LocalGovernanceRuntimeTest {
         assertThat(event.action()).isEqualTo(GovernanceRuntimeAction.CANCEL);
         assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.CANCELLED);
         assertThat(event.cancellationReason()).isEqualTo(CancellationReason.UPSTREAM_CANCELLED);
+        assertThat(event.retryStopReason()).isEqualTo(RetryStopReason.UPSTREAM_CANCELLED);
         assertThat(runtime.summary().cancelledCount()).isEqualTo(1);
+        assertThat(runtime.summary().retryStoppedCount()).isEqualTo(1);
         assertThat(runtime.recentEvents().toString()).doesNotContain("cancel-in-flight-hidden-id");
     }
 

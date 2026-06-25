@@ -54,6 +54,12 @@ curl -s http://localhost:8080/governance/sentinel/failure || true
 curl -s http://localhost:8080/governance/sentinel/fallback
 ```
 
+停止重试传播：
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/retry-stop
+```
+
 ## 查看诊断和 Console
 
 ```bash
@@ -74,7 +80,10 @@ NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-s
 - `engine`: `SENTINEL`
 - `blockReason`: `RATE_LIMITED`、`BULKHEAD_FULL` 或 `CIRCUIT_OPEN`
 - `lastBlockReason`: 资源快照里的最近 Sentinel 拦截原因
+- `retryStopReason`: 最近事件里的停止重试原因
+- `lastRetryStopReason`: 资源快照里的最近停止重试原因
 - `blockedCount`: 当前 JVM 内 Sentinel 拦截次数
+- `retryStoppedCount`: 当前 JVM 内停止重试事件数量
 - `sentinelResourceCount`: 当前 JVM 内 Sentinel 资源数量
 
 诊断和 Console 不输出 Sentinel origin、cancellation id、userId、tenant、订单号、cache key、message id、payload、异常全文或堆栈。

@@ -13,8 +13,9 @@ Start nexary-sample-governance-sentinel, then set the base URL:
 
 The script verifies:
   - repeated business calls are blocked by Sentinel
+  - retry loops stop when governance returns a STOP retry signal
   - diagnostics exposes blockedCount and sentinelResourceCount
-  - events expose a low-cardinality RATE_LIMITED block reason
+  - events expose low-cardinality RATE_LIMITED block and retry-stop reasons
   - diagnostics does not expose Sentinel origin or stack traces
 MSG
   exit 0
@@ -29,19 +30,26 @@ base_url="${base_url%/}"
 
 curl -fsS "${base_url}/governance/sentinel/rate" >/dev/null
 curl -fsS "${base_url}/governance/sentinel/rate" >/dev/null
+retry_stop="$(curl -fsS "${base_url}/governance/sentinel/retry-stop")"
 
 summary="$(curl -fsS "${base_url}/nexary/governance/summary")"
 events="$(curl -fsS "${base_url}/nexary/governance/events")"
 resources="$(curl -fsS "${base_url}/nexary/governance/resources")"
 
-if [[ "${summary}" != *'"blockedCount"'* || "${summary}" != *'"sentinelResourceCount"'* ]]; then
+if [[ "${summary}" != *'"blockedCount"'* || "${summary}" != *'"sentinelResourceCount"'* || "${summary}" != *'"retryStoppedCount"'* ]]; then
   echo "Diagnostics summary is missing Sentinel counters." >&2
   echo "${summary}" >&2
   exit 1
 fi
 
-if [[ "${events}" != *'"engine":"SENTINEL"'* || "${events}" != *'"blockReason":"RATE_LIMITED"'* ]]; then
-  echo "Diagnostics events did not record a Sentinel RATE_LIMITED block." >&2
+if [[ "${retry_stop}" != *'"status":"stopped"'* || "${retry_stop}" != *'"retryStopReason":"RATE_LIMITED"'* ]]; then
+  echo "Retry-stop endpoint did not stop on a bounded RATE_LIMITED reason." >&2
+  echo "${retry_stop}" >&2
+  exit 1
+fi
+
+if [[ "${events}" != *'"engine":"SENTINEL"'* || "${events}" != *'"blockReason":"RATE_LIMITED"'* || "${events}" != *'"retryStopReason":"RATE_LIMITED"'* ]]; then
+  echo "Diagnostics events did not record a Sentinel RATE_LIMITED retry stop." >&2
   echo "${events}" >&2
   exit 1
 fi

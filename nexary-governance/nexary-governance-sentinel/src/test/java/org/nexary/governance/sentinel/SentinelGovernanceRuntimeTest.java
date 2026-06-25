@@ -9,6 +9,7 @@ import org.nexary.core.context.CancellationReason;
 import org.nexary.core.context.CancellationToken;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.governance.runtime.GovernanceBlockReason;
 import org.nexary.governance.runtime.GovernanceCallOutcome;
 import org.nexary.governance.runtime.GovernanceEngine;
@@ -36,11 +37,14 @@ class SentinelGovernanceRuntimeTest {
                 .isInstanceOf(GovernanceRejectedException.class);
 
         assertThat(runtime.summary().blockedCount()).isEqualTo(1);
+        assertThat(runtime.summary().retryStoppedCount()).isEqualTo(1);
         assertThat(runtime.summary().sentinelResourceCount()).isEqualTo(1);
         assertThat(runtime.recentEvents().get(1).engine()).isEqualTo(GovernanceEngine.SENTINEL);
         assertThat(runtime.recentEvents().get(1).blockReason()).isEqualTo(GovernanceBlockReason.RATE_LIMITED);
+        assertThat(runtime.recentEvents().get(1).retryStopReason()).isEqualTo(RetryStopReason.RATE_LIMITED);
         assertThat(runtime.recentEvents().get(1).rejectionReason()).isEqualTo(GovernanceRejectionReason.RATE_LIMITED);
         assertThat(runtime.snapshots().get(0).lastBlockReason()).isEqualTo(GovernanceBlockReason.RATE_LIMITED);
+        assertThat(runtime.snapshots().get(0).lastRetryStopReason()).isEqualTo(RetryStopReason.RATE_LIMITED);
     }
 
     @Test
@@ -65,9 +69,11 @@ class SentinelGovernanceRuntimeTest {
                 .isInstanceOf(GovernanceRejectedException.class);
 
         assertThat(runtime.summary().cancelledCount()).isEqualTo(1);
+        assertThat(runtime.summary().retryStoppedCount()).isEqualTo(1);
         assertThat(runtime.summary().blockedCount()).isZero();
         assertThat(runtime.recentEvents().get(0).outcome()).isEqualTo(GovernanceCallOutcome.CANCELLED);
         assertThat(runtime.recentEvents().get(0).blockReason()).isEqualTo(GovernanceBlockReason.NONE);
         assertThat(runtime.recentEvents().get(0).cancellationReason()).isEqualTo(CancellationReason.UPSTREAM_CANCELLED);
+        assertThat(runtime.recentEvents().get(0).retryStopReason()).isEqualTo(RetryStopReason.UPSTREAM_CANCELLED);
     }
 }

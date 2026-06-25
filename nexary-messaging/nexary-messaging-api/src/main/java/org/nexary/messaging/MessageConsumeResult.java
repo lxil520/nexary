@@ -2,6 +2,7 @@ package org.nexary.messaging;
 
 import java.util.Objects;
 import org.nexary.core.retry.RetrySignal;
+import org.nexary.core.retry.RetryStopReason;
 
 /** Result of a message consume attempt. */
 public final class MessageConsumeResult {
@@ -40,14 +41,19 @@ public final class MessageConsumeResult {
     public static MessageConsumeResult deadLetter(MessageDeadLetterRecord record) {
         return new MessageConsumeResult(
                 ConsumeStatus.DEAD_LETTER,
-                RetrySignal.stop("message dead-lettered: " + record.messageId()),
+                RetrySignal.stop(RetryStopReason.RETRY_EXHAUSTED),
                 record.errorMessage(),
                 record);
     }
 
     /** Creates a failed consume result that should not be retried by Nexary. */
     public static MessageConsumeResult failed(String detail) {
-        return new MessageConsumeResult(ConsumeStatus.FAILED, RetrySignal.stop(detail), detail, null);
+        return failed(detail, RetrySignal.stop(RetryStopReason.from(detail)));
+    }
+
+    /** Creates a failed consume result with an explicit terminal retry signal. */
+    public static MessageConsumeResult failed(String detail, RetrySignal retrySignal) {
+        return new MessageConsumeResult(ConsumeStatus.FAILED, retrySignal, detail, null);
     }
 
     /** Consume outcome. */

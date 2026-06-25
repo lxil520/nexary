@@ -15,5 +15,8 @@ public enum GovernanceCallOutcome {
     REJECTED,
 
     /** The attempt was cancelled before the action completed. */
-    CANCELLED
+    CANCELLED,
+
+    /** A retry loop stopped before scheduling another attempt. */
+    RETRY_STOPPED
 }

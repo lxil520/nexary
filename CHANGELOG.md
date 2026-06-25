@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0
+
+- Added bounded retry stop reasons and a retry-stop classifier for governance rejection, expired deadlines, cancellation, client disconnects, upstream cancellation, shutdown, rate limiting, bulkhead rejection, open circuit, degradation, retry exhaustion, and timeouts.
+- Extended local and Sentinel governance diagnostics with `retryStopReason`, `lastRetryStopReason`, and `retryStoppedCount`.
+- Updated messaging and job retry loops so governance stop signals end retry propagation instead of amplifying already rejected or expired work.
+- Updated the read-only Console and HTTP diagnostics to show retry-stop counts and reasons without exposing cancellation ids, payloads, message ids, cache keys, exception text, or stack traces.
+- Extended the Sentinel sample and smoke script with a retry-stop path.
+- Kept Boot2 and Boot4 Sentinel provider entries out of the public matrix until their own samples and gates pass.
+
 ## 0.12.0
 
 - Added the optional Sentinel governance provider on the Spring Boot 3.3 / Java 17+ mainline.

@@ -18,6 +18,8 @@ import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.GovernanceResource.ResourceKind;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetryStopClassifier;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.core.retry.RetrySignal.RetryDecision;
 
@@ -51,7 +53,7 @@ public final class MessageGovernanceSupport {
                         if (stage == null) {
                             return CompletableFuture.completedFuture(MessagePublishResult.failed(
                                     "message publish returned no result",
-                                    RetrySignal.stop("publish_no_result")));
+                                    RetrySignal.stop(RetryStopReason.UNKNOWN)));
                         }
                         return stage;
                     });
@@ -77,7 +79,7 @@ public final class MessageGovernanceSupport {
             return Optional.empty();
         }
         Instant now = Instant.now();
-        RetrySignal retrySignal = RetrySignal.stop("deadline_exceeded");
+        RetrySignal retrySignal = RetrySignal.stop(RetryStopReason.DEADLINE_EXPIRED);
         publishDeadlineExceeded(envelope, provider, "publish", observationPublisher, now);
         publishRetryStopped(envelope, provider, "publish", retrySignal, observationPublisher, now);
         MessageObservationSupport.publish(
@@ -99,7 +101,7 @@ public final class MessageGovernanceSupport {
             return Optional.empty();
         }
         Instant now = Instant.now();
-        RetrySignal retrySignal = RetrySignal.stop("deadline_exceeded");
+        RetrySignal retrySignal = RetrySignal.stop(RetryStopReason.DEADLINE_EXPIRED);
         publishDeadlineExceeded(envelope, provider, "consume", observationPublisher, now);
         publishRetryStopped(envelope, provider, "consume", retrySignal, observationPublisher, now);
         MessageObservationSupport.publish(
@@ -119,7 +121,7 @@ public final class MessageGovernanceSupport {
             GovernanceRejection rejection,
             Exception error) {
         String reason = normalize(rejection.governanceRejectionReason());
-        RetrySignal retrySignal = RetrySignal.stop(reason);
+        RetrySignal retrySignal = RetrySignal.stop(RetryStopClassifier.fromGovernanceReason(reason));
         MessageObservationSupport.publish(
                 observationPublisher,
                 "publish",

@@ -44,6 +44,7 @@ public final class ConsoleDiagnosticsService {
                 summary.rejectedCount(),
                 summary.cancelledCount(),
                 summary.fallbackCount(),
+                summary.retryStoppedCount(),
                 summary.blockedCount(),
                 summary.sentinelResourceCount(),
                 summary.openCircuitCount(),
@@ -144,6 +145,7 @@ public final class ConsoleDiagnosticsService {
                 snapshot.lastRejectionReason().name(),
                 snapshot.lastBlockReason().name(),
                 snapshot.lastCancellationReason().name(),
+                snapshot.lastRetryStopReason().name(),
                 optionalInstant(snapshot.openUntil()),
                 snapshot.activeConcurrency(),
                 snapshot.maxConcurrency(),
@@ -173,6 +175,7 @@ public final class ConsoleDiagnosticsService {
                 event.rejectionReason().name(),
                 event.blockReason().name(),
                 event.cancellationReason().name(),
+                event.retryStopReason().name(),
                 event.circuitState().name(),
                 instant(event.timestamp()),
                 event.durationBucket().name());

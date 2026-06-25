@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.12.0` line does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms. It fixes the integration boundary: business code keeps calling Nexary APIs; after `nexary.governance.provider=sentinel` is set, Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. Retry stop propagation through retry chains is planned for `0.13.x`.
+The `0.13.0` line does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms. It fixes two boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops so useless work is not amplified by later retries. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows.
 
 ## Add Dependencies
 
@@ -80,6 +80,40 @@ curl -s http://localhost:8080/nexary/governance/events
 NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
 ```
 
+## v0.13 Retry Stop Propagation
+
+Retry stop propagation uses fixed enum values and does not write business keys, message ids, cache keys, payloads, or exception text into events:
+
+- `DEADLINE_EXPIRED`
+- `CANCELLED`
+- `CLIENT_DISCONNECTED`
+- `UPSTREAM_CANCELLED`
+- `SHUTDOWN`
+- `RATE_LIMITED`
+- `BULKHEAD_FULL`
+- `CIRCUIT_OPEN`
+- `DEGRADED`
+- `RETRY_EXHAUSTED`
+- `TIMEOUT`
+- `REJECTED`
+- `UNKNOWN`
+
+Trigger the Sentinel sample retry-stop path:
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/retry-stop
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+Important fields:
+
+- `retryStoppedCount`: retry-stop events in the current JVM.
+- `retryStopReason`: retry-stop reason on recent events.
+- `lastRetryStopReason`: most recent retry-stop reason on a resource snapshot.
+
+Messaging consumption and job execution stop their current retry loop after governance rejection, expired deadlines, request cancellation, or timeout. Normal business exceptions still follow their own retry policy until attempts are exhausted.
+
 The added diagnostic fields stay low-cardinality:
 
 | Field | Meaning |
@@ -90,7 +124,7 @@ The added diagnostic fields stay low-cardinality:
 | `blockedCount` | Sentinel blocks seen in the current JVM. |
 | `sentinelResourceCount` | Resources executed by Sentinel in the current JVM. |
 
-Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. v0.12.0 only claims the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
+Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. v0.13.0 only claims the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
 
 ## Configure Starter Policies
 
@@ -425,7 +459,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - v0.11 cancellation covers pre-start cancellation and cooperative stop checks while business code is running. It does not promise forced interruption of running business threads, and it does not replace application-server or client connection cancellation.
-- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; v0.12.0 only claims the Boot3 mainline Sentinel provider.
+- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; v0.13.0 only claims the Boot3 mainline Sentinel provider.
 - Boot2 / Boot4 Sentinel provider support is not in the support matrix yet. Do not copy the Boot3 starter into Boot2 / Boot4 applications before their independent samples and gates pass.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.

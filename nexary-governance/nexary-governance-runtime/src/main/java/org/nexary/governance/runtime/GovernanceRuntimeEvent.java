@@ -3,6 +3,7 @@ package org.nexary.governance.runtime;
 import java.time.Instant;
 import java.util.Objects;
 import org.nexary.core.context.CancellationReason;
+import org.nexary.core.retry.RetryStopReason;
 
 /** Recent low-cardinality event recorded by the local governance runtime. */
 public final class GovernanceRuntimeEvent {
@@ -13,6 +14,7 @@ public final class GovernanceRuntimeEvent {
     private final CancellationReason cancellationReason;
     private final GovernanceEngine engine;
     private final GovernanceBlockReason blockReason;
+    private final RetryStopReason retryStopReason;
     private final GovernanceCircuitState circuitState;
     private final Instant timestamp;
     private final GovernanceDurationBucket durationBucket;
@@ -47,6 +49,7 @@ public final class GovernanceRuntimeEvent {
                 cancellationReason,
                 GovernanceEngine.LOCAL,
                 GovernanceBlockReason.NONE,
+                RetryStopReason.NONE,
                 circuitState,
                 timestamp,
                 durationBucket);
@@ -64,6 +67,33 @@ public final class GovernanceRuntimeEvent {
             GovernanceCircuitState circuitState,
             Instant timestamp,
             GovernanceDurationBucket durationBucket) {
+        this(
+                resourceKey,
+                action,
+                outcome,
+                rejectionReason,
+                cancellationReason,
+                engine,
+                blockReason,
+                RetryStopReason.NONE,
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /** Creates a low-cardinality runtime event with engine, block, and retry-stop metadata. */
+    public GovernanceRuntimeEvent(
+            String resourceKey,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            CancellationReason cancellationReason,
+            GovernanceEngine engine,
+            GovernanceBlockReason blockReason,
+            RetryStopReason retryStopReason,
+            GovernanceCircuitState circuitState,
+            Instant timestamp,
+            GovernanceDurationBucket durationBucket) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.action = action == null ? GovernanceRuntimeAction.EXECUTE : action;
         this.outcome = outcome == null ? GovernanceCallOutcome.NONE : outcome;
@@ -71,6 +101,7 @@ public final class GovernanceRuntimeEvent {
         this.cancellationReason = cancellationReason == null ? CancellationReason.NONE : cancellationReason;
         this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
         this.blockReason = blockReason == null ? GovernanceBlockReason.NONE : blockReason;
+        this.retryStopReason = retryStopReason == null ? RetryStopReason.NONE : retryStopReason;
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
         this.timestamp = timestamp == null ? Instant.now() : timestamp;
         this.durationBucket = durationBucket == null ? GovernanceDurationBucket.NOT_RUN : durationBucket;
@@ -111,6 +142,11 @@ public final class GovernanceRuntimeEvent {
         return blockReason;
     }
 
+    /** Returns the low-cardinality reason another retry should not be scheduled. */
+    public RetryStopReason retryStopReason() {
+        return retryStopReason;
+    }
+
     /** Returns the circuit state visible after this event. */
     public GovernanceCircuitState circuitState() {
         return circuitState;
@@ -142,6 +178,7 @@ public final class GovernanceRuntimeEvent {
                 && cancellationReason == that.cancellationReason
                 && engine == that.engine
                 && blockReason == that.blockReason
+                && retryStopReason == that.retryStopReason
                 && circuitState == that.circuitState
                 && timestamp.equals(that.timestamp)
                 && durationBucket == that.durationBucket;
@@ -157,6 +194,7 @@ public final class GovernanceRuntimeEvent {
                 cancellationReason,
                 engine,
                 blockReason,
+                retryStopReason,
                 circuitState,
                 timestamp,
                 durationBucket);

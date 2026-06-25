@@ -15,6 +15,8 @@ import org.nexary.core.governance.GovernanceRejection;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.GovernanceResource.ResourceKind;
 import org.nexary.core.observation.NexaryObservationPublisher;
+import org.nexary.core.retry.RetryStopClassifier;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.core.retry.RetrySignal;
 
 /** Runs provider-neutral consume concerns such as interceptors, retries and duplicate protection. */
@@ -122,7 +124,9 @@ public class MessageConsumeExecutor {
                     observationPublisher, "handler", "core", "failure", Collections.emptyMap(), ex);
             if (ex instanceof GovernanceRejection) {
                 attempts.remove(prepared.messageId());
-                MessageConsumeResult result = MessageConsumeResult.failed(ex.getMessage());
+                RetrySignal retrySignal = RetrySignal.stop(RetryStopClassifier.fromGovernanceReason(
+                        ((GovernanceRejection) ex).governanceRejectionReason()));
+                MessageConsumeResult result = MessageConsumeResult.failed(ex.getMessage(), retrySignal);
                 MessageGovernanceSupport.publishRetryStoppedIfStop(
                         prepared, "core", "consume", result.retrySignal(), observationPublisher);
                 return result;
@@ -141,6 +145,14 @@ public class MessageConsumeExecutor {
             String consumerGroup,
             Optional<MessageDeduplicationClaim> claim,
             Throwable error) {
+        RetryStopReason stopReason = RetryStopClassifier.classify(error);
+        if (stopReason != RetryStopReason.NONE) {
+            attempts.remove(envelope.messageId());
+            RetrySignal retrySignal = RetrySignal.stop(stopReason);
+            MessageGovernanceSupport.publishRetryStoppedIfStop(
+                    envelope, "core", "consume", retrySignal, observationPublisher);
+            return MessageConsumeResult.failed(error.getMessage(), retrySignal);
+        }
         int failedAttempt = attempts.merge(envelope.messageId(), 1, Integer::sum);
         if (retryPolicy.allowsRetryAfter(failedAttempt)) {
             Duration backoff = retryPolicy.backoffFor(failedAttempt);
