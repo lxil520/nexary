@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.context.CancellationHeaders;
 import org.nexary.governance.runtime.GovernanceCircuitState;
 import org.nexary.governance.runtime.GovernanceRuntime;
 import org.nexary.governance.runtime.GovernanceRejectionReason;
@@ -18,6 +19,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 
 @SpringBootTest(
         classes = org.nexary.samples.governance.app.GovernanceSampleApplication.class,
@@ -143,6 +148,29 @@ class GovernanceSampleApplicationTest {
                 .contains("\"rejectionReason\"")
                 .contains("\"durationBucket\"")
                 .doesNotContain("u-40", "u-41", "u-42", "u-43", "u-44");
+    }
+
+    @Test
+    void cancellationHeadersStopSampleWorkAndRemainLowCardinality() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(CancellationHeaders.CANCELLATION_ID, "sample-cancel-hidden-id");
+        headers.add(CancellationHeaders.CANCEL_REASON, "CLIENT_DISCONNECTED");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/governance/cancellation/slow/u-50?durationMillis=3000",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class);
+
+        assertThat(response.getBody()).contains("fallback");
+
+        String summary = restTemplate.getForObject("/nexary/governance/summary", String.class);
+        String events = restTemplate.getForObject("/nexary/governance/events", String.class);
+
+        assertThat(summary).contains("\"cancelledCount\"");
+        assertThat(events)
+                .contains("\"cancellationReason\":\"CLIENT_DISCONNECTED\"")
+                .doesNotContain("sample-cancel-hidden-id", "u-50");
     }
 
     @TestConfiguration

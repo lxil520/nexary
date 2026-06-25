@@ -20,6 +20,7 @@ const { formatTimestamp, t } = useLocale();
           <th scope="col">{{ t('table.action') }}</th>
           <th scope="col">{{ t('table.outcome') }}</th>
           <th scope="col">{{ t('table.reason') }}</th>
+          <th scope="col">{{ t('table.cancelReason') }}</th>
           <th scope="col">{{ t('table.circuit') }}</th>
           <th scope="col">{{ t('table.duration') }}</th>
         </tr>
@@ -31,6 +32,7 @@ const { formatTimestamp, t } = useLocale();
           <td><StatusBadge :label="event.action" :state="event.action" /></td>
           <td><StatusBadge :label="event.outcome" :state="event.outcome" /></td>
           <td><StatusBadge :label="event.rejectionReason" :state="event.rejectionReason" /></td>
+          <td><StatusBadge :label="event.cancellationReason" :state="event.cancellationReason" /></td>
           <td><StatusBadge :label="event.circuitState" :state="event.circuitState" /></td>
           <td>{{ event.durationBucket }}</td>
         </tr>

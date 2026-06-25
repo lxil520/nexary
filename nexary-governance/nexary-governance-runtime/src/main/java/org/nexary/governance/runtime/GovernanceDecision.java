@@ -74,6 +74,7 @@ public final class GovernanceDecision {
         CONCURRENCY_LIMITED,
         CIRCUIT_OPEN,
         DEGRADED,
+        CANCELLED,
         REJECTED
     }
 }

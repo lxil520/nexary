@@ -13,6 +13,7 @@ public final class GovernanceRuntimeSummary {
     private final long failureCount;
     private final long rejectedCount;
     private final long fallbackCount;
+    private final long cancelledCount;
     private final long openCircuitCount;
     private final long halfOpenCircuitCount;
     private final long degradedResourceCount;
@@ -38,6 +39,7 @@ public final class GovernanceRuntimeSummary {
                 failureCount,
                 rejectedCount,
                 0L,
+                0L,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -57,6 +59,35 @@ public final class GovernanceRuntimeSummary {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             Instant lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                fallbackCount,
+                0L,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /** Creates a runtime summary with retained-event fallback and cancellation counts. */
+    public GovernanceRuntimeSummary(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long fallbackCount,
+            long cancelledCount,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            Instant lastEventAt) {
         this.resourceCount = Math.max(0, resourceCount);
         this.snapshotCount = Math.max(0, snapshotCount);
         this.eventCount = Math.max(0, eventCount);
@@ -64,6 +95,7 @@ public final class GovernanceRuntimeSummary {
         this.failureCount = Math.max(0L, failureCount);
         this.rejectedCount = Math.max(0L, rejectedCount);
         this.fallbackCount = Math.max(0L, fallbackCount);
+        this.cancelledCount = Math.max(0L, cancelledCount);
         this.openCircuitCount = Math.max(0L, openCircuitCount);
         this.halfOpenCircuitCount = Math.max(0L, halfOpenCircuitCount);
         this.degradedResourceCount = Math.max(0L, degradedResourceCount);
@@ -105,6 +137,11 @@ public final class GovernanceRuntimeSummary {
         return fallbackCount;
     }
 
+    /** Returns the retained recent-event cancelled count. */
+    public long cancelledCount() {
+        return cancelledCount;
+    }
+
     /** Returns the number of snapshots with an open circuit. */
     public long openCircuitCount() {
         return openCircuitCount;
@@ -141,6 +178,7 @@ public final class GovernanceRuntimeSummary {
                 && failureCount == that.failureCount
                 && rejectedCount == that.rejectedCount
                 && fallbackCount == that.fallbackCount
+                && cancelledCount == that.cancelledCount
                 && openCircuitCount == that.openCircuitCount
                 && halfOpenCircuitCount == that.halfOpenCircuitCount
                 && degradedResourceCount == that.degradedResourceCount
@@ -157,6 +195,7 @@ public final class GovernanceRuntimeSummary {
                 failureCount,
                 rejectedCount,
                 fallbackCount,
+                cancelledCount,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,

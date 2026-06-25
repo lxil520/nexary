@@ -2,6 +2,7 @@ package org.nexary.governance.runtime;
 
 import java.time.Instant;
 import java.util.Objects;
+import org.nexary.core.context.CancellationReason;
 
 /** Recent low-cardinality event recorded by the local governance runtime. */
 public final class GovernanceRuntimeEvent {
@@ -9,6 +10,7 @@ public final class GovernanceRuntimeEvent {
     private final GovernanceRuntimeAction action;
     private final GovernanceCallOutcome outcome;
     private final GovernanceRejectionReason rejectionReason;
+    private final CancellationReason cancellationReason;
     private final GovernanceCircuitState circuitState;
     private final Instant timestamp;
     private final GovernanceDurationBucket durationBucket;
@@ -22,10 +24,24 @@ public final class GovernanceRuntimeEvent {
             GovernanceCircuitState circuitState,
             Instant timestamp,
             GovernanceDurationBucket durationBucket) {
+        this(resourceKey, action, outcome, rejectionReason, CancellationReason.NONE, circuitState, timestamp, durationBucket);
+    }
+
+    /** Creates a low-cardinality runtime event with an explicit cancellation reason. */
+    public GovernanceRuntimeEvent(
+            String resourceKey,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            CancellationReason cancellationReason,
+            GovernanceCircuitState circuitState,
+            Instant timestamp,
+            GovernanceDurationBucket durationBucket) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.action = action == null ? GovernanceRuntimeAction.EXECUTE : action;
         this.outcome = outcome == null ? GovernanceCallOutcome.NONE : outcome;
         this.rejectionReason = rejectionReason == null ? GovernanceRejectionReason.NONE : rejectionReason;
+        this.cancellationReason = cancellationReason == null ? CancellationReason.NONE : cancellationReason;
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
         this.timestamp = timestamp == null ? Instant.now() : timestamp;
         this.durationBucket = durationBucket == null ? GovernanceDurationBucket.NOT_RUN : durationBucket;
@@ -49,6 +65,11 @@ public final class GovernanceRuntimeEvent {
     /** Returns the low-cardinality rejection reason. */
     public GovernanceRejectionReason rejectionReason() {
         return rejectionReason;
+    }
+
+    /** Returns the low-cardinality cancellation reason. */
+    public CancellationReason cancellationReason() {
+        return cancellationReason;
     }
 
     /** Returns the circuit state visible after this event. */
@@ -79,6 +100,7 @@ public final class GovernanceRuntimeEvent {
                 && action == that.action
                 && outcome == that.outcome
                 && rejectionReason == that.rejectionReason
+                && cancellationReason == that.cancellationReason
                 && circuitState == that.circuitState
                 && timestamp.equals(that.timestamp)
                 && durationBucket == that.durationBucket;
@@ -86,6 +108,6 @@ public final class GovernanceRuntimeEvent {
 
     @Override
     public int hashCode() {
-        return Objects.hash(resourceKey, action, outcome, rejectionReason, circuitState, timestamp, durationBucket);
+        return Objects.hash(resourceKey, action, outcome, rejectionReason, cancellationReason, circuitState, timestamp, durationBucket);
     }
 }

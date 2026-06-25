@@ -360,6 +360,41 @@ Acceptance targets:
 - The local governance sample supports visual verification across empty data, normal data, and open circuit data.
 - The release gate is stable and points failures to Gradle, UI build, static-resource packaging, documentation scanning, or release input problems.
 
+## `0.11.x` Request Cancellation for Stale Work
+
+`0.11.x` does not replace Sentinel and does not add a remote governance platform. It only solves stale request cancellation: when a request has expired, upstream has canceled, or the client has disconnected, local governance should stop it so threads, connections, and downstream quotas are not spent on stale work.
+
+Included scope:
+
+- `0.11.0`: Spring Boot 3.3 mainline adds the cancellation model, downstream receiver, Gateway cancellation starter, downstream sample, Gateway sample, read-only Console cancellation fields, and smoke script.
+- Runtime: when a deadline has expired, upstream has canceled, or the token has been canceled, reject before the primary action starts or run an explicitly provided fallback.
+- Runtime: after business work has started, support cooperative stop checks through `CancellationContext` and record `CANCEL/CANCELLED`, `cancelledCount`, and low-cardinality cancellation reasons.
+- Gateway: propagate deadline and cancellation id; when the client disconnects, notify the downstream receiver so the token in that JVM is canceled.
+- `0.11.1`: add the Spring Boot 2.7 Gateway starter, sample, and gates; update the README support matrix only after they pass.
+- `0.11.2`: add the Spring Boot 4.x Gateway starter, sample, and gates; update the README support matrix only after they pass.
+
+`0.11.x` does not include:
+
+- Sentinel rule adapters, Sentinel dashboard, cluster flow control, or a Sentinel provider.
+- Forced interruption after ordinary Java business code has already started; running work relies on cooperative checks.
+- Remote policy push, multi-instance aggregation, sidecars, agents, or separately deployed consoles.
+- Retry stop propagation across repeated messaging, job, or other retry chains.
+
+Acceptance targets:
+
+- Requests with already-expired deadlines do not start the primary action.
+- Gateway disconnect notification lets the downstream sample stop slow work quickly.
+- Cancellation, rejection, and fallback results are visible in local diagnostics, the Console, and observation events.
+- Docs and scripts only claim Gateway versions that have passed real samples and gates.
+
+## `0.12.x` Sentinel Provider
+
+`0.12.x` plans a Sentinel provider that maps Nexary local governance resources and decisions into Sentinel capabilities. It still does not replace Sentinel: Sentinel rules, dashboard, cluster flow control, and runtime behavior stay owned by the Sentinel ecosystem. Nexary only provides the Java integration boundary and samples.
+
+## `0.13.x` Retry Stop Propagation
+
+`0.13.x` plans retry stop propagation so governance rejection, expired deadlines, and explicit stop-retry signals keep flowing into messaging, job, and other retry paths instead of being amplified by later retries.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

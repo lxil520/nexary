@@ -1,5 +1,6 @@
 package org.nexary.samples.governance.api;
 
+import java.time.Duration;
 import java.time.Instant;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
@@ -62,6 +63,22 @@ public class GovernanceSampleController {
         return governanceRuntime.execute(
                 context,
                 () -> profileQueryService.loadProfile(userId),
+                () -> profileQueryService.fallbackProfile(userId));
+    }
+
+    @GetMapping("/cancellation/slow/{userId}")
+    public ProfileResult cancellableSlowProfile(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "3000") long durationMillis) throws Exception {
+        Duration duration = Duration.ofMillis(Math.max(25L, Math.min(durationMillis, 30_000L)));
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(GovernanceSampleConfiguration.CANCELLATION_RESOURCE)
+                .trafficTag(TrafficTag.defaults())
+                .deadline(Instant.now().plus(duration).plusMillis(500))
+                .build();
+        return governanceRuntime.execute(
+                context,
+                () -> profileQueryService.cancellableSlowProfile(userId, duration),
                 () -> profileQueryService.fallbackProfile(userId));
     }
 

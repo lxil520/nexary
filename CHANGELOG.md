@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0
+
+- Added the request cancellation model: cancellation tokens, scoped cancellation context, low-cardinality cancellation reasons, and deadline / timeout / cancellation headers.
+- Extended the local governance runtime so canceled work can reject before the primary action starts, use fallback when provided, or stop cooperatively through `CancellationContext`.
+- Added diagnostics and Console fields for cancellation outcomes, cancelled counts, and low-cardinality cancellation reasons without exposing cancellation ids.
+- Added the Spring Boot 3.3 Gateway cancellation starter, downstream cancellation receiver, downstream governance sample, Gateway sample, and cancellation smoke script.
+- Clarified that Nexary does not replace Sentinel; the Sentinel provider remains planned for v0.12 and retry stop propagation remains planned for v0.13.
+
 ## 0.10.1
 
 - Added a Docker Compose demo for the governance sample so the read-only Console can be opened through one local script.

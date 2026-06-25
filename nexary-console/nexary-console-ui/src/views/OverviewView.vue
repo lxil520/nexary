@@ -29,6 +29,7 @@ const hasAttention = computed(
   () =>
     (summary.value?.openCircuitCount ?? 0) > 0 ||
     (summary.value?.rejectedCount ?? 0) > 0 ||
+    (summary.value?.cancelledCount ?? 0) > 0 ||
     (summary.value?.failureCount ?? 0) > 0 ||
     degradedCount.value > 0,
 );
@@ -85,6 +86,7 @@ onMounted(() => {
       <MetricCard :label="t('overview.resources')" :value="summary?.resourceCount ?? 0" :detail="t('overview.resourcesDetail')" tone="info" />
       <MetricCard :label="t('overview.openCircuits')" :value="summary?.openCircuitCount ?? 0" :detail="t('overview.openCircuitsDetail')" tone="danger" />
       <MetricCard :label="t('overview.rejected')" :value="summary?.rejectedCount ?? 0" :detail="t('overview.rejectedDetail')" tone="warning" />
+      <MetricCard :label="t('overview.cancelled')" :value="summary?.cancelledCount ?? 0" :detail="t('overview.cancelledDetail')" tone="warning" />
       <MetricCard :label="t('overview.failures')" :value="summary?.failureCount ?? 0" :detail="t('overview.failuresDetail')" tone="danger" />
       <MetricCard :label="t('overview.fallback')" :value="summary?.fallbackCount ?? 0" :detail="t('overview.fallbackDetail')" tone="neutral" />
       <MetricCard :label="t('overview.degraded')" :value="degradedCount" :detail="t('overview.degradedDetail')" tone="warning" />
@@ -118,7 +120,7 @@ onMounted(() => {
           <li v-for="event in recentEvents" :key="`${event.timestamp}-${event.resourceKey}`">
             <span>{{ enumLabel(event.outcome) }}</span>
             <strong>{{ event.resourceKey }}</strong>
-            <small>{{ enumLabel(event.rejectionReason) }}</small>
+            <small>{{ enumLabel(event.cancellationReason !== 'NONE' ? event.cancellationReason : event.rejectionReason) }}</small>
           </li>
         </ul>
       </div>

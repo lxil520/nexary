@@ -2,9 +2,18 @@ export type ResourceKind = 'CACHE' | 'MESSAGING' | 'JOB' | 'GOVERNANCE' | 'CUSTO
 
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN' | string;
 
-export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'NONE' | string;
+export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'NONE' | string;
 
-export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | string;
+export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | string;
+
+export type CancellationReason =
+  | 'NONE'
+  | 'CLIENT_DISCONNECTED'
+  | 'DEADLINE_EXPIRED'
+  | 'UPSTREAM_CANCELLED'
+  | 'MANUAL'
+  | 'SHUTDOWN'
+  | string;
 
 export type RejectionReason =
   | 'NONE'
@@ -25,6 +34,7 @@ export interface ConsoleSummary {
   successCount: number;
   failureCount: number;
   rejectedCount: number;
+  cancelledCount: number;
   fallbackCount: number;
   openCircuitCount: number;
   halfOpenCircuitCount: number;
@@ -58,6 +68,7 @@ export interface ConsoleRuntimeSnapshot {
   consecutiveFailures: number;
   totalRejections: number;
   lastRejectionReason: RejectionReason;
+  lastCancellationReason: CancellationReason;
   openUntil: string | null;
   activeConcurrency: number;
   maxConcurrency: number;
@@ -94,6 +105,7 @@ export interface ConsoleEvent {
   action: RuntimeAction;
   outcome: CallOutcome;
   rejectionReason: RejectionReason;
+  cancellationReason: CancellationReason;
   circuitState: CircuitState;
   timestamp: string | null;
   durationBucket: DurationBucket;

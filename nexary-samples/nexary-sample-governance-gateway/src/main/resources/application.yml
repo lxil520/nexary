@@ -1,0 +1,22 @@
+server:
+  port: 28090
+
+spring:
+  application:
+    name: nexary-sample-governance-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: governance-downstream
+          uri: ${NEXARY_GOVERNANCE_DOWNSTREAM_URI:http://127.0.0.1:28091}
+          predicates:
+            - Path=/gateway/governance/**
+          filters:
+            - StripPrefix=1
+
+nexary:
+  governance:
+    gateway:
+      enabled: true
+      default-timeout: 5s
+      cancel-receiver-path: /nexary/governance/cancellations

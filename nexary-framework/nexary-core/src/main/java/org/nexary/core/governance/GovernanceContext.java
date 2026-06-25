@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import org.nexary.core.context.CancellationContext;
+import org.nexary.core.context.CancellationToken;
 import org.nexary.core.context.DeadlineContext;
 import org.nexary.core.context.TrafficTag;
 
@@ -14,8 +16,9 @@ import org.nexary.core.context.TrafficTag;
  * Carries the governance identity for one protected execution path.
  *
  * <p>The context is intentionally small: resource, traffic tag, priority,
- * optional deadline, and low-cardinality attributes. It does not carry payload,
- * message id, cache key, token, or exception details.</p>
+ * optional deadline, optional cancellation token, and low-cardinality attributes.
+ * It does not carry payload, message id, cache key, credentials, or exception
+ * details.</p>
  */
 public final class GovernanceContext {
     private static final ThreadLocal<GovernanceContext> CURRENT = new ThreadLocal<>();
@@ -24,6 +27,7 @@ public final class GovernanceContext {
     private final TrafficTag trafficTag;
     private final RequestPriority priority;
     private final Instant deadline;
+    private final CancellationToken cancellationToken;
     private final Map<String, String> attributes;
 
     /**
@@ -38,11 +42,13 @@ public final class GovernanceContext {
             TrafficTag trafficTag,
             RequestPriority priority,
             Instant deadline,
+            CancellationToken cancellationToken,
             Map<String, String> attributes) {
         this.resource = resource == null ? GovernanceResource.custom("default", "default") : resource;
         this.trafficTag = trafficTag == null ? TrafficTag.defaults() : trafficTag;
         this.priority = priority == null ? RequestPriority.fromTrafficTag(this.trafficTag) : priority;
         this.deadline = deadline;
+        this.cancellationToken = cancellationToken;
         this.attributes = attributes == null
                 ? Collections.emptyMap()
                 : Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
@@ -62,6 +68,7 @@ public final class GovernanceContext {
     public static void clear() {
         CURRENT.remove();
         DeadlineContext.clear();
+        CancellationContext.clear();
     }
 
     /** Runs an action with this context bound to the current thread. */
@@ -69,12 +76,20 @@ public final class GovernanceContext {
         Objects.requireNonNull(action, "action");
         GovernanceContext previous = CURRENT.get();
         Optional<Instant> previousDeadline = DeadlineContext.current();
+        Optional<CancellationToken> previousCancellation = CancellationContext.current();
         GovernanceContext safeContext = context == null ? builder().build() : context;
+        CancellationToken effectiveCancellationToken =
+                safeContext.cancellationToken == null ? previousCancellation.orElse(null) : safeContext.cancellationToken;
         CURRENT.set(safeContext);
         if (safeContext.deadline != null) {
             DeadlineContext.set(safeContext.deadline);
         } else {
             DeadlineContext.clear();
+        }
+        if (effectiveCancellationToken != null) {
+            CancellationContext.set(effectiveCancellationToken);
+        } else {
+            CancellationContext.clear();
         }
         try {
             return action.call();
@@ -88,6 +103,11 @@ public final class GovernanceContext {
                 DeadlineContext.set(previousDeadline.get());
             } else {
                 DeadlineContext.clear();
+            }
+            if (previousCancellation.isPresent()) {
+                CancellationContext.set(previousCancellation.get());
+            } else {
+                CancellationContext.clear();
             }
         }
     }
@@ -112,6 +132,11 @@ public final class GovernanceContext {
         return Optional.ofNullable(deadline);
     }
 
+    /** Returns the optional cooperative cancellation token. */
+    public Optional<CancellationToken> cancellationToken() {
+        return Optional.ofNullable(cancellationToken);
+    }
+
     /** Returns low-cardinality context attributes. */
     public Map<String, String> attributes() {
         return attributes;
@@ -120,6 +145,13 @@ public final class GovernanceContext {
     /** Returns true when this context has a deadline that has already passed. */
     public boolean deadlineExpired() {
         return deadline != null && !Instant.now().isBefore(deadline);
+    }
+
+    /** Returns true when this context or the current thread token has been cancelled. */
+    public boolean cancelled() {
+        return cancellationToken != null
+                ? cancellationToken.isCancelled()
+                : CancellationContext.cancelled();
     }
 
     @Override
@@ -135,12 +167,13 @@ public final class GovernanceContext {
                 && trafficTag.equals(that.trafficTag)
                 && priority == that.priority
                 && Objects.equals(deadline, that.deadline)
+                && Objects.equals(cancellationToken, that.cancellationToken)
                 && attributes.equals(that.attributes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(resource, trafficTag, priority, deadline, attributes);
+        return Objects.hash(resource, trafficTag, priority, deadline, cancellationToken, attributes);
     }
 
     @Override
@@ -149,6 +182,7 @@ public final class GovernanceContext {
                 + ", trafficTag=" + trafficTag
                 + ", priority=" + priority
                 + ", deadline=" + deadline
+                + ", cancellationToken=" + (cancellationToken == null ? "none" : "present")
                 + ", attributes=" + attributes
                 + ']';
     }
@@ -159,6 +193,7 @@ public final class GovernanceContext {
         private TrafficTag trafficTag = TrafficTag.defaults();
         private RequestPriority priority;
         private Instant deadline;
+        private CancellationToken cancellationToken;
         private final Map<String, String> attributes = new LinkedHashMap<>();
 
         /** Sets the stable resource protected by this context. */
@@ -185,6 +220,12 @@ public final class GovernanceContext {
             return this;
         }
 
+        /** Sets the cooperative cancellation token for this context. */
+        public Builder cancellationToken(CancellationToken cancellationToken) {
+            this.cancellationToken = Objects.requireNonNull(cancellationToken, "cancellationToken");
+            return this;
+        }
+
         /** Adds a bounded, low-cardinality context attribute. */
         public Builder attribute(String key, String value) {
             if (key != null && value != null) {
@@ -195,7 +236,7 @@ public final class GovernanceContext {
 
         /** Builds an immutable governance context. */
         public GovernanceContext build() {
-            return new GovernanceContext(resource, trafficTag, priority, deadline, attributes);
+            return new GovernanceContext(resource, trafficTag, priority, deadline, cancellationToken, attributes);
         }
     }
 }

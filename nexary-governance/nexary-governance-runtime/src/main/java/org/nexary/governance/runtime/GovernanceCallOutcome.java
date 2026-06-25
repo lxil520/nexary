@@ -12,5 +12,8 @@ public enum GovernanceCallOutcome {
     FAILURE,
 
     /** Local governance rejected the attempt before the action completed. */
-    REJECTED
+    REJECTED,
+
+    /** The attempt was cancelled before the action completed. */
+    CANCELLED
 }

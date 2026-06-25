@@ -13,6 +13,7 @@ import org.nexary.console.api.ConsoleEventsResponse;
 import org.nexary.console.api.ConsoleResourceItem;
 import org.nexary.console.api.ConsoleResourcesResponse;
 import org.nexary.console.api.ConsoleSummaryResponse;
+import org.nexary.core.context.CancellationReason;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.governance.runtime.GovernanceCallOutcome;
 import org.nexary.governance.runtime.GovernanceCircuitState;
@@ -64,10 +65,12 @@ class ConsoleDiagnosticsServiceTest {
         assertThat(resource.getRuntimeSnapshot().getCircuitState()).isEqualTo("OPEN");
         assertThat(resource.getRuntimeSnapshot().getWindowFailures()).isEqualTo(2);
         assertThat(resource.getRuntimeSnapshot().getLastRejectionReason()).isEqualTo("CIRCUIT_OPEN");
+        assertThat(resource.getRuntimeSnapshot().getLastCancellationReason()).isEqualTo("CLIENT_DISCONNECTED");
         assertThat(resource.getRuntimeSnapshot().getMaxConcurrency()).isEqualTo(2);
         assertThat(resource.getRuntimeSnapshot().getRateLimitWindow()).isEqualTo("PT1S");
         assertThat(events.getItems()).hasSize(1);
         assertThat(events.getItems().get(0).getOutcome()).isEqualTo("REJECTED");
+        assertThat(events.getItems().get(0).getCancellationReason()).isEqualTo("CLIENT_DISCONNECTED");
         assertThat(events.getItems().get(0).getDurationBucket()).isEqualTo("NOT_RUN");
     }
 
@@ -95,7 +98,8 @@ class ConsoleDiagnosticsServiceTest {
                 .doesNotContain("exceptionMessage")
                 .doesNotContain("stackTrace");
         assertThat(events)
-                .contains("\"resourceKey\"", "\"action\"", "\"outcome\"", "\"durationBucket\"")
+                .contains("\"resourceKey\"", "\"action\"", "\"outcome\"", "\"durationBucket\"", "\"cancellationReason\"")
+                .doesNotContain("cancellationId")
                 .doesNotContain("payload")
                 .doesNotContain("tenant")
                 .doesNotContain("bizKey")
@@ -130,6 +134,7 @@ class ConsoleDiagnosticsServiceTest {
                 2,
                 3L,
                 GovernanceRejectionReason.CIRCUIT_OPEN,
+                CancellationReason.CLIENT_DISCONNECTED,
                 EVENT_TIME.plusSeconds(30),
                 1,
                 2,
@@ -162,13 +167,14 @@ class ConsoleDiagnosticsServiceTest {
                 GovernanceRuntimeAction.REJECT,
                 GovernanceCallOutcome.REJECTED,
                 GovernanceRejectionReason.CIRCUIT_OPEN,
+                CancellationReason.CLIENT_DISCONNECTED,
                 GovernanceCircuitState.OPEN,
                 EVENT_TIME,
                 GovernanceDurationBucket.NOT_RUN);
         return new StubDiagnostics(
                 Collections.singletonList(descriptor),
                 Collections.singletonList(event),
-                new GovernanceRuntimeSummary(1, 1, 1, 0L, 0L, 1L, 0L, 1L, 0L, 0L, EVENT_TIME));
+                new GovernanceRuntimeSummary(1, 1, 1, 0L, 0L, 1L, 0L, 1L, 1L, 0L, 0L, EVENT_TIME));
     }
 
     private static final class StubDiagnostics implements GovernanceDiagnostics {

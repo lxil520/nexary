@@ -13,6 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class GovernanceRuntimeProperties {
     private RuntimeSettings runtime = new RuntimeSettings();
     private Diagnostics diagnostics = new Diagnostics();
+    private Cancellation cancellation = new Cancellation();
     private Policy defaultPolicy = new Policy();
     private Map<String, ResourcePolicy> resources = new LinkedHashMap<>();
 
@@ -34,6 +35,16 @@ public class GovernanceRuntimeProperties {
     /** Sets read-only diagnostics endpoint settings. */
     public void setDiagnostics(Diagnostics diagnostics) {
         this.diagnostics = diagnostics == null ? new Diagnostics() : diagnostics;
+    }
+
+    /** Returns cooperative cancellation settings. */
+    public Cancellation getCancellation() {
+        return cancellation;
+    }
+
+    /** Sets cooperative cancellation settings. */
+    public void setCancellation(Cancellation cancellation) {
+        this.cancellation = cancellation == null ? new Cancellation() : cancellation;
     }
 
     /** Returns the default policy used when no resource policy matches. */
@@ -107,6 +118,99 @@ public class GovernanceRuntimeProperties {
             this.pathPrefix = pathPrefix == null || pathPrefix.trim().isEmpty()
                     ? "/nexary/governance"
                     : pathPrefix.trim();
+        }
+    }
+
+    /** Cooperative cancellation settings. */
+    public static class Cancellation {
+        private Inbound inbound = new Inbound();
+        private Receiver receiver = new Receiver();
+
+        /** Returns inbound header binding settings. */
+        public Inbound getInbound() {
+            return inbound;
+        }
+
+        /** Sets inbound header binding settings. */
+        public void setInbound(Inbound inbound) {
+            this.inbound = inbound == null ? new Inbound() : inbound;
+        }
+
+        /** Returns downstream cancellation receiver settings. */
+        public Receiver getReceiver() {
+            return receiver;
+        }
+
+        /** Sets downstream cancellation receiver settings. */
+        public void setReceiver(Receiver receiver) {
+            this.receiver = receiver == null ? new Receiver() : receiver;
+        }
+    }
+
+    /** Inbound request cancellation header binding settings. */
+    public static class Inbound {
+        private boolean enabled = true;
+
+        /** Returns whether inbound deadline and cancellation headers are bound to the request thread. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether inbound deadline and cancellation headers are bound to the request thread. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    /** Downstream cancellation receiver settings. */
+    public static class Receiver {
+        private boolean enabled;
+        private String pathPrefix = "/nexary/governance";
+        private String tokenHeaderName = "Nexary-Cancellation-Token";
+        private String token;
+
+        /** Returns whether the cancellation receiver endpoint is enabled. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether the cancellation receiver endpoint is enabled. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns the HTTP path prefix used by cancellation receiver endpoints. */
+        public String getPathPrefix() {
+            return pathPrefix;
+        }
+
+        /** Sets the HTTP path prefix used by cancellation receiver endpoints. */
+        public void setPathPrefix(String pathPrefix) {
+            this.pathPrefix = pathPrefix == null || pathPrefix.trim().isEmpty()
+                    ? "/nexary/governance"
+                    : pathPrefix.trim();
+        }
+
+        /** Returns the optional request header name used for receiver token checks. */
+        public String getTokenHeaderName() {
+            return tokenHeaderName;
+        }
+
+        /** Sets the optional request header name used for receiver token checks. */
+        public void setTokenHeaderName(String tokenHeaderName) {
+            this.tokenHeaderName = tokenHeaderName == null || tokenHeaderName.trim().isEmpty()
+                    ? "Nexary-Cancellation-Token"
+                    : tokenHeaderName.trim();
+        }
+
+        /** Returns the optional token required by the receiver endpoint. */
+        public String getToken() {
+            return token;
+        }
+
+        /** Sets the optional token required by the receiver endpoint. */
+        public void setToken(String token) {
+            this.token = token;
         }
     }
 

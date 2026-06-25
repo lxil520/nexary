@@ -1,0 +1,14 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation project(':nexary-boot:nexary-governance-gateway-spring-boot-starter')
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway:4.1.6'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+application {
+    mainClass = 'org.nexary.samples.governance.gateway.app.GovernanceGatewaySampleApplication'
+}

@@ -4,7 +4,7 @@
 
 它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
-`0.10.x` 的治理文档只收口本地诊断硬化：Console 直接 URL / deep link、静态资源防空白回归、本地 sample 可视验证、Docker 样例和 release gate 稳定。它不增加写策略、远程配置、多实例聚合、登录权限或独立控制台。
+`0.11.0` 的治理目标不是替代 Sentinel。它先解决一个更窄、更容易验证的问题：请求已经过期、上游已经取消或 Gateway 发现客户端断开时，Nexary 在业务动作开始前取消或拒绝；业务动作已经开始的路径，通过 `CancellationContext` 做协作式停止，避免继续占用线程、连接和下游额度。Sentinel provider 放在 `0.12.x`；retry stop 在重试链路里的继续传播放在 `0.13.x`。
 
 ## 引入依赖
 
@@ -15,6 +15,12 @@ implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation "com.aweimao:nexary-governance-spring-boot-starter"
 implementation "com.aweimao:nexary-console-spring-boot-starter"
 implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
+```
+
+如果应用本身是 Spring Cloud Gateway 入口，再加：
+
+```groovy
+implementation "com.aweimao:nexary-governance-gateway-spring-boot-starter"
 ```
 
 样例工程可以直接运行：
@@ -34,8 +40,6 @@ nexary:
       enabled: true
     diagnostics:
       enabled: true
-  console:
-    enabled: true
     default-policy:
       max-requests-per-window: 100
       rate-limit-window: 1s
@@ -72,6 +76,8 @@ nexary:
           open-state-duration: 150ms
           sliding-window-size: 8
           consecutive-failure-threshold: 2
+  console:
+    enabled: true
 ```
 
 `default-policy` 兜底；`resources` 里的每一项只匹配一个稳定资源。`kind` 可选 `http`、`downstream`、`cache`、`messaging`、`job`、`service`、`custom`。`name`、`provider`、`operation` 必须是固定小集合，不能拼用户 id、订单号、cache key、message id。
@@ -115,6 +121,47 @@ return governanceRuntime.execute(
 `deadline` 会同步写入旧的 `DeadlineContext`，已有 cache、messaging、job 代码仍然能沿用同一个截止时间。
 
 `nexary.governance.diagnostics.enabled` 默认是 `false`。只有需要本地排查时才打开；打开后只提供 GET 端点，不接受策略修改。
+
+## v0.11 请求失效终止
+
+v0.11 要处理的是 stale request cancellation，而不是熔断平台替换。它包含两层：
+
+- 已经过期的 deadline 不应再启动主逻辑。
+- 已经被上游取消、超时或判定无价值的请求，应在进入下游调用前停止。
+- 如果请求已经进入业务循环，业务代码可以定期检查 `CancellationContext.cancelled()` 并尽快返回。
+- Gateway 入口会向下游传播 deadline 和 cancellation id；客户端断开后，Gateway 会调用下游 `POST /nexary/governance/cancellations` 通知当前 JVM 内的 token 取消。
+- 停止结果要能在本地诊断和观测事件里看到，字段仍然保持低数量。
+- fallback 只在业务明确提供且语义合理时运行；否则返回本地治理拒绝。
+
+下游服务默认不会暴露取消接收端点。需要显式打开：
+
+```yaml
+nexary:
+  governance:
+    cancellation:
+      receiver:
+        enabled: true
+```
+
+运行 downstream 样例后可以直接检查取消诊断：
+
+```bash
+NEXARY_GOVERNANCE_CANCELLATION_BASE_URL=http://localhost:28091 \
+  ./scripts/governance-cancellation/smoke.sh
+```
+
+Gateway 样例和 downstream 样例一起跑时，可以用客户端提前断开验证通知链路：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--server.port=28091'
+NEXARY_GOVERNANCE_DOWNSTREAM_URI=http://127.0.0.1:28091 \
+  ./gradlew :nexary-samples:nexary-sample-governance-gateway:run
+curl --max-time 1 'http://localhost:28090/gateway/governance/cancellation/slow/u-1?durationMillis=5000' || true
+curl -s http://localhost:28091/nexary/governance/summary
+curl -s http://localhost:28091/nexary/governance/events
+```
+
+验收时只验证当前 JVM 内的取消、拒绝、fallback 和事件记录。不要把 v0.11 写成 Sentinel 替代、跨实例状态同步、远程策略下发或线程强杀；已经进入普通 Java 业务方法的路径只支持协作式停止。
 
 ## v0.8 本地治理数据
 
@@ -281,6 +328,7 @@ nexary:
 | --- | --- |
 | `GovernanceRuntime` | 执行前检查 deadline、限流、并发隔离和显式降级；拒绝时发布治理事件；有 fallback 就执行 fallback，否则抛出 `GovernanceRejectedException`。 |
 | v0.6 样例熔断 | `LocalCircuitBreakerProfileGateway` 通过本地 `GovernanceRuntime` 演示 `CLOSED`、`OPEN`、`HALF_OPEN` 状态转换，覆盖失败、慢调用、拒绝、fallback、恢复和重开。 |
+| v0.11 请求失效终止 | deadline 已过期、上游取消或客户端断开时，进入业务前取消或拒绝；执行中路径通过 `CancellationContext` 协作式停止，并记录本地诊断和 observation 事件。 |
 | Cache Redis 主线 | Spring Boot 3 Redis `CacheClient` Bean 会被治理运行时包一层；资源名是 `cache-client`，后端标签是 `redis`，操作名如 `cache.get`、`cache.put`、`cache.batch_get`。 |
 | Messaging | publish / consume 会传递 `nexary-deadline-epoch-millis` header；过期消息会在业务 handler 前被拒绝；重试结束和降级会发布治理事件。 |
 | Job | 本地 scheduler、XXL-JOB bridge、PowerJob bridge 支持 `start-deadline` 和 `max-concurrent-executions`；被跳过时记录 bounded skip reason。 |
@@ -309,6 +357,8 @@ nexary:
 ## 现在的边界
 
 - deadline 是启动前检查和上下文传播，不会强行杀掉已经进入业务方法的普通 Java 代码。
+- v0.11 的取消语义覆盖启动前取消和执行中协作式停止；不承诺强制中断已经运行的业务线程，也不替代应用服务器或客户端的连接取消机制。
+- Nexary 不替代 Sentinel。`0.12.x` 才规划 Sentinel provider；当前文档不能把 Sentinel 规则、dashboard 或 cluster flow control 写成已交付。
 - 熔断窗口是当前 JVM 内的本地状态；多实例之间不会共享失败计数、慢调用计数或半开探测结果。
 - Cache 的治理包裹只声明在 Spring Boot 3 Redis 主线；Boot2 / Boot4 的 cache 入口要按对应样例和测试结果再扩大说明。
 - v0.10 继续只包含本地只读页面和本地诊断硬化，不包含远程控制台、sidecar、agent、远程动态配置或跨实例状态同步。

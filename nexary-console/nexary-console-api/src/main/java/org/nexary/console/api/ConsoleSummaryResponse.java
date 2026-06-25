@@ -10,6 +10,7 @@ public final class ConsoleSummaryResponse {
     private final long successCount;
     private final long failureCount;
     private final long rejectedCount;
+    private final long cancelledCount;
     private final long fallbackCount;
     private final long openCircuitCount;
     private final long halfOpenCircuitCount;
@@ -26,6 +27,7 @@ public final class ConsoleSummaryResponse {
             long successCount,
             long failureCount,
             long rejectedCount,
+            long cancelledCount,
             long fallbackCount,
             long openCircuitCount,
             long halfOpenCircuitCount,
@@ -37,6 +39,7 @@ public final class ConsoleSummaryResponse {
         this.successCount = successCount;
         this.failureCount = failureCount;
         this.rejectedCount = rejectedCount;
+        this.cancelledCount = cancelledCount;
         this.fallbackCount = fallbackCount;
         this.openCircuitCount = openCircuitCount;
         this.halfOpenCircuitCount = halfOpenCircuitCount;
@@ -72,6 +75,11 @@ public final class ConsoleSummaryResponse {
     /** Returns the retained recent-event rejected count. */
     public long getRejectedCount() {
         return rejectedCount;
+    }
+
+    /** Returns the retained recent-event cancelled count. */
+    public long getCancelledCount() {
+        return cancelledCount;
     }
 
     /** Returns the retained recent-event fallback count. */

@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import org.nexary.core.context.CancellationContext;
+import org.nexary.core.context.CancellationReason;
 import org.nexary.core.fault.FaultSignal;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceObservationEvents;
@@ -90,6 +92,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         long failures = 0L;
         long rejected = 0L;
         long fallback = 0L;
+        long cancelled = 0L;
         Instant lastEventAt = null;
         for (GovernanceRuntimeEvent event : currentEvents) {
             if (event.outcome() == GovernanceCallOutcome.SUCCESS) {
@@ -98,6 +101,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 failures++;
             } else if (event.outcome() == GovernanceCallOutcome.REJECTED) {
                 rejected++;
+            } else if (event.outcome() == GovernanceCallOutcome.CANCELLED) {
+                cancelled++;
             }
             if (event.action() == GovernanceRuntimeAction.FALLBACK) {
                 fallback++;
@@ -123,6 +128,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 failures,
                 rejected,
                 fallback,
+                cancelled,
                 openCircuits,
                 halfOpenCircuits,
                 degradedResources,
@@ -146,6 +152,18 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         GovernanceContext effectiveContext = withPolicyDeadline(safeContext, policy, startedAt);
         State state = stateFor(effectiveContext, policy);
         state.touchPolicy(policy);
+        GovernanceDecision cancelled = cancelBeforeAcquire(effectiveContext, state);
+        if (cancelled != null) {
+            recordRuntimeEvent(
+                    state,
+                    GovernanceRuntimeAction.CANCEL,
+                    GovernanceCallOutcome.CANCELLED,
+                    GovernanceRejectionReason.NONE,
+                    state.lastCancellationReason,
+                    startedAt,
+                    Instant.now());
+            return fallbackOrThrow(fallback, cancelled);
+        }
         GovernanceDecision rejected = rejectBeforeAcquire(effectiveContext, state, policy);
         if (rejected != null) {
             publishRejection(effectiveContext, rejected, startedAt);
@@ -154,6 +172,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
                     GovernanceCallOutcome.REJECTED,
                     state.lastRejectionReason,
+                    CancellationReason.NONE,
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, rejected);
@@ -175,6 +194,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
                     GovernanceCallOutcome.REJECTED,
                     circuitPermit.rejectionReason(),
+                    CancellationReason.NONE,
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
@@ -191,6 +211,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
                     GovernanceCallOutcome.REJECTED,
                     GovernanceRejectionReason.RATE_LIMITED,
+                    CancellationReason.NONE,
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
@@ -209,14 +230,21 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
                     GovernanceCallOutcome.REJECTED,
                     GovernanceRejectionReason.CONCURRENCY_LIMITED,
+                    CancellationReason.NONE,
                     startedAt,
                     Instant.now());
             return fallbackOrThrow(fallback, decision);
         }
         long actionStartedNanos = System.nanoTime();
         Throwable failure = null;
+        CancellationReason completionCancellationReason = CancellationReason.NONE;
         try {
-            return GovernanceContext.callWithContext(effectiveContext, action);
+            T result = GovernanceContext.callWithContext(effectiveContext, action);
+            completionCancellationReason = cancellationReason(effectiveContext);
+            if (completionCancellationReason != CancellationReason.NONE) {
+                state.recordCancellation(completionCancellationReason);
+            }
+            return result;
         } catch (Throwable error) {
             failure = error;
             return rethrow(error);
@@ -224,9 +252,16 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             state.recordCall(policy, actionStartedNanos, System.nanoTime(), failure != null, circuitPermit);
             recordRuntimeEvent(
                     state,
-                    GovernanceRuntimeAction.EXECUTE,
-                    failure == null ? GovernanceCallOutcome.SUCCESS : GovernanceCallOutcome.FAILURE,
+                    completionCancellationReason == CancellationReason.NONE
+                            ? GovernanceRuntimeAction.EXECUTE
+                            : GovernanceRuntimeAction.CANCEL,
+                    failure == null
+                            ? completionCancellationReason == CancellationReason.NONE
+                                    ? GovernanceCallOutcome.SUCCESS
+                                    : GovernanceCallOutcome.CANCELLED
+                            : GovernanceCallOutcome.FAILURE,
                     GovernanceRejectionReason.NONE,
+                    completionCancellationReason,
                     startedAt,
                     Instant.now());
             state.release();
@@ -267,6 +302,27 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     new FaultSignal(FaultSignal.FaultType.DEGRADED, "governance", "degraded", Instant.now(), false));
         }
         return null;
+    }
+
+    private GovernanceDecision cancelBeforeAcquire(GovernanceContext context, State state) {
+        CancellationReason reason = cancellationReason(context);
+        if (reason == CancellationReason.NONE) {
+            return null;
+        }
+        state.recordCancellation(reason);
+        FaultSignal.FaultType faultType = reason == CancellationReason.DEADLINE_EXPIRED
+                ? FaultSignal.FaultType.TIMEOUT
+                : FaultSignal.FaultType.REJECTED;
+        return GovernanceDecision.rejected(
+                GovernanceDecision.Decision.CANCELLED,
+                new FaultSignal(faultType, "governance", "cancelled", Instant.now(), false));
+    }
+
+    private CancellationReason cancellationReason(GovernanceContext context) {
+        if (context.cancellationToken().isPresent() && context.cancellationToken().get().isCancelled()) {
+            return context.cancellationToken().get().reason();
+        }
+        return CancellationContext.reason();
     }
 
     private GovernanceDecision circuitOpenDecision(GovernanceRejectionReason reason) {
@@ -333,6 +389,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             GovernanceRuntimeAction action,
             GovernanceCallOutcome outcome,
             GovernanceRejectionReason rejectionReason,
+            CancellationReason cancellationReason,
             Instant startedAt,
             Instant endedAt) {
         Duration duration = startedAt == null || endedAt == null
@@ -343,6 +400,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 action,
                 outcome,
                 rejectionReason,
+                cancellationReason,
                 state.currentCircuitState(),
                 endedAt,
                 GovernanceDurationBucket.from(duration));
@@ -374,6 +432,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private int consecutiveFailures;
         private long totalRejections;
         private GovernanceRejectionReason lastRejectionReason = GovernanceRejectionReason.NONE;
+        private CancellationReason lastCancellationReason = CancellationReason.NONE;
         private Instant lastStateTransitionAt = Instant.now();
         private GovernanceCallOutcome lastOutcome = GovernanceCallOutcome.NONE;
         private Instant lastOutcomeAt;
@@ -542,6 +601,12 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             lastOutcomeAt = Instant.now();
         }
 
+        private synchronized void recordCancellation(CancellationReason reason) {
+            lastCancellationReason = reason == null ? CancellationReason.NONE : reason;
+            lastOutcome = GovernanceCallOutcome.CANCELLED;
+            lastOutcomeAt = Instant.now();
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -568,6 +633,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     consecutiveFailures,
                     totalRejections,
                     lastRejectionReason,
+                    lastCancellationReason,
                     openUntil,
                     activeConcurrency(),
                     maxConcurrency,

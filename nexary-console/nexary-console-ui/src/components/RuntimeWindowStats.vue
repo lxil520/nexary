@@ -50,6 +50,10 @@ function valueOrZero(value: number | undefined): number {
         <dd>{{ enumLabel(runtime?.lastRejectionReason ?? 'NONE') }}</dd>
       </div>
       <div>
+        <dt>{{ t('runtime.lastCancellation') }}</dt>
+        <dd>{{ enumLabel(runtime?.lastCancellationReason ?? 'NONE') }}</dd>
+      </div>
+      <div>
         <dt>{{ t('runtime.openUntil') }}</dt>
         <dd>{{ runtime?.openUntil ?? t('runtime.notOpen') }}</dd>
       </div>

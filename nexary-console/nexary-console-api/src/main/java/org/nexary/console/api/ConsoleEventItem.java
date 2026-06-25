@@ -8,6 +8,7 @@ public final class ConsoleEventItem {
     private final String action;
     private final String outcome;
     private final String rejectionReason;
+    private final String cancellationReason;
     private final String circuitState;
     private final String timestamp;
     private final String durationBucket;
@@ -20,6 +21,7 @@ public final class ConsoleEventItem {
             String action,
             String outcome,
             String rejectionReason,
+            String cancellationReason,
             String circuitState,
             String timestamp,
             String durationBucket) {
@@ -27,6 +29,7 @@ public final class ConsoleEventItem {
         this.action = action;
         this.outcome = outcome;
         this.rejectionReason = rejectionReason;
+        this.cancellationReason = cancellationReason;
         this.circuitState = circuitState;
         this.timestamp = timestamp;
         this.durationBucket = durationBucket;
@@ -50,6 +53,11 @@ public final class ConsoleEventItem {
     /** Returns the low-cardinality rejection reason. */
     public String getRejectionReason() {
         return rejectionReason;
+    }
+
+    /** Returns the low-cardinality cancellation reason. */
+    public String getCancellationReason() {
+        return cancellationReason;
     }
 
     /** Returns the circuit state visible after this event. */

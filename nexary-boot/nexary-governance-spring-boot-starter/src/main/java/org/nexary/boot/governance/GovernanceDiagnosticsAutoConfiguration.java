@@ -125,6 +125,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("consecutiveFailures", snapshot.consecutiveFailures());
             body.put("totalRejections", snapshot.totalRejections());
             body.put("lastRejectionReason", snapshot.lastRejectionReason().name());
+            body.put("lastCancellationReason", snapshot.lastCancellationReason().name());
             body.put("openUntil", optionalInstant(snapshot.openUntil()));
             body.put("activeConcurrency", snapshot.activeConcurrency());
             body.put("maxConcurrency", snapshot.maxConcurrency());
@@ -152,6 +153,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("action", event.action().name());
             body.put("outcome", event.outcome().name());
             body.put("rejectionReason", event.rejectionReason().name());
+            body.put("cancellationReason", event.cancellationReason().name());
             body.put("circuitState", event.circuitState().name());
             body.put("timestamp", instant(event.timestamp()));
             body.put("durationBucket", event.durationBucket().name());
@@ -166,6 +168,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("successCount", summary.successCount());
             body.put("failureCount", summary.failureCount());
             body.put("rejectedCount", summary.rejectedCount());
+            body.put("cancelledCount", summary.cancelledCount());
             body.put("fallbackCount", summary.fallbackCount());
             body.put("openCircuitCount", summary.openCircuitCount());
             body.put("halfOpenCircuitCount", summary.halfOpenCircuitCount());

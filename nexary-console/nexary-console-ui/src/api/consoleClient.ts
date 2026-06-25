@@ -1,6 +1,7 @@
 import { mockConsoleData } from './mockConsoleData';
 import type {
   CallOutcome,
+  CancellationReason,
   CircuitState,
   ConsoleEvent,
   ConsolePolicySnapshot,
@@ -108,6 +109,7 @@ function toSummary(data: unknown): ConsoleSummary {
     successCount: readNumber(record, 'successCount'),
     failureCount: readNumber(record, 'failureCount'),
     rejectedCount: readNumber(record, 'rejectedCount'),
+    cancelledCount: readNumber(record, 'cancelledCount'),
     fallbackCount: readNumber(record, 'fallbackCount'),
     openCircuitCount: readNumber(record, 'openCircuitCount'),
     halfOpenCircuitCount: readNumber(record, 'halfOpenCircuitCount'),
@@ -161,6 +163,7 @@ function toRuntimeSnapshot(data: unknown): ConsoleRuntimeSnapshot {
     consecutiveFailures: readNumber(record, 'consecutiveFailures'),
     totalRejections: readNumber(record, 'totalRejections'),
     lastRejectionReason: readString(record, 'lastRejectionReason', 'NONE') as RejectionReason,
+    lastCancellationReason: readString(record, 'lastCancellationReason', 'NONE') as CancellationReason,
     openUntil: readNullableString(record, 'openUntil'),
     activeConcurrency: readNumber(record, 'activeConcurrency'),
     maxConcurrency: readNumber(record, 'maxConcurrency'),
@@ -189,6 +192,7 @@ function toEvent(data: unknown): ConsoleEvent {
     action: readString(record, 'action', 'EXECUTE') as RuntimeAction,
     outcome: readString(record, 'outcome', 'NONE') as CallOutcome,
     rejectionReason: readString(record, 'rejectionReason', 'NONE') as RejectionReason,
+    cancellationReason: readString(record, 'cancellationReason', 'NONE') as CancellationReason,
     circuitState: readString(record, 'circuitState', 'CLOSED') as CircuitState,
     timestamp: readNullableString(record, 'timestamp'),
     durationBucket: readString(record, 'durationBucket', 'NOT_RUN') as DurationBucket,

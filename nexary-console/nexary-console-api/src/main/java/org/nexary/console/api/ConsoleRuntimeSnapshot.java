@@ -13,6 +13,7 @@ public final class ConsoleRuntimeSnapshot {
     private final int consecutiveFailures;
     private final long totalRejections;
     private final String lastRejectionReason;
+    private final String lastCancellationReason;
     private final String openUntil;
     private final int activeConcurrency;
     private final int maxConcurrency;
@@ -45,6 +46,7 @@ public final class ConsoleRuntimeSnapshot {
             int consecutiveFailures,
             long totalRejections,
             String lastRejectionReason,
+            String lastCancellationReason,
             String openUntil,
             int activeConcurrency,
             int maxConcurrency,
@@ -72,6 +74,7 @@ public final class ConsoleRuntimeSnapshot {
         this.consecutiveFailures = consecutiveFailures;
         this.totalRejections = totalRejections;
         this.lastRejectionReason = lastRejectionReason;
+        this.lastCancellationReason = lastCancellationReason;
         this.openUntil = openUntil;
         this.activeConcurrency = activeConcurrency;
         this.maxConcurrency = maxConcurrency;
@@ -135,6 +138,11 @@ public final class ConsoleRuntimeSnapshot {
     /** Returns the low-cardinality reason for the latest local rejection. */
     public String getLastRejectionReason() {
         return lastRejectionReason;
+    }
+
+    /** Returns the low-cardinality reason for the latest cooperative cancellation. */
+    public String getLastCancellationReason() {
+        return lastCancellationReason;
     }
 
     /** Returns when the open circuit may begin half-open probing, if known. */

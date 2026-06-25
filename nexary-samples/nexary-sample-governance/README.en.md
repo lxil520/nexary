@@ -7,6 +7,8 @@ This sample shows three paths:
 - How the local circuit flow behaves for one downstream call: normal calls, repeated failures, slow calls, open circuit, fallback, half-open probing, recovery, and reopening.
 - How the read-only governance diagnostic Console reads current-JVM resources, windows, circuit state, and recent events.
 
+v0.11 adds request cancellation for stale work: when a deadline has already expired, the upstream has canceled, or Gateway sees the client disconnect, the request should stop quickly. This sample demonstrates both cancellation before business work starts and cooperative stop checks inside a business loop. Nexary does not replace Sentinel. The Sentinel provider is planned for v0.12, and retry stop propagation is planned for v0.13.
+
 The sample also adds `nexary-observation-micrometer-spring-boot-starter`. Tests register a local `SimpleMeterRegistry`, so rate-limit, degradation, and bulkhead events are recorded in `nexary.observation.events.total` and `nexary.observation.events.duration`.
 
 This sample includes a local read-only page, but it is not a remote console, sidecar, agent, or multi-instance governance service. All windows, counters, and diagnostic fields come from the current JVM.
@@ -34,6 +36,22 @@ curl http://localhost:8080/governance/degraded/u-1
 ```
 
 The response `source` is `fallback` because `inventory-service/reserve` has `degraded=true`.
+
+Cancellation path:
+
+```bash
+curl -H 'Nexary-Cancellation-Id: demo-hidden-id' \
+  -H 'Nexary-Cancel-Reason: CLIENT_DISCONNECTED' \
+  'http://localhost:8080/governance/cancellation/slow/u-1?durationMillis=3000'
+```
+
+The slow business action is not started and the response `source` is `fallback`. Then inspect recent events:
+
+```bash
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+Events show `action=CANCEL`, `outcome=CANCELLED`, and `cancellationReason=CLIENT_DISCONNECTED`, but they do not expose `demo-hidden-id`.
 
 ## Read-Only Diagnostic Endpoints
 
@@ -74,8 +92,10 @@ Useful fields:
 | `windowCalls` / `windowFailures` / `windowSlowCalls` | Completed, failed, and slow calls in the current sliding window. |
 | `totalRejections` | Local governance rejections in this JVM. |
 | `lastRejectionReason` | Most recent rejection reason, such as `CIRCUIT_OPEN`, `RATE_LIMITED`, or `CONCURRENCY_LIMITED`. |
+| `lastCancellationReason` | Most recent cancellation reason, such as `CLIENT_DISCONNECTED`, `DEADLINE_EXPIRED`, or `UPSTREAM_CANCELLED`. |
 | `lastOutcome` | Most recent result, such as `SUCCESS`, `FAILURE`, or `REJECTED`. |
-| `action` | Recent event action, such as `EXECUTE`, `REJECT`, or `FALLBACK`. |
+| `action` | Recent event action, such as `EXECUTE`, `REJECT`, `FALLBACK`, or `CANCEL`. |
+| `cancellationReason` | Cancellation reason for the event; `NONE` when no cancellation happened. |
 | `durationBucket` | Coarse duration bucket. |
 
 These endpoints are read-only and disabled by default; the starter registers them only when `nexary.governance.diagnostics.enabled=true`.
@@ -182,7 +202,7 @@ The circuit flow is demonstrated by `LocalCircuitBreakerProfileGateway` through 
 - `GovernanceSampleConfiguration`: stable resource names, never user ids, order ids, cache keys, or message ids.
 - `GovernanceSampleController`: how a business entry point creates `GovernanceContext`, and how the circuit demo endpoints are exposed.
 - `LocalCircuitBreakerProfileGateway`: uses the local governance runtime to demonstrate `CLOSED`, `OPEN`, and `HALF_OPEN`.
-- `ProfileQueryService`: main logic, slow call, failed call, and fallback are kept separate.
+- `ProfileQueryService`: main logic, slow call, cancellation checks, failed call, and fallback are kept separate.
 
 Keep resource names stable, such as `profile-api/get-profile`. Micrometer meters keep only bounded tags such as `resource_kind`, `governance_action`, `traffic_channel`, `traffic_priority`, and `outcome`.
 
@@ -191,3 +211,5 @@ Keep resource names stable, such as `profile-api/get-profile`. Micrometer meters
 - No remote console, sidecar, or agent.
 - No remote policy push.
 - No cross-instance sync for circuit, rate-limit, bulkhead, or diagnostic state.
+- No Sentinel replacement; this sample does not claim Sentinel rules, dashboard, or cluster flow control.
+- No forced interruption after ordinary Java business code has already started; loops need to check `CancellationContext` as shown in the sample.

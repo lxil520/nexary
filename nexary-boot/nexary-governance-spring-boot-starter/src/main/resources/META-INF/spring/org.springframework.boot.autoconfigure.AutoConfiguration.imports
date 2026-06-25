@@ -1,2 +1,3 @@
 org.nexary.boot.governance.GovernanceRuntimeAutoConfiguration
 org.nexary.boot.governance.GovernanceDiagnosticsAutoConfiguration
+org.nexary.boot.governance.GovernanceCancellationAutoConfiguration

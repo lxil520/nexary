@@ -8,6 +8,9 @@ nexary:
       enabled: true
     diagnostics:
       enabled: true
+    cancellation:
+      receiver:
+        enabled: true
     default-policy:
       max-requests-per-window: 100
       rate-limit-window: 1s
@@ -22,6 +25,15 @@ nexary:
         max-requests-per-window: 2
         rate-limit-window: 1m
         max-concurrency: 1
+      cancellation-slow-profile:
+        kind: http
+        name: profile-api
+        provider: nexary
+        operation: slow-profile
+        deadline: 5s
+        max-requests-per-window: 100
+        rate-limit-window: 1s
+        max-concurrency: 8
       inventory-reserve:
         kind: downstream
         name: inventory-service

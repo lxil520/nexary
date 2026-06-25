@@ -360,6 +360,41 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 本地治理样例能完成可视验证，并覆盖空数据、正常数据和熔断打开数据。
 - release gate 稳定，失败时能指出是 Gradle、UI build、静态资源打包、文档扫描还是发布输入问题。
 
+## `0.11.x` 请求失效终止
+
+`0.11.x` 不替代 Sentinel，也不新增远程治理平台。它只解决 stale request cancellation：请求已经过期、上游已经取消或客户端已经断开时，本地治理应停止它，避免继续消耗线程、连接和下游额度。
+
+已纳入范围：
+
+- `0.11.0`：Spring Boot 3.3 主线增加 cancellation model、downstream receiver、Gateway cancellation starter、downstream sample、Gateway sample、Console 只读取消字段和 smoke 脚本。
+- Runtime：deadline 已过期、上游取消或 token 已取消时，在主逻辑启动前返回本地治理拒绝或运行明确提供的 fallback。
+- Runtime：业务动作已经开始后，通过 `CancellationContext` 做协作式停止，并记录 `CANCEL/CANCELLED`、`cancelledCount` 和低数量取消原因。
+- Gateway：传播 deadline 和 cancellation id；客户端断开后通知下游 receiver 取消当前 JVM 内 token。
+- `0.11.1`：补 Spring Boot 2.7 Gateway starter、样例和 gate，通过后再更新 README 支持矩阵。
+- `0.11.2`：补 Spring Boot 4.x Gateway starter、样例和 gate，通过后再更新 README 支持矩阵。
+
+`0.11.x` 不包含：
+
+- Sentinel 规则适配、Sentinel dashboard、cluster flow control 或 Sentinel provider。
+- 强制中断已经进入普通 Java 业务方法的线程；执行中停止依赖业务代码协作检查。
+- 远程策略下发、多实例聚合、sidecar、agent 或独立控制台。
+- retry stop 在多次重试、消息重试或任务重试链路里的继续传播。
+
+验收目标：
+
+- 已过期 deadline 的请求不会启动主逻辑。
+- Gateway 断开通知能让 downstream 样例尽快停止慢请求。
+- 取消、拒绝和 fallback 结果能在本地诊断、Console 和 observation 事件里看到。
+- 文档和脚本只能声明已经通过真实样例和 gate 的 Gateway 版本。
+
+## `0.12.x` Sentinel provider
+
+`0.12.x` 规划 Sentinel provider，用来把 Nexary 的本地治理资源和决策映射到 Sentinel 能力。它仍然不是替代 Sentinel：Sentinel 规则、dashboard、集群限流和运行时行为由 Sentinel 生态负责，Nexary 只提供 Java 接入边界和样例。
+
+## `0.13.x` retry stop 传播
+
+`0.13.x` 规划 retry stop propagation，把治理拒绝、deadline 过期和显式停止重试信号继续传到 messaging、job 或其他重试链路，避免已经判定无价值的请求被后续 retry 重新放大。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。

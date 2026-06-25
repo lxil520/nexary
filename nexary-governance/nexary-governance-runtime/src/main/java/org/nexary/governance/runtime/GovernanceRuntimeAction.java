@@ -9,5 +9,8 @@ public enum GovernanceRuntimeAction {
     REJECT,
 
     /** The protected action was rejected and the supplied fallback was used. */
-    FALLBACK
+    FALLBACK,
+
+    /** The protected action was cancelled before useful work should continue. */
+    CANCEL
 }

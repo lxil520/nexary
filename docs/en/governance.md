@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.10.x` governance docs only close local diagnostics hardening: Console direct URLs and deep links, static assets that must not regress to a blank page, local sample visual verification, a Docker sample, and a stable release gate. It does not add policy writes, remote configuration, multi-instance aggregation, login and permissions, or a separately deployed console.
+The `0.11.0` governance target is not to replace Sentinel. It solves a narrower, testable problem first: when a request has already expired, the upstream has canceled, or Gateway sees the client disconnect, Nexary cancels or rejects before business work starts; if business work has already started, code can stop cooperatively through `CancellationContext` so threads, connections, and downstream quotas are not spent on stale work. The Sentinel provider is planned for `0.12.x`; retry stop propagation through retry chains is planned for `0.13.x`.
 
 ## Add Dependencies
 
@@ -15,6 +15,12 @@ implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation "com.aweimao:nexary-governance-spring-boot-starter"
 implementation "com.aweimao:nexary-console-spring-boot-starter"
 implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter"
+```
+
+If the application is a Spring Cloud Gateway entry, add:
+
+```groovy
+implementation "com.aweimao:nexary-governance-gateway-spring-boot-starter"
 ```
 
 Run the sample:
@@ -34,8 +40,6 @@ nexary:
       enabled: true
     diagnostics:
       enabled: true
-  console:
-    enabled: true
     default-policy:
       max-requests-per-window: 100
       rate-limit-window: 1s
@@ -72,6 +76,8 @@ nexary:
           open-state-duration: 150ms
           sliding-window-size: 8
           consecutive-failure-threshold: 2
+  console:
+    enabled: true
 ```
 
 `default-policy` is the fallback policy. Each entry under `resources` matches one stable resource. `kind` can be `http`, `downstream`, `cache`, `messaging`, `job`, `service`, or `custom`. Keep `name`, `provider`, and `operation` in a small fixed set; never build them from user ids, order ids, cache keys, or message ids.
@@ -115,6 +121,47 @@ return governanceRuntime.execute(
 The deadline is also written to the older `DeadlineContext`, so existing cache, messaging, and job code can continue to read the same deadline.
 
 `nexary.governance.diagnostics.enabled` is `false` by default. Enable it only when local diagnostics are needed; the endpoints are GET-only and cannot change policies.
+
+## v0.11 Request Cancellation for Stale Work
+
+v0.11 is about stale request cancellation, not a circuit-breaker platform replacement. It has two layers:
+
+- An already-expired deadline should not start the primary action.
+- A request already canceled, timed out, or judged stale upstream should stop before it enters a downstream call.
+- If the request has already entered a business loop, code can check `CancellationContext.cancelled()` and return quickly.
+- Gateway propagates deadline and cancellation id downstream; when the client disconnects, Gateway calls downstream `POST /nexary/governance/cancellations` to cancel the token in the current JVM.
+- The stop result should be visible in local diagnostics and observation events while keeping fields low-cardinality.
+- Fallback runs only when business code provides one and its semantics are valid; otherwise the result is a local governance rejection.
+
+Downstream services do not expose the cancellation receiver by default. Enable it explicitly:
+
+```yaml
+nexary:
+  governance:
+    cancellation:
+      receiver:
+        enabled: true
+```
+
+After the downstream sample is running, check direct cancellation diagnostics:
+
+```bash
+NEXARY_GOVERNANCE_CANCELLATION_BASE_URL=http://localhost:28091 \
+  ./scripts/governance-cancellation/smoke.sh
+```
+
+Run the Gateway sample and downstream sample together to verify client-disconnect notification:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--server.port=28091'
+NEXARY_GOVERNANCE_DOWNSTREAM_URI=http://127.0.0.1:28091 \
+  ./gradlew :nexary-samples:nexary-sample-governance-gateway:run
+curl --max-time 1 'http://localhost:28090/gateway/governance/cancellation/slow/u-1?durationMillis=5000' || true
+curl -s http://localhost:28091/nexary/governance/summary
+curl -s http://localhost:28091/nexary/governance/events
+```
+
+Acceptance should verify cancellation, rejection, fallback, and event recording inside the current JVM only. Do not document v0.11 as a Sentinel replacement, cross-instance state sync, remote policy push, or thread kill; code that has already entered an ordinary Java method only supports cooperative stop checks.
 
 ## v0.8 Local Governance Data
 
@@ -281,6 +328,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 | --- | --- |
 | `GovernanceRuntime` | Checks deadline, rate limit, bulkhead, and explicit degradation before the action starts; publishes governance events when it rejects; runs fallback when provided, otherwise throws `GovernanceRejectedException`. |
 | v0.6 circuit sample | `LocalCircuitBreakerProfileGateway` uses the local `GovernanceRuntime` to demonstrate `CLOSED`, `OPEN`, and `HALF_OPEN` transitions for failures, slow calls, rejection, fallback, recovery, and reopening. |
+| v0.11 request cancellation for stale work | When a deadline has expired, upstream has canceled, or the client has disconnected, cancel or reject before business work starts; running work stops cooperatively through `CancellationContext`, with local diagnostics and observation events. |
 | Cache Redis mainline | The Spring Boot 3 Redis `CacheClient` Bean is wrapped by the governance runtime; resource name is `cache-client`, provider tag is `redis`, and operations include `cache.get`, `cache.put`, and `cache.batch_get`. |
 | Messaging | publish / consume propagates the `nexary-deadline-epoch-millis` header; expired messages are rejected before the business handler; retry-stop and degradation publish governance events. |
 | Job | local scheduler, XXL-JOB bridge, and PowerJob bridge support `start-deadline` and `max-concurrent-executions`; skipped runs record bounded skip reasons. |
@@ -309,6 +357,8 @@ This policy only affects publish calls made by the current JVM. Check the result
 ## Limits
 
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
+- v0.11 cancellation covers pre-start cancellation and cooperative stop checks while business code is running. It does not promise forced interruption of running business threads, and it does not replace application-server or client connection cancellation.
+- Nexary does not replace Sentinel. The Sentinel provider is planned for `0.12.x`; current docs must not claim Sentinel rules, dashboard, or cluster flow control as shipped.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.
 - v0.10 continues to include only the local read-only page and local diagnostics hardening. It does not include a remote console, sidecar, agent, remote dynamic configuration, or cross-instance state sync.

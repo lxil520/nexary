@@ -15,7 +15,7 @@
 - `nexary-sample-job`：任务 starter selector 专项参考工程
 - `nexary-sample-job-spi-scheduler`：任务 SPI local scheduler provider 参考工程
 - `nexary-sample-job-spi-xxljob`：任务 SPI XXL-JOB bridge provider 参考工程
-- `nexary-sample-governance`：治理 runtime 参考工程，演示本地限流、并发隔离和降级 fallback
+- `nexary-sample-governance`：治理 runtime 参考工程，演示本地限流、并发隔离、降级 fallback、熔断状态和只读诊断页面
 
 ## 使用顺序
 
@@ -34,4 +34,5 @@
 
 - 这些样例还不是完整业务系统
 - 目前重点是公共 API 和 provider 适配层
+- v0.11 的请求失效终止在 `nexary-sample-governance` 和 `nexary-sample-governance-gateway` 中验证；直接运行 downstream 样例后可用 `scripts/governance-cancellation/smoke.sh` 检查取消诊断
 - 更完整的业务型 sample 会按路线图逐步补齐，而不是一次性把仓库做成大而全模板站

@@ -3,6 +3,9 @@ package org.nexary.boot.governance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.nexary.core.context.CancellationContext;
+import org.nexary.core.context.CancellationReason;
+import org.nexary.core.context.CancellationToken;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceExecution;
@@ -20,7 +23,8 @@ class GovernanceRuntimeAutoConfigurationTest {
     private final WebApplicationContextRunner webContextRunner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(
                     GovernanceRuntimeAutoConfiguration.class,
-                    GovernanceDiagnosticsAutoConfiguration.class));
+                    GovernanceDiagnosticsAutoConfiguration.class,
+                    GovernanceCancellationAutoConfiguration.class));
 
     @Test
     void createsLocalRuntimeByDefault() {
@@ -154,5 +158,46 @@ class GovernanceRuntimeAutoConfigurationTest {
                 .withPropertyValues("nexary.governance.diagnostics.enabled=true")
                 .run(context -> assertThat(context)
                         .hasSingleBean(GovernanceDiagnosticsAutoConfiguration.GovernanceDiagnosticsEndpoint.class));
+    }
+
+    @Test
+    void cancellationReceiverIsDisabledByDefault() {
+        webContextRunner.run(context -> assertThat(context)
+                .doesNotHaveBean(GovernanceCancellationAutoConfiguration.CancellationReceiverEndpoint.class));
+    }
+
+    @Test
+    void cancellationReceiverCancelsLocalTokenWhenEnabled() {
+        webContextRunner
+                .withPropertyValues("nexary.governance.cancellation.receiver.enabled=true")
+                .run(context -> {
+                    GovernanceCancellationAutoConfiguration.CancellationReceiverEndpoint endpoint =
+                            context.getBean(GovernanceCancellationAutoConfiguration.CancellationReceiverEndpoint.class);
+                    CancellationToken token = CancellationToken.create("cancel-boot-test");
+                    CancellationContext.callWithToken(token, () -> {
+                        endpoint.cancel(java.util.Collections.emptyMap(), java.util.Map.of(
+                                "cancellationId", "cancel-boot-test",
+                                "reason", "CLIENT_DISCONNECTED"));
+
+                        assertThat(token.isCancelled()).isTrue();
+                        assertThat(token.reason()).isEqualTo(CancellationReason.CLIENT_DISCONNECTED);
+                        return null;
+                    });
+                });
+    }
+
+    @Test
+    void cancellationReceiverRejectsWrongTokenWhenConfigured() {
+        webContextRunner
+                .withPropertyValues(
+                        "nexary.governance.cancellation.receiver.enabled=true",
+                        "nexary.governance.cancellation.receiver.token=secret")
+                .run(context -> {
+                    GovernanceCancellationAutoConfiguration.CancellationReceiverEndpoint endpoint =
+                            context.getBean(GovernanceCancellationAutoConfiguration.CancellationReceiverEndpoint.class);
+
+                    assertThat(endpoint.cancel(java.util.Collections.emptyMap(), java.util.Collections.emptyMap()).getStatusCode().value())
+                            .isEqualTo(403);
+                });
     }
 }

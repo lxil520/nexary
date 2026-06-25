@@ -10,6 +10,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import org.junit.jupiter.api.Test;
+import org.nexary.core.context.CancellationReason;
+import org.nexary.core.context.CancellationToken;
 import org.nexary.core.context.DeadlineContext;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
@@ -78,6 +80,64 @@ class LocalGovernanceRuntimeTest {
                 .satisfies(error -> assertThat(((GovernanceRejectedException) error).decision().decision())
                         .isEqualTo(GovernanceDecision.Decision.DEADLINE_EXPIRED));
         assertThat(publisher.operations()).contains("governance.deadline.exceeded", "governance.retry.stopped");
+    }
+
+    @Test
+    void cancelsBeforeActionRunsWhenTokenIsAlreadyCancelled() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("profile-api", "get");
+        LocalGovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder().policy(resource, GovernancePolicy.allowAll()).build(),
+                new RecordingPublisher());
+        CancellationToken token = CancellationToken.create("cancel-hidden-id");
+        token.cancel(CancellationReason.CLIENT_DISCONNECTED);
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(resource)
+                .cancellationToken(token)
+                .attribute("userId", "user-42")
+                .build();
+
+        String result = runtime.execute(context, () -> {
+            throw new AssertionError("cancelled action must not run");
+        }, () -> "fallback");
+
+        assertThat(result).isEqualTo("fallback");
+        GovernanceRuntimeSnapshot snapshot = runtime.snapshots().get(0);
+        assertThat(snapshot.lastOutcome()).isEqualTo(GovernanceCallOutcome.CANCELLED);
+        assertThat(snapshot.lastCancellationReason()).isEqualTo(CancellationReason.CLIENT_DISCONNECTED);
+        assertThat(snapshot.totalRejections()).isZero();
+        GovernanceRuntimeEvent event = runtime.recentEvents().get(0);
+        assertThat(event.action()).isEqualTo(GovernanceRuntimeAction.CANCEL);
+        assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.CANCELLED);
+        assertThat(event.cancellationReason()).isEqualTo(CancellationReason.CLIENT_DISCONNECTED);
+        assertThat(runtime.summary().cancelledCount()).isEqualTo(1);
+        assertThat(runtime.summary().rejectedCount()).isZero();
+        assertThat(runtime.recentEvents().toString()).doesNotContain("cancel-hidden-id", "user-42");
+    }
+
+    @Test
+    void recordsCancellationWhenActionStopsAfterTokenIsCancelled() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("profile-api", "slow");
+        LocalGovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder().policy(resource, GovernancePolicy.allowAll()).build(),
+                new RecordingPublisher());
+        CancellationToken token = CancellationToken.create("cancel-in-flight-hidden-id");
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(resource)
+                .cancellationToken(token)
+                .build();
+
+        String result = runtime.execute(context, () -> {
+            token.cancel(CancellationReason.UPSTREAM_CANCELLED);
+            return "stopped";
+        });
+
+        assertThat(result).isEqualTo("stopped");
+        GovernanceRuntimeEvent event = runtime.recentEvents().get(0);
+        assertThat(event.action()).isEqualTo(GovernanceRuntimeAction.CANCEL);
+        assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.CANCELLED);
+        assertThat(event.cancellationReason()).isEqualTo(CancellationReason.UPSTREAM_CANCELLED);
+        assertThat(runtime.summary().cancelledCount()).isEqualTo(1);
+        assertThat(runtime.recentEvents().toString()).doesNotContain("cancel-in-flight-hidden-id");
     }
 
     @Test

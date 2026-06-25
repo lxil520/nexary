@@ -33,7 +33,7 @@ public final class ConsoleDiagnosticsService {
     public ConsoleSummaryResponse summary() {
         GovernanceRuntimeSummary summary = diagnostics == null ? null : diagnostics.summary();
         if (summary == null) {
-            return new ConsoleSummaryResponse(0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, null);
+            return new ConsoleSummaryResponse(0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, null);
         }
         return new ConsoleSummaryResponse(
                 summary.resourceCount(),
@@ -42,6 +42,7 @@ public final class ConsoleDiagnosticsService {
                 summary.successCount(),
                 summary.failureCount(),
                 summary.rejectedCount(),
+                summary.cancelledCount(),
                 summary.fallbackCount(),
                 summary.openCircuitCount(),
                 summary.halfOpenCircuitCount(),
@@ -137,6 +138,7 @@ public final class ConsoleDiagnosticsService {
                 snapshot.consecutiveFailures(),
                 snapshot.totalRejections(),
                 snapshot.lastRejectionReason().name(),
+                snapshot.lastCancellationReason().name(),
                 optionalInstant(snapshot.openUntil()),
                 snapshot.activeConcurrency(),
                 snapshot.maxConcurrency(),
@@ -163,6 +165,7 @@ public final class ConsoleDiagnosticsService {
                 event.action().name(),
                 event.outcome().name(),
                 event.rejectionReason().name(),
+                event.cancellationReason().name(),
                 event.circuitState().name(),
                 instant(event.timestamp()),
                 event.durationBucket().name());

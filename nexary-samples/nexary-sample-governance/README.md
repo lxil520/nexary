@@ -7,6 +7,8 @@
 - 本地熔断流程如何在一个下游调用上跑起来：正常调用、多次失败、慢调用、熔断打开、fallback、半开探测、恢复或重开。
 - 只读治理诊断 Console 如何读取当前 JVM 的治理资源、窗口、熔断状态和最近事件。
 
+v0.11 增加请求失效终止：deadline 已经过期、上游已经取消、或者 Gateway 发现客户端断开时，请求应尽快停止。这个样例同时演示进入业务前的取消和业务循环里的协作式停止。Nexary 不替代 Sentinel，Sentinel provider 放在 v0.12，retry stop 继续传播放在 v0.13。
+
 样例引入 `nexary-observation-micrometer-spring-boot-starter`，并在测试里注册 `SimpleMeterRegistry`。触发限流、降级或并发隔离时，治理事件会写入 `nexary.observation.events.total` 和 `nexary.observation.events.duration`。
 
 这个样例带一个本地只读页面，但不是远程控制台、sidecar、agent 或多实例治理服务。所有窗口、计数和诊断字段都来自当前 JVM。
@@ -34,6 +36,22 @@ curl http://localhost:8080/governance/degraded/u-1
 ```
 
 返回里的 `source` 是 `fallback`，因为 `inventory-service/reserve` 配了 `degraded=true`。
+
+请求取消路径：
+
+```bash
+curl -H 'Nexary-Cancellation-Id: demo-hidden-id' \
+  -H 'Nexary-Cancel-Reason: CLIENT_DISCONNECTED' \
+  'http://localhost:8080/governance/cancellation/slow/u-1?durationMillis=3000'
+```
+
+这次不会执行慢业务动作，返回里的 `source` 是 `fallback`。再看最近事件：
+
+```bash
+curl -s http://localhost:8080/nexary/governance/events
+```
+
+事件里可以看到 `action=CANCEL`、`outcome=CANCELLED`、`cancellationReason=CLIENT_DISCONNECTED`，但不会出现 `demo-hidden-id`。
 
 ## 只读诊断端点
 
@@ -74,8 +92,10 @@ curl -s http://localhost:8080/nexary/governance/events
 | `windowCalls` / `windowFailures` / `windowSlowCalls` | 当前滑动窗口内的完成调用、失败调用和慢调用数量。 |
 | `totalRejections` | 当前 JVM 内的本地治理拒绝次数。 |
 | `lastRejectionReason` | 最近一次拒绝原因，例如 `CIRCUIT_OPEN`、`RATE_LIMITED`、`CONCURRENCY_LIMITED`。 |
+| `lastCancellationReason` | 最近一次取消原因，例如 `CLIENT_DISCONNECTED`、`DEADLINE_EXPIRED`、`UPSTREAM_CANCELLED`。 |
 | `lastOutcome` | 最近一次结果，例如 `SUCCESS`、`FAILURE`、`REJECTED`。 |
-| `action` | 最近事件动作，例如 `EXECUTE`、`REJECT`、`FALLBACK`。 |
+| `action` | 最近事件动作，例如 `EXECUTE`、`REJECT`、`FALLBACK`、`CANCEL`。 |
+| `cancellationReason` | 最近事件里的取消原因；没有取消时是 `NONE`。 |
 | `durationBucket` | 粗粒度耗时桶。 |
 
 这些端点只读，默认不会暴露；starter 只有在显式配置 `nexary.governance.diagnostics.enabled=true` 后才注册 HTTP 路径。
@@ -182,7 +202,7 @@ nexary:
 - `GovernanceSampleConfiguration`：放稳定资源名，不放用户 id、订单号、cache key 或 message id。
 - `GovernanceSampleController`：业务入口如何创建 `GovernanceContext`，以及如何暴露熔断演示接口。
 - `LocalCircuitBreakerProfileGateway`：通过本地治理运行时演示 `CLOSED`、`OPEN`、`HALF_OPEN` 的转换。
-- `ProfileQueryService`：主逻辑、慢调用、失败调用和 fallback 分开写。
+- `ProfileQueryService`：主逻辑、慢调用、取消检查、失败调用和 fallback 分开写。
 
 资源名要稳定，例如 `profile-api/get-profile`。Micrometer 指标只保留 `resource_kind`、`governance_action`、`traffic_channel`、`traffic_priority`、`outcome` 等低数量标签。
 
@@ -191,3 +211,5 @@ nexary:
 - 不提供远程控制台、sidecar 或 agent。
 - 不做远程策略下发。
 - 不同步多实例之间的熔断、限流、并发隔离或诊断状态。
+- 不替代 Sentinel；当前样例不声明 Sentinel 规则、dashboard 或 cluster flow control。
+- 不强制中断已经进入普通 Java 业务方法的线程；业务循环需要像样例一样定期检查 `CancellationContext`。
