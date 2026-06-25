@@ -1,9 +1,9 @@
 server:
-  port: 28090
+  port: 28092
 
 spring:
   application:
-    name: nexary-sample-governance-gateway
+    name: nexary-sample-governance-gateway-boot2
   cloud:
     gateway:
       routes:

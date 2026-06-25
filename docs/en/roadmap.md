@@ -370,7 +370,7 @@ Included scope:
 - Runtime: when a deadline has expired, upstream has canceled, or the token has been canceled, reject before the primary action starts or run an explicitly provided fallback.
 - Runtime: after business work has started, support cooperative stop checks through `CancellationContext` and record `CANCEL/CANCELLED`, `cancelledCount`, and low-cardinality cancellation reasons.
 - Gateway: propagate deadline and cancellation id; when the client disconnects, notify the downstream receiver so the token in that JVM is canceled.
-- `0.11.1`: add the Spring Boot 2.7 Gateway starter, sample, and gates; update the README support matrix only after they pass.
+- `0.11.1`: add the Spring Boot 2.7 Gateway starter, sample, and gates, then update the README support matrix.
 - `0.11.2`: add the Spring Boot 4.x Gateway starter, sample, and gates; update the README support matrix only after they pass.
 
 `0.11.x` does not include:

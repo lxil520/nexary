@@ -1,0 +1,29 @@
+sourceSets {
+    main {
+        java.srcDirs = ['../nexary-governance-gateway-spring-boot-starter/src/main/java']
+        resources.srcDirs = ['../nexary-governance-gateway-spring-boot-starter/src/main/resources']
+    }
+    test {
+        java.srcDirs = ['../nexary-governance-gateway-spring-boot-starter/src/test/java']
+        resources.srcDirs = ['../nexary-governance-gateway-spring-boot-starter/src/test/resources']
+    }
+}
+
+dependencies {
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot2Version}")
+    annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot2Version}")
+    testImplementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBoot2Version}")
+    api project(':nexary-framework:nexary-core')
+    implementation "org.springframework.boot:spring-boot-autoconfigure:${rootProject.ext.springBoot2Version}"
+    implementation 'org.springframework.cloud:spring-cloud-gateway-server:3.1.9'
+    implementation 'org.springframework:spring-webflux'
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.springBoot2Version}"
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${rootProject.ext.springBoot2Version}"
+    testImplementation "org.springframework.boot:spring-boot-starter-webflux:${rootProject.ext.springBoot2Version}"
+    testImplementation 'org.springframework.cloud:spring-cloud-starter-gateway:3.1.9'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

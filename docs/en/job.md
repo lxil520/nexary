@@ -27,7 +27,7 @@ Read the job capability independently because local scheduling and external plat
 
 ## Version Entry and Dependency Choice
 
-The current development version is `0.11.0`. After Maven Central publication, replace `nexaryVersion` with the latest release.
+The current development version is `0.11.1`. After Maven Central publication, replace `nexaryVersion` with the latest release.
 
 | Spring Boot | JDK | Status | Recommended Entry |
 | --- | --- | --- | --- |
@@ -81,7 +81,7 @@ Spring Boot 4.1 / Java 21 primary validation runtime starter mode:
 Spring Boot 3.3 / Java 17+ Gradle starter mode:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 // The starter aggregates Nexary job API, local scheduler, XXL-JOB, PowerJob,
 // and the Redis execution store provider. Select the runtime provider with
@@ -92,14 +92,14 @@ implementation 'com.aweimao:nexary-job-spring-boot-starter'
 Spring Boot 2.7 / Java 8+ Gradle:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-spring-boot2-starter:${nexaryVersion}"
 ```
 
 Spring Boot 4.1 / Java 21 primary validation runtime Gradle:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-spring-boot4-starter:${nexaryVersion}"
 ```
 
@@ -108,7 +108,7 @@ Single-provider mode is for applications that want exactly one concrete provider
 Spring Boot 3.3 / Java 17+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 // Business code needs only the Nexary job API at compile time.
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-api'
@@ -118,7 +118,7 @@ runtimeOnly 'com.aweimao:nexary-job-scheduler'
 Spring Boot 3.3 / Java 17+ XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-api'
 runtimeOnly 'com.aweimao:nexary-job-xxljob'
@@ -127,7 +127,7 @@ runtimeOnly 'com.aweimao:nexary-job-xxljob'
 Spring Boot 3.3 / Java 17+ PowerJob trigger provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-api'
 runtimeOnly 'com.aweimao:nexary-job-powerjob'
@@ -136,7 +136,7 @@ runtimeOnly 'com.aweimao:nexary-job-powerjob'
 Spring Boot 3.3 / Java 17+ Redis completed-record store:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
 implementation 'com.aweimao:nexary-job-api'
 runtimeOnly 'com.aweimao:nexary-job-execution-store-redis'
@@ -145,7 +145,7 @@ runtimeOnly 'com.aweimao:nexary-job-execution-store-redis'
 Spring Boot 2.7 / Java 8+ local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 ```
@@ -153,7 +153,7 @@ runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot2:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 ```
@@ -161,7 +161,7 @@ runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot2:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ PowerJob trigger provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot2:${nexaryVersion}"
 ```
@@ -169,7 +169,7 @@ runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot2:${nexaryVersion}"
 Spring Boot 2.7 / Java 8+ Redis completed-record store:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-execution-store-redis-spring-boot2:${nexaryVersion}"
 ```
@@ -177,7 +177,7 @@ runtimeOnly "com.aweimao:nexary-job-execution-store-redis-spring-boot2:${nexaryV
 Spring Boot 4.1 / Java 21 primary validation runtime local scheduler provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 ```
@@ -185,7 +185,7 @@ runtimeOnly "com.aweimao:nexary-job-scheduler-spring-boot4:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime XXL-JOB bridge provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
 ```
@@ -193,7 +193,7 @@ runtimeOnly "com.aweimao:nexary-job-xxljob-spring-boot4:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime PowerJob trigger provider:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot4:${nexaryVersion}"
 ```
@@ -201,7 +201,7 @@ runtimeOnly "com.aweimao:nexary-job-powerjob-spring-boot4:${nexaryVersion}"
 Spring Boot 4.1 / Java 21 primary validation runtime Redis completed-record store:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 implementation "com.aweimao:nexary-job-api:${nexaryVersion}"
 runtimeOnly "com.aweimao:nexary-job-execution-store-redis-spring-boot4:${nexaryVersion}"
 ```

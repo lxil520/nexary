@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.11.0` governance target is not to replace Sentinel. It solves a narrower, testable problem first: when a request has already expired, the upstream has canceled, or Gateway sees the client disconnect, Nexary cancels or rejects before business work starts; if business work has already started, code can stop cooperatively through `CancellationContext` so threads, connections, and downstream quotas are not spent on stale work. The Sentinel provider is planned for `0.12.x`; retry stop propagation through retry chains is planned for `0.13.x`.
+The `0.11.1` governance target is not to replace Sentinel. It solves a narrower, testable problem first: when a request has already expired, the upstream has canceled, or Gateway sees the client disconnect, Nexary cancels or rejects before business work starts; if business work has already started, code can stop cooperatively through `CancellationContext` so threads, connections, and downstream quotas are not spent on stale work. The Sentinel provider is planned for `0.12.x`; retry stop propagation through retry chains is planned for `0.13.x`.
 
 ## Add Dependencies
 

@@ -1,16 +1,16 @@
 # Release Checklist
 
-This page is the public release runbook. Examples use `0.11.0`; replace the version everywhere when cutting another patch release.
+This page is the public release runbook. Examples use `0.11.1`; replace the version everywhere when cutting another patch release.
 
 ## Pre-Release Checks
 
 Before a release, complete at least these checks:
 
-- `scripts/release/preflight.sh 0.11.0`
+- `scripts/release/preflight.sh 0.11.1`
 - `./gradlew check`
 - `./gradlew verifyReleaseGate`
 - `./gradlew publishToMavenLocal`
-- run the full command from "Build a Central Bundle Locally" with `./gradlew mavenCentralBundle -PnexaryVersion=0.11.0`, then confirm `build/distributions/nexary-0.11.0-central-bundle.zip` exists
+- run the full command from "Build a Central Bundle Locally" with `./gradlew mavenCentralBundle -PnexaryVersion=0.11.1`, then confirm `build/distributions/nexary-0.11.1-central-bundle.zip` exists
 - build, dependency review, and secret scan pass in GitHub Actions
 - POM `group`, artifact names, license, developer, and SCM metadata are correct
 - sources jars, Javadoc jars, `.pom`, `.module`, and signature files are present in the Central bundle
@@ -46,7 +46,7 @@ This local command creates the upload bundle only. It does not publish to Centra
 
 ```bash
 ./gradlew mavenCentralBundle \
-  -PnexaryVersion=0.11.0 \
+  -PnexaryVersion=0.11.1 \
   -PprojectWebsite=https://github.com/lxil520/nexary \
   -PprojectScmUrl=https://github.com/lxil520/nexary.git \
   -PprojectScmConnection=scm:git:https://github.com/lxil520/nexary.git \
@@ -58,9 +58,9 @@ This local command creates the upload bundle only. It does not publish to Centra
 After the bundle is generated, inspect it:
 
 ```bash
-unzip -l build/distributions/nexary-0.11.0-central-bundle.zip | grep 'nexary-bom/0.11.0'
-unzip -l build/distributions/nexary-0.11.0-central-bundle.zip | grep '.asc'
-unzip -l build/distributions/nexary-0.11.0-central-bundle.zip | grep '.sha1'
+unzip -l build/distributions/nexary-0.11.1-central-bundle.zip | grep 'nexary-bom/0.11.1'
+unzip -l build/distributions/nexary-0.11.1-central-bundle.zip | grep '.asc'
+unzip -l build/distributions/nexary-0.11.1-central-bundle.zip | grep '.sha1'
 ```
 
 ## GitHub Actions Release
@@ -68,8 +68,8 @@ unzip -l build/distributions/nexary-0.11.0-central-bundle.zip | grep '.sha1'
 Use a tag for the real release:
 
 ```bash
-git tag v0.11.0
-git push origin v0.11.0
+git tag v0.11.1
+git push origin v0.11.1
 ```
 
 `release.yml` builds the Central Portal bundle from the tagged commit and uploads it as a GitHub Actions artifact. When Central secrets are configured, a tag push also uploads and publishes the Central deployment.
@@ -80,21 +80,21 @@ After the release run is created, use the script for a compact summary instead o
 scripts/release/watch-github-run.sh <run-id>
 ```
 
-If the Central token is missing, the publish step fails instead of marking a tag run successful without publishing to Central. For a bundle-only check, run `workflow_dispatch`, enter `0.11.0` or `v0.11.0`, and keep `publish_to_central=false`. Manual Central publication must run from an existing tag ref, and the entered version must match the selected tag; do not publish a Central deployment manually from the `main` branch.
+If the Central token is missing, the publish step fails instead of marking a tag run successful without publishing to Central. For a bundle-only check, run `workflow_dispatch`, enter `0.11.1` or `v0.11.1`, and keep `publish_to_central=false`. Manual Central publication must run from an existing tag ref, and the entered version must match the selected tag; do not publish a Central deployment manually from the `main` branch.
 
 ## Check Maven Central After Publication
 
 After Central Portal shows published, check Maven Central sync:
 
 ```bash
-curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.11.0/nexary-bom-0.11.0.pom
-curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.11.0/nexary-core-0.11.0.jar
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-bom/0.11.1/nexary-bom-0.11.1.pom
+curl -I https://repo.maven.apache.org/maven2/com/aweimao/nexary-framework/nexary-core/0.11.1/nexary-core-0.11.1.jar
 ```
 
 Or run:
 
 ```bash
-scripts/release/check-central.sh 0.11.0
+scripts/release/check-central.sh 0.11.1
 ```
 
 Update the GitHub Release notes and README version guidance only after Maven Central has synced. Do not tell users to copy a Maven Central version before it is visible there.

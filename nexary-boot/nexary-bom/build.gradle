@@ -47,6 +47,7 @@ dependencies {
         api project(':nexary-boot:nexary-job-spring-boot4-starter')
         api project(':nexary-boot:nexary-governance-spring-boot-starter')
         api project(':nexary-boot:nexary-governance-gateway-spring-boot-starter')
+        api project(':nexary-boot:nexary-governance-gateway-spring-boot2-starter')
         api project(':nexary-boot:nexary-console-spring-boot-starter')
         api project(':nexary-boot:nexary-observation-micrometer-spring-boot-starter')
     }

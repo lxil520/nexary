@@ -4,7 +4,7 @@ Start here when local integration fails. Each section includes commands you can 
 
 ## Check the Version and Dependencies First
 
-Make sure all copied snippets use one version. GitHub tag `v0.11.0` maps to dependency version `0.11.0`.
+Make sure all copied snippets use one version. GitHub tag `v0.11.1` maps to dependency version `0.11.1`.
 
 ```bash
 ./gradlew properties | grep '^version:'
@@ -13,7 +13,7 @@ Make sure all copied snippets use one version. GitHub tag `v0.11.0` maps to depe
 Spring Boot 3.3 / Java 17+ services should use the BOM first:
 
 ```groovy
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -96,8 +96,8 @@ API + provider mode should add exactly one matching runtime provider, for exampl
 
 ```groovy
 dependencies {
-    implementation "com.aweimao:nexary-messaging-api:0.11.0"
-    runtimeOnly "com.aweimao:nexary-messaging-redis:0.11.0"
+    implementation "com.aweimao:nexary-messaging-api:0.11.1"
+    runtimeOnly "com.aweimao:nexary-messaging-redis:0.11.1"
 }
 ```
 
@@ -124,7 +124,7 @@ XXL-JOB and PowerJob timing is owned by the external platform. The Nexary bridge
 Make sure the Micrometer starter is present:
 
 ```groovy
-implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter:0.11.0"
+implementation "com.aweimao:nexary-observation-micrometer-spring-boot-starter:0.11.1"
 ```
 
 Then execute the business path. Nexary reports metrics only from cache, messaging, job, and governance boundary events; it does not create unrelated business metrics.
@@ -153,7 +153,7 @@ Run at least:
 Creating a Maven Central bundle requires signing keys on the local machine or in CI:
 
 ```bash
-./gradlew mavenCentralBundle -PnexaryVersion=0.11.0
+./gradlew mavenCentralBundle -PnexaryVersion=0.11.1
 ```
 
 The final publication must run from a Git tag. Manual workflow runs default to bundle-only checks and do not publish to Maven Central by default.

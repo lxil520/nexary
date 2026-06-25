@@ -370,7 +370,7 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - Runtime：deadline 已过期、上游取消或 token 已取消时，在主逻辑启动前返回本地治理拒绝或运行明确提供的 fallback。
 - Runtime：业务动作已经开始后，通过 `CancellationContext` 做协作式停止，并记录 `CANCEL/CANCELLED`、`cancelledCount` 和低数量取消原因。
 - Gateway：传播 deadline 和 cancellation id；客户端断开后通知下游 receiver 取消当前 JVM 内 token。
-- `0.11.1`：补 Spring Boot 2.7 Gateway starter、样例和 gate，通过后再更新 README 支持矩阵。
+- `0.11.1`：补 Spring Boot 2.7 Gateway starter、样例和 gate，并更新 README 支持矩阵。
 - `0.11.2`：补 Spring Boot 4.x Gateway starter、样例和 gate，通过后再更新 README 支持矩阵。
 
 `0.11.x` 不包含：

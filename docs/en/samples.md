@@ -92,7 +92,7 @@ NEXARY_GOVERNANCE_CANCELLATION_BASE_URL=http://localhost:8080 \
 
 - the dedicated samples are closer to copyable service structure
 - the governance sample verifies local state and request cancellation in the current JVM only; it does not replace Sentinel or provide remote policy push
-- the Gateway sample covers the Spring Boot 3.3 mainline only; Boot2 / Boot4 Gateway samples should be added to the matrix only after their versions pass
+- the Gateway sample covers the Spring Boot 3.3 mainline; the Boot2 Gateway sample is verified in `nexary-sample-governance-gateway-boot2`; the Boot4 Gateway sample should be added to the matrix only after its version passes
 - the messaging sample's main path is starter selector based; business code does not directly use Kafka/RocketMQ/Redis/Disruptor native SDKs
 - real middleware validation comes from `scripts/middleware/*` plus integration tests, not from controller output alone
 
@@ -101,4 +101,4 @@ NEXARY_GOVERNANCE_CANCELLATION_BASE_URL=http://localhost:8080 \
 - add fuller business-oriented samples instead of multiplying toy endpoints
 - keep extending messaging broker validation scripts and failure scenarios
 - show local scheduler and XXL-JOB bridge side by side in the job references
-- add Boot2 / Boot4 Gateway samples and gates in v0.11.1 / v0.11.2, then update the README support matrix
+- add the Boot4 Gateway sample and gate in v0.11.2, then update the README support matrix

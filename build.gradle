@@ -58,6 +58,7 @@ ext {
             ':nexary-boot:nexary-job-spring-boot4-starter',
             ':nexary-boot:nexary-governance-spring-boot-starter',
             ':nexary-boot:nexary-governance-gateway-spring-boot-starter',
+            ':nexary-boot:nexary-governance-gateway-spring-boot2-starter',
             ':nexary-boot:nexary-console-spring-boot-starter',
             ':nexary-boot:nexary-observation-micrometer-spring-boot-starter'
     ] as Set
@@ -70,7 +71,7 @@ ext {
 
 allprojects {
     group = 'com.aweimao'
-    version = findProperty('nexaryVersion') ?: '0.11.0'
+    version = findProperty('nexaryVersion') ?: '0.11.1'
 }
 
 configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists() }) {
@@ -111,7 +112,9 @@ configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists()
                 'nexary-job-execution-store-redis-spring-boot2',
                 'nexary-job-execution-store-redis-spring-boot4',
                 'nexary-job-spring-boot2-starter',
-                'nexary-job-spring-boot4-starter'
+                'nexary-job-spring-boot4-starter',
+                'nexary-governance-gateway-spring-boot2-starter',
+                'nexary-sample-governance-gateway-boot2'
         ].contains(project.name)) {
             implementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBootVersion}")
             annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.springBootVersion}")

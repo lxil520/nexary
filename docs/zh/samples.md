@@ -92,7 +92,7 @@ NEXARY_GOVERNANCE_CANCELLATION_BASE_URL=http://localhost:8080 \
 
 - 缓存、消息、任务专项样例更接近可复制结构
 - governance 样例只验证当前 JVM 的本地状态和请求取消，不替代 Sentinel，也不提供远程策略下发
-- Gateway 样例只覆盖 Spring Boot 3.3 主线；Boot2 / Boot4 Gateway 样例要等对应版本通过后再写入支持矩阵
+- Gateway 样例覆盖 Spring Boot 3.3 主线；Boot2 Gateway 样例已在 `nexary-sample-governance-gateway-boot2` 验证；Boot4 Gateway 样例要等对应版本通过后再写入支持矩阵
 - 消息样例的主路径是 starter selector：业务代码不直接引入 Kafka/RocketMQ/Redis/Disruptor 原生 SDK
 - 真实中间件联调依赖 `scripts/middleware/*` 和对应集成测试，而不是只看 controller 返回值
 
@@ -101,4 +101,4 @@ NEXARY_GOVERNANCE_CANCELLATION_BASE_URL=http://localhost:8080 \
 - 增加更完整的业务型 sample，而不是继续堆更多 toy endpoint
 - 消息样例继续补充更细的 broker 验收脚本和故障场景
 - 为任务样例补本地调度与 XXL-JOB bridge 的并列示例
-- v0.11.1 / v0.11.2 分别补 Boot2 / Boot4 Gateway 样例和 gate，通过后再更新 README 支持矩阵
+- v0.11.2 补 Boot4 Gateway 样例和 gate，通过后再更新 README 支持矩阵

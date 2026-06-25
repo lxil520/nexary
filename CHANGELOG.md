@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.1
+
+- Added the Spring Boot 2.7 Gateway cancellation starter.
+- Added the Spring Boot 2.7 Gateway sample and gate for request cancellation propagation.
+- Updated the public support matrix after the Boot2 Gateway starter and sample tests passed.
+
 ## 0.11.0
 
 - Added the request cancellation model: cancellation tokens, scoped cancellation context, low-cardinality cancellation reasons, and deadline / timeout / cancellation headers.

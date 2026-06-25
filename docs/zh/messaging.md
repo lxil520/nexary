@@ -17,7 +17,7 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 
 ## 版本与接入入口
 
-先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.11.0`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
+先按你的 Spring Boot 和 JDK 版本选入口。当前开发版本示例统一使用 `0.11.1`；发布到 Maven Central 后，把示例中的版本替换成最新 release。
 
 | Spring Boot | JDK | Messaging 状态 | Starter 模式 | 单 provider 模式 |
 | --- | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Messaging 是 provider 最多、边界最容易被做乱的一项能力，所以
 Spring Boot 3.3 / Java 17+ starter 模式：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     // 使用 Nexary BOM 锁定当前已验证的 Boot3 / Java17+ Messaging 依赖版本。
@@ -46,7 +46,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ 当前只验证 Redis-only Messaging starter：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot2-starter:${nexaryVersion}"
@@ -66,7 +66,7 @@ nexary:
 Spring Boot 4.1 的 Messaging starter 只提供 Nexary 层 core 自动配置。使用时必须显式增加一个 provider artifact；不要把四个 provider 都放进同一个 Boot4 starter classpath：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-spring-boot4-starter:${nexaryVersion}"
@@ -95,7 +95,7 @@ Spring Boot 3.3 / Java 17+ 单 provider 模式按 provider 选择。每个代码
 Disruptor：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -107,7 +107,7 @@ dependencies {
 Redis queue：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -119,7 +119,7 @@ dependencies {
 Kafka：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -131,7 +131,7 @@ dependencies {
 RocketMQ：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -143,7 +143,7 @@ dependencies {
 ActiveMQ Classic：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation platform("com.aweimao:nexary-bom:${nexaryVersion}")
@@ -155,7 +155,7 @@ dependencies {
 Spring Boot 2.7 / Java 8+ 的单 provider 模式当前只验证 Redis-only：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
@@ -166,7 +166,7 @@ dependencies {
 Spring Boot 4.1 / Java 21 主要验证运行时的单 provider 模式：
 
 ```gradle
-def nexaryVersion = "0.11.0"
+def nexaryVersion = "0.11.1"
 
 dependencies {
     implementation "com.aweimao:nexary-messaging-api:${nexaryVersion}"
