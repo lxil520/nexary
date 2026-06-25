@@ -1,5 +1,9 @@
 package org.nexary.console.api;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Aggregate read-only summary shown by the Nexary console.
  */
@@ -14,7 +18,10 @@ public final class ConsoleSummaryResponse {
     private final long fallbackCount;
     private final long retryStoppedCount;
     private final long blockedCount;
+    private final long isolatedCount;
     private final long sentinelResourceCount;
+    private final Map<String, Long> trafficClassCounts;
+    private final Map<String, Long> priorityCounts;
     private final long openCircuitCount;
     private final long halfOpenCircuitCount;
     private final long degradedResourceCount;
@@ -48,6 +55,9 @@ public final class ConsoleSummaryResponse {
                 0L,
                 0L,
                 0L,
+                0L,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -83,7 +93,10 @@ public final class ConsoleSummaryResponse {
                 fallbackCount,
                 0L,
                 blockedCount,
+                0L,
                 sentinelResourceCount,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -109,6 +122,49 @@ public final class ConsoleSummaryResponse {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             String lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                cancelledCount,
+                fallbackCount,
+                retryStoppedCount,
+                blockedCount,
+                0L,
+                sentinelResourceCount,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /**
+     * Creates a summary response from bounded aggregate counters, including priority isolation distributions.
+     */
+    public ConsoleSummaryResponse(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long cancelledCount,
+            long fallbackCount,
+            long retryStoppedCount,
+            long blockedCount,
+            long isolatedCount,
+            long sentinelResourceCount,
+            Map<String, Long> trafficClassCounts,
+            Map<String, Long> priorityCounts,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            String lastEventAt) {
         this.resourceCount = resourceCount;
         this.snapshotCount = snapshotCount;
         this.eventCount = eventCount;
@@ -119,7 +175,10 @@ public final class ConsoleSummaryResponse {
         this.fallbackCount = fallbackCount;
         this.retryStoppedCount = retryStoppedCount;
         this.blockedCount = blockedCount;
+        this.isolatedCount = isolatedCount;
         this.sentinelResourceCount = sentinelResourceCount;
+        this.trafficClassCounts = immutableCounts(trafficClassCounts);
+        this.priorityCounts = immutableCounts(priorityCounts);
         this.openCircuitCount = openCircuitCount;
         this.halfOpenCircuitCount = halfOpenCircuitCount;
         this.degradedResourceCount = degradedResourceCount;
@@ -176,9 +235,24 @@ public final class ConsoleSummaryResponse {
         return blockedCount;
     }
 
+    /** Returns the retained recent-event count isolated by priority policy. */
+    public long getIsolatedCount() {
+        return isolatedCount;
+    }
+
     /** Returns the number of resources currently backed by Sentinel. */
     public long getSentinelResourceCount() {
         return sentinelResourceCount;
+    }
+
+    /** Returns retained recent-event counts by fixed traffic class. */
+    public Map<String, Long> getTrafficClassCounts() {
+        return trafficClassCounts;
+    }
+
+    /** Returns retained recent-event counts by fixed priority bucket. */
+    public Map<String, Long> getPriorityCounts() {
+        return priorityCounts;
     }
 
     /** Returns the number of snapshots with an open circuit. */
@@ -199,5 +273,12 @@ public final class ConsoleSummaryResponse {
     /** Returns when the latest retained event was recorded, if available. */
     public String getLastEventAt() {
         return lastEventAt;
+    }
+
+    private static Map<String, Long> immutableCounts(Map<String, Long> counts) {
+        if (counts == null || counts.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(counts));
     }
 }

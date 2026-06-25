@@ -24,7 +24,9 @@ function callsLabel(resource: ConsoleResource): string {
 }
 
 function rejectionLabel(resource: ConsoleResource): string {
-  return resource.runtimeSnapshot?.lastBlockReason ?? resource.runtimeSnapshot?.lastRejectionReason ?? 'NONE';
+  return resource.runtimeSnapshot?.lastIsolationReason && resource.runtimeSnapshot.lastIsolationReason !== 'NONE'
+    ? resource.runtimeSnapshot.lastIsolationReason
+    : resource.runtimeSnapshot?.lastBlockReason ?? resource.runtimeSnapshot?.lastRejectionReason ?? 'NONE';
 }
 </script>
 
@@ -37,6 +39,7 @@ function rejectionLabel(resource: ConsoleResource): string {
           <th scope="col">{{ t('table.kind') }}</th>
           <th v-if="!compact" scope="col">{{ t('table.engine') }}</th>
           <th v-if="!compact" scope="col">{{ t('table.provider') }}</th>
+          <th v-if="!compact" scope="col">{{ t('table.traffic') }}</th>
           <th v-if="!compact" scope="col">{{ t('table.priority') }}</th>
           <th scope="col">{{ t('table.circuit') }}</th>
           <th scope="col">{{ t('table.calls') }}</th>
@@ -55,7 +58,8 @@ function rejectionLabel(resource: ConsoleResource): string {
           <td>{{ enumLabel(resource.kind) }}</td>
           <td v-if="!compact"><StatusBadge :label="resource.engine ?? 'LOCAL'" :state="resource.engine ?? 'LOCAL'" /></td>
           <td v-if="!compact">{{ resource.provider }}</td>
-          <td v-if="!compact">{{ resource.priority }}</td>
+          <td v-if="!compact"><StatusBadge :label="resource.trafficClass ?? 'online'" :state="resource.trafficClass ?? 'online'" /></td>
+          <td v-if="!compact"><StatusBadge :label="resource.priority" :state="resource.priority" /></td>
           <td><StatusBadge :label="circuitLabel(resource)" :state="circuitLabel(resource)" /></td>
           <td>{{ callsLabel(resource) }}</td>
           <td>{{ resource.runtimeSnapshot?.totalRejections ?? 0 }}</td>

@@ -30,6 +30,45 @@ class GovernanceContextTest {
     }
 
     @Test
+    void derivesTrafficClassAndGovernancePriorityFromTrafficTag() {
+        TrafficTag tag = TrafficTag.builder()
+                .channel(TrafficTag.Channel.BATCH)
+                .priority(TrafficTag.Priority.LOW)
+                .build();
+
+        GovernanceContext context = GovernanceContext.builder().trafficTag(tag).build();
+
+        assertThat(context.trafficClass()).isEqualTo(GovernanceTrafficClass.BATCH);
+        assertThat(context.governancePriority()).isEqualTo(GovernancePriority.LOW);
+        assertThat(context.priority()).isEqualTo(RequestPriority.LOW);
+    }
+
+    @Test
+    void trafficAndPriorityOverridesReturnNewContext() {
+        GovernanceContext original = GovernanceContext.builder()
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.ONLINE)
+                        .priority(TrafficTag.Priority.NORMAL)
+                        .tenant("tenant-hidden")
+                        .bizKey("biz-hidden")
+                        .build())
+                .attribute("messageId", "message-hidden")
+                .build();
+
+        GovernanceContext changed = original
+                .withTraffic(GovernanceTrafficClass.BACKGROUND)
+                .withPriority(GovernancePriority.HIGH);
+
+        assertThat(original.trafficClass()).isEqualTo(GovernanceTrafficClass.ONLINE);
+        assertThat(original.governancePriority()).isEqualTo(GovernancePriority.NORMAL);
+        assertThat(changed.trafficClass()).isEqualTo(GovernanceTrafficClass.BACKGROUND);
+        assertThat(changed.governancePriority()).isEqualTo(GovernancePriority.HIGH);
+        assertThat(changed.trafficTag().channel()).isEqualTo(TrafficTag.Channel.BACKGROUND);
+        assertThat(changed.trafficTag().priority()).isEqualTo(TrafficTag.Priority.HIGH);
+        assertThat(changed.attributes()).containsEntry("messageId", "message-hidden");
+    }
+
+    @Test
     void scopedContextRestoresPreviousContextAndDeadline() throws Exception {
         Instant previousDeadline = Instant.now().plusSeconds(30);
         Instant scopedDeadline = Instant.now().plusSeconds(5);

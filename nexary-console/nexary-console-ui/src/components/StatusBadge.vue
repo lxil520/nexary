@@ -15,7 +15,7 @@ const tone = computed(() => {
   if (value === 'OPEN' || value === 'FAILURE' || value === 'REJECTED' || value.includes('LIMITED')) {
     return 'danger';
   }
-  if (value === 'HALF_OPEN' || value === 'DEGRADED' || value.includes('SLOW')) {
+  if (value === 'HALF_OPEN' || value === 'DEGRADED' || value === 'ISOLATED' || value === 'WARN' || value.includes('SLOW')) {
     return 'warning';
   }
   if (value === 'EXECUTE' || value === 'FALLBACK') {

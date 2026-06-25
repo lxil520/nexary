@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.13.0` line does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms. It fixes two boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops so useless work is not amplified by later retries. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows.
+The `0.14.0` line does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms. It fixes three boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops; when online requests share a resource with batch, offline, or background repair work, fixed `ONLINE/OFFLINE/BATCH/BACKGROUND` and `HIGH/NORMAL/LOW` policies can rate-limit, isolate, or fallback the lower-priority work first. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows.
 
 ## Add Dependencies
 
@@ -80,6 +80,60 @@ curl -s http://localhost:8080/nexary/governance/events
 NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
 ```
 
+## v0.14 Traffic Isolation and Priority
+
+When online requests and batch work share the same resource, configure a default resource policy and a low-priority override:
+
+```yaml
+nexary:
+  governance:
+    resources:
+      shared-downstream:
+        kind: downstream
+        name: priority-shared-service
+        provider: nexary
+        operation: load
+        max-requests-per-window: 100
+        rate-limit-window: 1s
+        max-concurrency: 32
+        priorities:
+          low:
+            max-requests-per-window: 1
+            rate-limit-window: 1m
+            max-concurrency: 1
+```
+
+Business code binds only fixed traffic class and priority. It does not pass user ids, tenants, order ids, or arbitrary business keys:
+
+```java
+GovernanceContext context = GovernanceContext.builder()
+        .resource(GovernanceResource.downstream("priority-shared-service", "load"))
+        .trafficTag(TrafficTag.builder()
+                .channel(TrafficTag.Channel.BATCH)
+                .priority(TrafficTag.Priority.LOW)
+                .build())
+        .build();
+```
+
+After starting the Sentinel sample, trigger the path directly:
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/priority/online
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/online
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_PRIORITY_BASE_URL=http://localhost:8080 ./scripts/governance-priority/smoke.sh
+```
+
+Important fields:
+
+- `trafficClass`: `ONLINE`, `OFFLINE`, `BATCH`, or `BACKGROUND`.
+- `priority`: `HIGH`, `NORMAL`, or `LOW`.
+- `isolationReason`: `PRIORITY_RATE_LIMITED`, `PRIORITY_BULKHEAD_FULL`, `PRIORITY_DEGRADED`, `PRIORITY_CIRCUIT_OPEN`, or `MIXED_TRAFFIC`.
+- `isolatedCount`: priority isolation events in the current JVM.
+
 ## v0.13 Retry Stop Propagation
 
 Retry stop propagation uses fixed enum values and does not write business keys, message ids, cache keys, payloads, or exception text into events:
@@ -124,7 +178,7 @@ The added diagnostic fields stay low-cardinality:
 | `blockedCount` | Sentinel blocks seen in the current JVM. |
 | `sentinelResourceCount` | Resources executed by Sentinel in the current JVM. |
 
-Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. v0.13.0 only claims the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
+Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. v0.14.0 only claims the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
 
 ## Configure Starter Policies
 
@@ -459,7 +513,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - v0.11 cancellation covers pre-start cancellation and cooperative stop checks while business code is running. It does not promise forced interruption of running business threads, and it does not replace application-server or client connection cancellation.
-- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; v0.13.0 only claims the Boot3 mainline Sentinel provider.
+- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; v0.14.0 only claims the Boot3 mainline Sentinel provider.
 - Boot2 / Boot4 Sentinel provider support is not in the support matrix yet. Do not copy the Boot3 starter into Boot2 / Boot4 applications before their independent samples and gates pass.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.

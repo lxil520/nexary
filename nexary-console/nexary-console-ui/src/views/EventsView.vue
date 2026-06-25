@@ -15,12 +15,18 @@ const filters = ref<EventFilters>({
   keyword: '',
   outcome: 'ALL',
   rejectionReason: 'ALL',
+  isolationReason: 'ALL',
+  trafficClass: 'ALL',
+  priority: 'ALL',
   circuitState: 'ALL',
 });
 
 const filteredEvents = useFilteredEvents(events, filters);
 const outcomeOptions = computed(() => uniqueSorted(events.value.map((event) => event.outcome)));
 const reasonOptions = computed(() => uniqueSorted(events.value.map((event) => event.rejectionReason)));
+const isolationOptions = computed(() => uniqueSorted(events.value.map((event) => event.isolationReason ?? 'NONE')));
+const trafficOptions = computed(() => uniqueSorted(events.value.map((event) => event.trafficClass ?? 'ONLINE')));
+const priorityOptions = computed(() => uniqueSorted(events.value.map((event) => event.priority ?? 'NORMAL')));
 const circuitOptions = computed(() => uniqueSorted(events.value.map((event) => event.circuitState)));
 
 onMounted(() => {
@@ -51,6 +57,27 @@ onMounted(() => {
         <select v-model="filters.rejectionReason">
           <option value="ALL">{{ t('filters.all') }}</option>
           <option v-for="reason in reasonOptions" :key="reason" :value="reason">{{ enumLabel(reason) }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('filters.isolation') }}</span>
+        <select v-model="filters.isolationReason">
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="reason in isolationOptions" :key="reason" :value="reason">{{ enumLabel(reason) }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('filters.traffic') }}</span>
+        <select v-model="filters.trafficClass">
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="traffic in trafficOptions" :key="traffic" :value="traffic">{{ enumLabel(traffic) }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('filters.priority') }}</span>
+        <select v-model="filters.priority">
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="priority in priorityOptions" :key="priority" :value="priority">{{ enumLabel(priority) }}</option>
         </select>
       </label>
       <label class="field">

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0
+
+- Added fixed low-cardinality traffic classes and governance priority buckets for local governance and the Boot3 Sentinel provider.
+- Added priority-specific policy selection so low-priority batch, offline, or background work can be rate-limited, isolated, or sent to fallback before online traffic is affected.
+- Added mixed-traffic warning events when one resource is used by more than one fixed traffic class.
+- Extended diagnostics and the read-only Console with traffic class counts, priority counts, isolated count, per-event isolation reasons, and resource isolation state.
+- Extended the Sentinel governance sample with priority isolation endpoints and added `scripts/governance-priority/smoke.sh`.
+- Kept Boot2 and Boot4 Sentinel provider compatibility out of this release line; those entries still require their own samples and gates.
+
 ## 0.13.0
 
 - Added bounded retry stop reasons and a retry-stop classifier for governance rejection, expired deadlines, cancellation, client disconnects, upstream cancellation, shutdown, rate limiting, bulkhead rejection, open circuit, degradation, retry exhaustion, and timeouts.

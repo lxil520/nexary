@@ -11,4 +11,5 @@ public class SentinelGovernanceSampleResources {
     public static final GovernanceResource SLOW_RESOURCE = GovernanceResource.downstream("sentinel-slow-service", "load");
     public static final GovernanceResource FAILURE_RESOURCE = GovernanceResource.downstream("sentinel-failure-service", "load");
     public static final GovernanceResource DEGRADED_RESOURCE = GovernanceResource.downstream("sentinel-degraded-service", "load");
+    public static final GovernanceResource PRIORITY_RESOURCE = GovernanceResource.downstream("priority-shared-service", "load");
 }

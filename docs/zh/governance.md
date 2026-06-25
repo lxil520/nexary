@@ -4,7 +4,7 @@
 
 它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
-`0.13.0` 不替代 Sentinel Dashboard、集群限流或远程规则平台。它解决两件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop，避免已经无价值的请求被后续重试放大。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口。
+`0.14.0` 不替代 Sentinel Dashboard、集群限流或远程规则平台。它解决三件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop；当在线请求和批处理、离线任务、后台修复任务共用同一个资源时，可以用固定的 `ONLINE/OFFLINE/BATCH/BACKGROUND` 和 `HIGH/NORMAL/LOW` 策略让低优先级流量先被限流、隔离或走 fallback。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口。
 
 ## 引入依赖
 
@@ -80,6 +80,60 @@ curl -s http://localhost:8080/nexary/governance/events
 NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
 ```
 
+## v0.14 流量隔离与优先级
+
+当在线请求和批处理共用同一个资源时，可以给同一 resource 配置默认策略和低优先级覆盖策略：
+
+```yaml
+nexary:
+  governance:
+    resources:
+      shared-downstream:
+        kind: downstream
+        name: priority-shared-service
+        provider: nexary
+        operation: load
+        max-requests-per-window: 100
+        rate-limit-window: 1s
+        max-concurrency: 32
+        priorities:
+          low:
+            max-requests-per-window: 1
+            rate-limit-window: 1m
+            max-concurrency: 1
+```
+
+业务代码只绑定固定 traffic class 和 priority，不传 userId、tenant、订单号或任意业务 key：
+
+```java
+GovernanceContext context = GovernanceContext.builder()
+        .resource(GovernanceResource.downstream("priority-shared-service", "load"))
+        .trafficTag(TrafficTag.builder()
+                .channel(TrafficTag.Channel.BATCH)
+                .priority(TrafficTag.Priority.LOW)
+                .build())
+        .build();
+```
+
+运行 Sentinel 样例后可以直接触发：
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/priority/online
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/online
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_PRIORITY_BASE_URL=http://localhost:8080 ./scripts/governance-priority/smoke.sh
+```
+
+重点字段：
+
+- `trafficClass`: `ONLINE`、`OFFLINE`、`BATCH` 或 `BACKGROUND`。
+- `priority`: `HIGH`、`NORMAL` 或 `LOW`。
+- `isolationReason`: `PRIORITY_RATE_LIMITED`、`PRIORITY_BULKHEAD_FULL`、`PRIORITY_DEGRADED`、`PRIORITY_CIRCUIT_OPEN` 或 `MIXED_TRAFFIC`。
+- `isolatedCount`: 当前 JVM 内优先级隔离事件数量。
+
 ## v0.13 停止重试传播
 
 停止重试传播使用固定枚举，不把业务 key、message id、cache key、payload 或异常全文写进事件：
@@ -124,7 +178,7 @@ curl -s http://localhost:8080/nexary/governance/events
 | `blockedCount` | 当前 JVM 内 Sentinel 拦截次数。 |
 | `sentinelResourceCount` | 当前 JVM 内由 Sentinel 执行的资源数量。 |
 
-Sentinel transport 默认关闭，不要求 Sentinel Dashboard。只有显式设置 `nexary.governance.sentinel.transport.enabled=true` 并配置 dashboard server 时，才会设置 Sentinel dashboard 地址。v0.13.0 只声明 Spring Boot 3.3 主线 Sentinel provider；Boot2 / Boot4 Sentinel starter 要等独立样例和 gate 通过后再写入支持矩阵。
+Sentinel transport 默认关闭，不要求 Sentinel Dashboard。只有显式设置 `nexary.governance.sentinel.transport.enabled=true` 并配置 dashboard server 时，才会设置 Sentinel dashboard 地址。v0.14.0 只声明 Spring Boot 3.3 主线 Sentinel provider；Boot2 / Boot4 Sentinel starter 要等独立样例和 gate 通过后再写入支持矩阵。
 
 ## 配置 starter 策略
 
@@ -459,7 +513,7 @@ nexary:
 
 - deadline 是启动前检查和上下文传播，不会强行杀掉已经进入业务方法的普通 Java 代码。
 - v0.11 的取消语义覆盖启动前取消和执行中协作式停止；不承诺强制中断已经运行的业务线程，也不替代应用服务器或客户端的连接取消机制。
-- Nexary 不替代 Sentinel Dashboard、cluster flow control 或远程规则平台；v0.13.0 只声明 Boot3 主线的 Sentinel provider。
+- Nexary 不替代 Sentinel Dashboard、cluster flow control 或远程规则平台；v0.14.0 只声明 Boot3 主线的 Sentinel provider。
 - Boot2 / Boot4 Sentinel provider 还没有写入支持矩阵；通过独立样例和 gate 前不要复制 Boot3 starter 到 Boot2 / Boot4 应用。
 - 熔断窗口是当前 JVM 内的本地状态；多实例之间不会共享失败计数、慢调用计数或半开探测结果。
 - Cache 的治理包裹只声明在 Spring Boot 3 Redis 主线；Boot2 / Boot4 的 cache 入口要按对应样例和测试结果再扩大说明。

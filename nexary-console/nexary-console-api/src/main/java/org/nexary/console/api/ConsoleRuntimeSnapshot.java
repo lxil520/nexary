@@ -6,6 +6,7 @@ package org.nexary.console.api;
 public final class ConsoleRuntimeSnapshot {
     private final String resourceKey;
     private final String engine;
+    private final String trafficClass;
     private final String priority;
     private final String circuitState;
     private final int windowCalls;
@@ -15,6 +16,7 @@ public final class ConsoleRuntimeSnapshot {
     private final long totalRejections;
     private final String lastRejectionReason;
     private final String lastBlockReason;
+    private final String lastIsolationReason;
     private final String lastCancellationReason;
     private final String lastRetryStopReason;
     private final String openUntil;
@@ -71,6 +73,7 @@ public final class ConsoleRuntimeSnapshot {
         this(
                 resourceKey,
                 null,
+                "online",
                 priority,
                 circuitState,
                 windowCalls,
@@ -80,6 +83,7 @@ public final class ConsoleRuntimeSnapshot {
                 totalRejections,
                 lastRejectionReason,
                 null,
+                "NONE",
                 lastCancellationReason,
                 null,
                 openUntil,
@@ -139,6 +143,7 @@ public final class ConsoleRuntimeSnapshot {
         this(
                 resourceKey,
                 engine,
+                "online",
                 priority,
                 circuitState,
                 windowCalls,
@@ -148,6 +153,7 @@ public final class ConsoleRuntimeSnapshot {
                 totalRejections,
                 lastRejectionReason,
                 lastBlockReason,
+                "NONE",
                 lastCancellationReason,
                 null,
                 openUntil,
@@ -205,8 +211,82 @@ public final class ConsoleRuntimeSnapshot {
             String lastStateTransitionAt,
             String lastOutcome,
             String lastOutcomeAt) {
+        this(
+                resourceKey,
+                engine,
+                "online",
+                priority,
+                circuitState,
+                windowCalls,
+                windowFailures,
+                windowSlowCalls,
+                consecutiveFailures,
+                totalRejections,
+                lastRejectionReason,
+                lastBlockReason,
+                "NONE",
+                lastCancellationReason,
+                lastRetryStopReason,
+                openUntil,
+                activeConcurrency,
+                maxConcurrency,
+                maxRequestsPerWindow,
+                rateLimitWindow,
+                degraded,
+                minimumRequests,
+                failureRateThreshold,
+                slowCallThreshold,
+                slowCallDuration,
+                openStateDuration,
+                halfOpenMaxCalls,
+                slidingWindowSize,
+                slidingWindowDuration,
+                consecutiveFailureThreshold,
+                lastStateTransitionAt,
+                lastOutcome,
+                lastOutcomeAt);
+    }
+
+    /**
+     * Creates a runtime snapshot from low-cardinality diagnostic fields, including traffic isolation metadata.
+     */
+    public ConsoleRuntimeSnapshot(
+            String resourceKey,
+            String engine,
+            String trafficClass,
+            String priority,
+            String circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            String lastRejectionReason,
+            String lastBlockReason,
+            String lastIsolationReason,
+            String lastCancellationReason,
+            String lastRetryStopReason,
+            String openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            String rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            Double failureRateThreshold,
+            Double slowCallThreshold,
+            String slowCallDuration,
+            String openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            String slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            String lastStateTransitionAt,
+            String lastOutcome,
+            String lastOutcomeAt) {
         this.resourceKey = resourceKey;
         this.engine = engine;
+        this.trafficClass = trafficClass;
         this.priority = priority;
         this.circuitState = circuitState;
         this.windowCalls = windowCalls;
@@ -216,6 +296,7 @@ public final class ConsoleRuntimeSnapshot {
         this.totalRejections = totalRejections;
         this.lastRejectionReason = lastRejectionReason;
         this.lastBlockReason = lastBlockReason;
+        this.lastIsolationReason = lastIsolationReason;
         this.lastCancellationReason = lastCancellationReason;
         this.lastRetryStopReason = lastRetryStopReason;
         this.openUntil = openUntil;
@@ -246,6 +327,11 @@ public final class ConsoleRuntimeSnapshot {
     /** Returns the governance engine that produced this snapshot. */
     public String getEngine() {
         return engine;
+    }
+
+    /** Returns the fixed low-cardinality traffic class. */
+    public String getTrafficClass() {
+        return trafficClass;
     }
 
     /** Returns the request priority bucket for this runtime state. */
@@ -291,6 +377,11 @@ public final class ConsoleRuntimeSnapshot {
     /** Returns the latest low-cardinality engine block reason. */
     public String getLastBlockReason() {
         return lastBlockReason;
+    }
+
+    /** Returns the latest low-cardinality priority isolation reason. */
+    public String getLastIsolationReason() {
+        return lastIsolationReason;
     }
 
     /** Returns the low-cardinality reason for the latest cooperative cancellation. */

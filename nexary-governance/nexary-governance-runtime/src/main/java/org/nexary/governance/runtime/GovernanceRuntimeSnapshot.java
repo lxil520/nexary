@@ -5,11 +5,13 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import org.nexary.core.context.CancellationReason;
+import org.nexary.core.governance.GovernanceIsolationReason;
 import org.nexary.core.retry.RetryStopReason;
 
 /** Low-cardinality diagnostic snapshot for one local runtime resource state. */
 public final class GovernanceRuntimeSnapshot {
     private final String resourceKey;
+    private final String trafficClass;
     private final String priority;
     private final GovernanceEngine engine;
     private final GovernanceCircuitState circuitState;
@@ -20,6 +22,7 @@ public final class GovernanceRuntimeSnapshot {
     private final long totalRejections;
     private final GovernanceRejectionReason lastRejectionReason;
     private final GovernanceBlockReason lastBlockReason;
+    private final GovernanceIsolationReason lastIsolationReason;
     private final CancellationReason lastCancellationReason;
     private final RetryStopReason lastRetryStopReason;
     private final Instant openUntil;
@@ -373,6 +376,7 @@ public final class GovernanceRuntimeSnapshot {
             GovernanceCallOutcome lastOutcome,
             Instant lastOutcomeAt) {
         this.resourceKey = resourceKey == null ? "default:default" : resourceKey;
+        this.trafficClass = "online";
         this.priority = priority == null ? "normal" : priority;
         this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
@@ -383,6 +387,79 @@ public final class GovernanceRuntimeSnapshot {
         this.totalRejections = Math.max(0L, totalRejections);
         this.lastRejectionReason = lastRejectionReason == null ? GovernanceRejectionReason.NONE : lastRejectionReason;
         this.lastBlockReason = lastBlockReason == null ? GovernanceBlockReason.NONE : lastBlockReason;
+        this.lastIsolationReason = GovernanceIsolationReason.NONE;
+        this.lastCancellationReason =
+                lastCancellationReason == null ? CancellationReason.NONE : lastCancellationReason;
+        this.lastRetryStopReason = lastRetryStopReason == null ? RetryStopReason.NONE : lastRetryStopReason;
+        this.openUntil = openUntil;
+        this.activeConcurrency = Math.max(0, activeConcurrency);
+        this.maxConcurrency = Math.max(1, maxConcurrency);
+        this.maxRequestsPerWindow = Math.max(1, maxRequestsPerWindow);
+        this.rateLimitWindow = rateLimitWindow == null ? Duration.ofSeconds(1) : rateLimitWindow;
+        this.degraded = degraded;
+        this.minimumRequests = Math.max(1, minimumRequests);
+        this.failureRateThreshold = normalizeThreshold(failureRateThreshold);
+        this.slowCallThreshold = normalizeThreshold(slowCallThreshold);
+        this.slowCallDuration = slowCallDuration;
+        this.openStateDuration = openStateDuration == null ? Duration.ofSeconds(60) : openStateDuration;
+        this.halfOpenMaxCalls = Math.max(1, halfOpenMaxCalls);
+        this.slidingWindowSize = Math.max(1, slidingWindowSize);
+        this.slidingWindowDuration = slidingWindowDuration == null ? Duration.ofSeconds(60) : slidingWindowDuration;
+        this.consecutiveFailureThreshold = Math.max(1, consecutiveFailureThreshold);
+        this.lastStateTransitionAt = lastStateTransitionAt;
+        this.lastOutcome = lastOutcome == null ? GovernanceCallOutcome.NONE : lastOutcome;
+        this.lastOutcomeAt = lastOutcomeAt;
+    }
+
+    /** Creates a snapshot with runtime counters, policy values, traffic, engine, and isolation metadata. */
+    public GovernanceRuntimeSnapshot(
+            String resourceKey,
+            String trafficClass,
+            String priority,
+            GovernanceEngine engine,
+            GovernanceCircuitState circuitState,
+            int windowCalls,
+            int windowFailures,
+            int windowSlowCalls,
+            int consecutiveFailures,
+            long totalRejections,
+            GovernanceRejectionReason lastRejectionReason,
+            GovernanceBlockReason lastBlockReason,
+            GovernanceIsolationReason lastIsolationReason,
+            CancellationReason lastCancellationReason,
+            RetryStopReason lastRetryStopReason,
+            Instant openUntil,
+            int activeConcurrency,
+            int maxConcurrency,
+            int maxRequestsPerWindow,
+            Duration rateLimitWindow,
+            boolean degraded,
+            int minimumRequests,
+            double failureRateThreshold,
+            double slowCallThreshold,
+            Duration slowCallDuration,
+            Duration openStateDuration,
+            int halfOpenMaxCalls,
+            int slidingWindowSize,
+            Duration slidingWindowDuration,
+            int consecutiveFailureThreshold,
+            Instant lastStateTransitionAt,
+            GovernanceCallOutcome lastOutcome,
+            Instant lastOutcomeAt) {
+        this.resourceKey = resourceKey == null ? "default:default" : resourceKey;
+        this.trafficClass = trafficClass == null ? "online" : trafficClass;
+        this.priority = priority == null ? "normal" : priority;
+        this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
+        this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
+        this.windowCalls = Math.max(0, windowCalls);
+        this.windowFailures = Math.max(0, windowFailures);
+        this.windowSlowCalls = Math.max(0, windowSlowCalls);
+        this.consecutiveFailures = Math.max(0, consecutiveFailures);
+        this.totalRejections = Math.max(0L, totalRejections);
+        this.lastRejectionReason = lastRejectionReason == null ? GovernanceRejectionReason.NONE : lastRejectionReason;
+        this.lastBlockReason = lastBlockReason == null ? GovernanceBlockReason.NONE : lastBlockReason;
+        this.lastIsolationReason =
+                lastIsolationReason == null ? GovernanceIsolationReason.NONE : lastIsolationReason;
         this.lastCancellationReason =
                 lastCancellationReason == null ? CancellationReason.NONE : lastCancellationReason;
         this.lastRetryStopReason = lastRetryStopReason == null ? RetryStopReason.NONE : lastRetryStopReason;
@@ -409,6 +486,11 @@ public final class GovernanceRuntimeSnapshot {
     /** Returns the stable governed resource key. */
     public String resourceKey() {
         return resourceKey;
+    }
+
+    /** Returns the fixed low-cardinality traffic class for this resource state. */
+    public String trafficClass() {
+        return trafficClass;
     }
 
     /** Returns the request priority bucket for this resource state. */
@@ -459,6 +541,11 @@ public final class GovernanceRuntimeSnapshot {
     /** Returns the low-cardinality block reason reported by the governance engine. */
     public GovernanceBlockReason lastBlockReason() {
         return lastBlockReason;
+    }
+
+    /** Returns the low-cardinality reason for the most recent priority isolation. */
+    public GovernanceIsolationReason lastIsolationReason() {
+        return lastIsolationReason;
     }
 
     /** Returns the low-cardinality reason for the most recent cancellation. */
@@ -586,11 +673,13 @@ public final class GovernanceRuntimeSnapshot {
                 && slidingWindowSize == that.slidingWindowSize
                 && consecutiveFailureThreshold == that.consecutiveFailureThreshold
                 && resourceKey.equals(that.resourceKey)
+                && trafficClass.equals(that.trafficClass)
                 && priority.equals(that.priority)
                 && engine == that.engine
                 && circuitState == that.circuitState
                 && lastRejectionReason == that.lastRejectionReason
                 && lastBlockReason == that.lastBlockReason
+                && lastIsolationReason == that.lastIsolationReason
                 && lastCancellationReason == that.lastCancellationReason
                 && lastRetryStopReason == that.lastRetryStopReason
                 && Objects.equals(openUntil, that.openUntil)
@@ -607,6 +696,7 @@ public final class GovernanceRuntimeSnapshot {
     public int hashCode() {
         return Objects.hash(
                 resourceKey,
+                trafficClass,
                 priority,
                 engine,
                 circuitState,
@@ -617,6 +707,7 @@ public final class GovernanceRuntimeSnapshot {
                 totalRejections,
                 lastRejectionReason,
                 lastBlockReason,
+                lastIsolationReason,
                 lastCancellationReason,
                 lastRetryStopReason,
                 openUntil,

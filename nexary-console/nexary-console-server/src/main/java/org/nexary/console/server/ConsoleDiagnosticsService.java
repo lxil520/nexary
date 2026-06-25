@@ -33,7 +33,9 @@ public final class ConsoleDiagnosticsService {
     public ConsoleSummaryResponse summary() {
         GovernanceRuntimeSummary summary = diagnostics == null ? null : diagnostics.summary();
         if (summary == null) {
-            return new ConsoleSummaryResponse(0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, null);
+            return new ConsoleSummaryResponse(
+                    0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+                    Collections.<String, Long>emptyMap(), Collections.<String, Long>emptyMap(), 0L, 0L, 0L, null);
         }
         return new ConsoleSummaryResponse(
                 summary.resourceCount(),
@@ -46,7 +48,10 @@ public final class ConsoleDiagnosticsService {
                 summary.fallbackCount(),
                 summary.retryStoppedCount(),
                 summary.blockedCount(),
+                summary.isolatedCount(),
                 summary.sentinelResourceCount(),
+                summary.trafficClassCounts(),
+                summary.priorityCounts(),
                 summary.openCircuitCount(),
                 summary.halfOpenCircuitCount(),
                 summary.degradedResourceCount(),
@@ -102,6 +107,7 @@ public final class ConsoleDiagnosticsService {
                 descriptor.name(),
                 descriptor.provider(),
                 descriptor.operation(),
+                descriptor.trafficClass(),
                 descriptor.priority(),
                 policy(descriptor.policySnapshot()),
                 runtime(descriptor.runtimeSnapshot()));
@@ -135,6 +141,7 @@ public final class ConsoleDiagnosticsService {
         return new ConsoleRuntimeSnapshot(
                 snapshot.resourceKey(),
                 snapshot.engine().name(),
+                snapshot.trafficClass(),
                 snapshot.priority(),
                 snapshot.circuitState().name(),
                 snapshot.windowCalls(),
@@ -144,6 +151,7 @@ public final class ConsoleDiagnosticsService {
                 snapshot.totalRejections(),
                 snapshot.lastRejectionReason().name(),
                 snapshot.lastBlockReason().name(),
+                snapshot.lastIsolationReason().name(),
                 snapshot.lastCancellationReason().name(),
                 snapshot.lastRetryStopReason().name(),
                 optionalInstant(snapshot.openUntil()),
@@ -170,9 +178,12 @@ public final class ConsoleDiagnosticsService {
         return new ConsoleEventItem(
                 event.resourceKey(),
                 event.engine().name(),
+                event.trafficClass().name(),
+                event.priority().name(),
                 event.action().name(),
                 event.outcome().name(),
                 event.rejectionReason().name(),
+                event.isolationReason().name(),
                 event.blockReason().name(),
                 event.cancellationReason().name(),
                 event.retryStopReason().name(),

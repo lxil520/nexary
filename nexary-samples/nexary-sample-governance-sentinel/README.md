@@ -60,6 +60,17 @@ curl -s http://localhost:8080/governance/sentinel/fallback
 curl -s http://localhost:8080/governance/sentinel/retry-stop
 ```
 
+优先级隔离：
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/priority/online
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/online
+```
+
+第二次 batch 请求应返回 fallback，后续 online 请求仍应返回业务结果。
+
 ## 查看诊断和 Console
 
 ```bash
@@ -73,6 +84,7 @@ open http://localhost:8080/nexary/console
 
 ```bash
 NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
+NEXARY_GOVERNANCE_PRIORITY_BASE_URL=http://localhost:8080 ./scripts/governance-priority/smoke.sh
 ```
 
 重点字段：
@@ -85,6 +97,10 @@ NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-s
 - `blockedCount`: 当前 JVM 内 Sentinel 拦截次数
 - `retryStoppedCount`: 当前 JVM 内停止重试事件数量
 - `sentinelResourceCount`: 当前 JVM 内 Sentinel 资源数量
+- `trafficClass`: `ONLINE`、`OFFLINE`、`BATCH` 或 `BACKGROUND`
+- `priority`: `HIGH`、`NORMAL` 或 `LOW`
+- `isolationReason`: `PRIORITY_RATE_LIMITED`、`PRIORITY_BULKHEAD_FULL`、`PRIORITY_DEGRADED`、`PRIORITY_CIRCUIT_OPEN` 或 `MIXED_TRAFFIC`
+- `isolatedCount`: 当前 JVM 内优先级隔离次数
 
 诊断和 Console 不输出 Sentinel origin、cancellation id、userId、tenant、订单号、cache key、message id、payload、异常全文或堆栈。
 

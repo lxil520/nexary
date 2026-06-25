@@ -26,6 +26,14 @@ function valueOrZero(value: number | undefined): number {
         <dd>{{ enumLabel(runtime?.engine ?? 'LOCAL') }}</dd>
       </div>
       <div>
+        <dt>{{ t('runtime.traffic') }}</dt>
+        <dd>{{ enumLabel(runtime?.trafficClass ?? 'online') }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('runtime.priority') }}</dt>
+        <dd>{{ enumLabel(runtime?.priority ?? 'normal') }}</dd>
+      </div>
+      <div>
         <dt>{{ t('runtime.calls') }}</dt>
         <dd>{{ valueOrZero(runtime?.windowCalls) }}</dd>
       </div>
@@ -51,7 +59,7 @@ function valueOrZero(value: number | undefined): number {
       </div>
       <div>
         <dt>{{ t('runtime.lastReason') }}</dt>
-        <dd>{{ enumLabel(runtime?.lastBlockReason ?? runtime?.lastRejectionReason ?? 'NONE') }}</dd>
+        <dd>{{ enumLabel(runtime?.lastIsolationReason && runtime.lastIsolationReason !== 'NONE' ? runtime.lastIsolationReason : runtime?.lastBlockReason ?? runtime?.lastRejectionReason ?? 'NONE') }}</dd>
       </div>
       <div>
         <dt>{{ t('runtime.lastCancellation') }}</dt>

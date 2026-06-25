@@ -1,6 +1,9 @@
 package org.nexary.governance.runtime;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,7 +19,10 @@ public final class GovernanceRuntimeSummary {
     private final long cancelledCount;
     private final long retryStoppedCount;
     private final long blockedCount;
+    private final long isolatedCount;
     private final long sentinelResourceCount;
+    private final Map<String, Long> trafficClassCounts;
+    private final Map<String, Long> priorityCounts;
     private final long openCircuitCount;
     private final long halfOpenCircuitCount;
     private final long degradedResourceCount;
@@ -46,6 +52,9 @@ public final class GovernanceRuntimeSummary {
                 0L,
                 0L,
                 0L,
+                0L,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -77,6 +86,9 @@ public final class GovernanceRuntimeSummary {
                 0L,
                 0L,
                 0L,
+                0L,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -109,6 +121,9 @@ public final class GovernanceRuntimeSummary {
                 0L,
                 0L,
                 0L,
+                0L,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -142,7 +157,10 @@ public final class GovernanceRuntimeSummary {
                 cancelledCount,
                 0L,
                 blockedCount,
+                0L,
                 sentinelResourceCount,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
@@ -166,6 +184,47 @@ public final class GovernanceRuntimeSummary {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             Instant lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                fallbackCount,
+                cancelledCount,
+                retryStoppedCount,
+                blockedCount,
+                0L,
+                sentinelResourceCount,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /** Creates a runtime summary with priority isolation and fixed traffic distributions. */
+    public GovernanceRuntimeSummary(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long fallbackCount,
+            long cancelledCount,
+            long retryStoppedCount,
+            long blockedCount,
+            long isolatedCount,
+            long sentinelResourceCount,
+            Map<String, Long> trafficClassCounts,
+            Map<String, Long> priorityCounts,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            Instant lastEventAt) {
         this.resourceCount = Math.max(0, resourceCount);
         this.snapshotCount = Math.max(0, snapshotCount);
         this.eventCount = Math.max(0, eventCount);
@@ -176,7 +235,10 @@ public final class GovernanceRuntimeSummary {
         this.cancelledCount = Math.max(0L, cancelledCount);
         this.retryStoppedCount = Math.max(0L, retryStoppedCount);
         this.blockedCount = Math.max(0L, blockedCount);
+        this.isolatedCount = Math.max(0L, isolatedCount);
         this.sentinelResourceCount = Math.max(0L, sentinelResourceCount);
+        this.trafficClassCounts = immutableCounts(trafficClassCounts);
+        this.priorityCounts = immutableCounts(priorityCounts);
         this.openCircuitCount = Math.max(0L, openCircuitCount);
         this.halfOpenCircuitCount = Math.max(0L, halfOpenCircuitCount);
         this.degradedResourceCount = Math.max(0L, degradedResourceCount);
@@ -233,9 +295,24 @@ public final class GovernanceRuntimeSummary {
         return blockedCount;
     }
 
+    /** Returns the retained recent-event count isolated by priority policy. */
+    public long isolatedCount() {
+        return isolatedCount;
+    }
+
     /** Returns the number of known Sentinel-backed resource descriptors. */
     public long sentinelResourceCount() {
         return sentinelResourceCount;
+    }
+
+    /** Returns retained recent-event counts by fixed traffic class. */
+    public Map<String, Long> trafficClassCounts() {
+        return trafficClassCounts;
+    }
+
+    /** Returns retained recent-event counts by fixed priority bucket. */
+    public Map<String, Long> priorityCounts() {
+        return priorityCounts;
     }
 
     /** Returns the number of snapshots with an open circuit. */
@@ -277,7 +354,10 @@ public final class GovernanceRuntimeSummary {
                 && cancelledCount == that.cancelledCount
                 && retryStoppedCount == that.retryStoppedCount
                 && blockedCount == that.blockedCount
+                && isolatedCount == that.isolatedCount
                 && sentinelResourceCount == that.sentinelResourceCount
+                && trafficClassCounts.equals(that.trafficClassCounts)
+                && priorityCounts.equals(that.priorityCounts)
                 && openCircuitCount == that.openCircuitCount
                 && halfOpenCircuitCount == that.halfOpenCircuitCount
                 && degradedResourceCount == that.degradedResourceCount
@@ -297,10 +377,26 @@ public final class GovernanceRuntimeSummary {
                 cancelledCount,
                 retryStoppedCount,
                 blockedCount,
+                isolatedCount,
                 sentinelResourceCount,
+                trafficClassCounts,
+                priorityCounts,
                 openCircuitCount,
                 halfOpenCircuitCount,
                 degradedResourceCount,
                 lastEventAt);
+    }
+
+    private static Map<String, Long> immutableCounts(Map<String, Long> counts) {
+        if (counts == null || counts.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Long> copy = new LinkedHashMap<>();
+        counts.forEach((key, value) -> {
+            if (key != null && value != null) {
+                copy.put(key, Math.max(0L, value));
+            }
+        });
+        return Collections.unmodifiableMap(copy);
     }
 }

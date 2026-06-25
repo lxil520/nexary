@@ -15,7 +15,10 @@ import org.nexary.core.context.CancellationToken;
 import org.nexary.core.context.DeadlineContext;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceIsolationReason;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.governance.GovernanceTrafficClass;
 import org.nexary.core.governance.RequestPriority;
 import org.nexary.core.retry.RetryStopReason;
 import org.nexary.core.observation.NexaryObservationEvent;
@@ -203,6 +206,93 @@ class LocalGovernanceRuntimeTest {
 
         assertThat(runtime.execute(low, () -> "main", () -> "low-fallback")).isEqualTo("low-fallback");
         assertThat(runtime.execute(high, () -> "high")).isEqualTo("high");
+    }
+
+    @Test
+    void lowPriorityRateLimitDoesNotConsumeHighPriorityWindow() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("report-api", "read");
+        GovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(resource, GovernancePriority.LOW, GovernancePolicy.builder()
+                                .maxRequestsPerWindow(1)
+                                .rateLimitWindow(Duration.ofMinutes(1))
+                                .build())
+                        .policy(resource, GovernancePriority.HIGH, GovernancePolicy.allowAll())
+                        .build(),
+                new RecordingPublisher());
+        GovernanceContext lowBatch = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.BATCH)
+                        .priority(TrafficTag.Priority.LOW)
+                        .build())
+                .build();
+        GovernanceContext highOnline = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.ONLINE)
+                        .priority(TrafficTag.Priority.HIGH)
+                        .build())
+                .build();
+
+        assertThat(runtime.execute(lowBatch, () -> "batch-1")).isEqualTo("batch-1");
+        assertThat(runtime.execute(lowBatch, () -> "batch-main", () -> "batch-fallback")).isEqualTo("batch-fallback");
+        assertThat(runtime.execute(highOnline, () -> "online")).isEqualTo("online");
+
+        assertThat(runtime.recentEvents())
+                .anySatisfy(event -> {
+                    assertThat(event.trafficClass()).isEqualTo(GovernanceTrafficClass.BATCH);
+                    assertThat(event.priority()).isEqualTo(GovernancePriority.LOW);
+                    assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.ISOLATED);
+                    assertThat(event.isolationReason()).isEqualTo(GovernanceIsolationReason.PRIORITY_RATE_LIMITED);
+                })
+                .anySatisfy(event -> {
+                    assertThat(event.trafficClass()).isEqualTo(GovernanceTrafficClass.ONLINE);
+                    assertThat(event.priority()).isEqualTo(GovernancePriority.HIGH);
+                    assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.SUCCESS);
+                });
+        assertThat(runtime.summary().isolatedCount()).isEqualTo(1);
+        assertThat(runtime.summary().trafficClassCounts()).containsEntry("batch", 2L).containsEntry("online", 2L);
+        assertThat(runtime.summary().priorityCounts()).containsEntry("low", 2L).containsEntry("high", 2L);
+    }
+
+    @Test
+    void mixedTrafficWarningUsesOnlyLowCardinalityFields() throws Exception {
+        GovernanceResource resource = GovernanceResource.downstream("shared-search", "query");
+        GovernanceRuntime runtime = runtime(
+                LocalGovernancePolicyRegistry.builder().policy(resource, GovernancePolicy.allowAll()).build(),
+                new RecordingPublisher());
+        GovernanceContext online = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.ONLINE)
+                        .priority(TrafficTag.Priority.HIGH)
+                        .tenant("tenant-hidden")
+                        .bizKey("biz-hidden")
+                        .build())
+                .build();
+        GovernanceContext batch = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.BATCH)
+                        .priority(TrafficTag.Priority.LOW)
+                        .tenant("tenant-hidden")
+                        .bizKey("biz-hidden")
+                        .build())
+                .attribute("payload", "payload-hidden")
+                .build();
+
+        assertThat(runtime.execute(online, () -> "online")).isEqualTo("online");
+        assertThat(runtime.execute(batch, () -> "batch")).isEqualTo("batch");
+
+        assertThat(runtime.recentEvents())
+                .anySatisfy(event -> {
+                    assertThat(event.action()).isEqualTo(GovernanceRuntimeAction.WARN);
+                    assertThat(event.isolationReason()).isEqualTo(GovernanceIsolationReason.MIXED_TRAFFIC);
+                    assertThat(event.resourceKey()).isEqualTo(resource.key());
+                });
+        assertThat(runtime.summary().isolatedCount()).isZero();
+        assertThat(runtime.recentEvents().toString()).doesNotContain("tenant-hidden", "biz-hidden", "payload-hidden");
     }
 
     @Test

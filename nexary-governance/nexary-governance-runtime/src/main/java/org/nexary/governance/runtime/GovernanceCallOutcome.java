@@ -18,5 +18,8 @@ public enum GovernanceCallOutcome {
     CANCELLED,
 
     /** A retry loop stopped before scheduling another attempt. */
-    RETRY_STOPPED
+    RETRY_STOPPED,
+
+    /** A request was isolated by priority policy before useful work ran. */
+    ISOLATED
 }

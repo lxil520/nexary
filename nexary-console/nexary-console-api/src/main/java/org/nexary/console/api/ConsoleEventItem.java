@@ -6,9 +6,12 @@ package org.nexary.console.api;
 public final class ConsoleEventItem {
     private final String resourceKey;
     private final String engine;
+    private final String trafficClass;
+    private final String priority;
     private final String action;
     private final String outcome;
     private final String rejectionReason;
+    private final String isolationReason;
     private final String blockReason;
     private final String cancellationReason;
     private final String retryStopReason;
@@ -48,9 +51,12 @@ public final class ConsoleEventItem {
         this(
                 resourceKey,
                 engine,
+                "online",
+                "normal",
                 action,
                 outcome,
                 rejectionReason,
+                "NONE",
                 blockReason,
                 cancellationReason,
                 null,
@@ -74,11 +80,49 @@ public final class ConsoleEventItem {
             String circuitState,
             String timestamp,
             String durationBucket) {
+        this(
+                resourceKey,
+                engine,
+                "online",
+                "normal",
+                action,
+                outcome,
+                rejectionReason,
+                "NONE",
+                blockReason,
+                cancellationReason,
+                retryStopReason,
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /**
+     * Creates an event item from low-cardinality event fields, including traffic and isolation metadata.
+     */
+    public ConsoleEventItem(
+            String resourceKey,
+            String engine,
+            String trafficClass,
+            String priority,
+            String action,
+            String outcome,
+            String rejectionReason,
+            String isolationReason,
+            String blockReason,
+            String cancellationReason,
+            String retryStopReason,
+            String circuitState,
+            String timestamp,
+            String durationBucket) {
         this.resourceKey = resourceKey;
         this.engine = engine;
+        this.trafficClass = trafficClass;
+        this.priority = priority;
         this.action = action;
         this.outcome = outcome;
         this.rejectionReason = rejectionReason;
+        this.isolationReason = isolationReason;
         this.blockReason = blockReason;
         this.cancellationReason = cancellationReason;
         this.retryStopReason = retryStopReason;
@@ -97,6 +141,16 @@ public final class ConsoleEventItem {
         return engine;
     }
 
+    /** Returns the fixed low-cardinality traffic class. */
+    public String getTrafficClass() {
+        return trafficClass;
+    }
+
+    /** Returns the fixed low-cardinality priority bucket. */
+    public String getPriority() {
+        return priority;
+    }
+
     /** Returns the low-cardinality runtime action. */
     public String getAction() {
         return action;
@@ -110,6 +164,11 @@ public final class ConsoleEventItem {
     /** Returns the low-cardinality rejection reason. */
     public String getRejectionReason() {
         return rejectionReason;
+    }
+
+    /** Returns why priority isolation was applied, if any. */
+    public String getIsolationReason() {
+        return isolationReason;
     }
 
     /** Returns the low-cardinality engine block reason, if any. */

@@ -2,11 +2,15 @@ export type ResourceKind = 'CACHE' | 'MESSAGING' | 'JOB' | 'GOVERNANCE' | 'CUSTO
 
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN' | string;
 
-export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'RETRY_STOPPED' | 'NONE' | string;
+export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'RETRY_STOPPED' | 'ISOLATED' | 'NONE' | string;
 
-export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | 'STOP_RETRY' | string;
+export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | 'STOP_RETRY' | 'WARN' | string;
 
 export type GovernanceEngine = 'LOCAL' | 'SENTINEL' | string;
+
+export type TrafficClass = 'ONLINE' | 'OFFLINE' | 'BATCH' | 'BACKGROUND' | string;
+
+export type GovernancePriority = 'HIGH' | 'NORMAL' | 'LOW' | string;
 
 export type BlockReason = 'NONE' | 'RATE_LIMITED' | 'BULKHEAD_FULL' | 'CIRCUIT_OPEN' | 'DEGRADED' | 'UNKNOWN' | string;
 
@@ -46,6 +50,16 @@ export type RejectionReason =
   | 'DEGRADED'
   | string;
 
+export type IsolationReason =
+  | 'NONE'
+  | 'PRIORITY_RATE_LIMITED'
+  | 'PRIORITY_BULKHEAD_FULL'
+  | 'PRIORITY_DEGRADED'
+  | 'PRIORITY_CIRCUIT_OPEN'
+  | 'MIXED_TRAFFIC'
+  | 'UNKNOWN'
+  | string;
+
 export type DurationBucket = 'NOT_RUN' | 'FAST' | 'NORMAL' | 'SLOW' | string;
 
 export interface ConsoleSummary {
@@ -59,7 +73,10 @@ export interface ConsoleSummary {
   fallbackCount: number;
   retryStoppedCount?: number;
   blockedCount?: number;
+  isolatedCount?: number;
   sentinelResourceCount?: number;
+  trafficClassCounts?: Record<string, number>;
+  priorityCounts?: Record<string, number>;
   openCircuitCount: number;
   halfOpenCircuitCount: number;
   degradedResourceCount: number;
@@ -85,6 +102,7 @@ export interface ConsolePolicySnapshot {
 export interface ConsoleRuntimeSnapshot {
   resourceKey: string;
   engine?: GovernanceEngine | null;
+  trafficClass?: string;
   priority: string;
   circuitState: CircuitState;
   windowCalls: number;
@@ -94,6 +112,7 @@ export interface ConsoleRuntimeSnapshot {
   totalRejections: number;
   lastRejectionReason: RejectionReason;
   lastBlockReason?: BlockReason | null;
+  lastIsolationReason?: IsolationReason | null;
   lastCancellationReason: CancellationReason;
   lastRetryStopReason?: RetryStopReason | null;
   openUntil: string | null;
@@ -123,6 +142,7 @@ export interface ConsoleResource {
   name: string;
   provider: string;
   operation: string;
+  trafficClass?: string;
   priority: string;
   policySnapshot: ConsolePolicySnapshot;
   runtimeSnapshot: ConsoleRuntimeSnapshot | null;
@@ -131,9 +151,12 @@ export interface ConsoleResource {
 export interface ConsoleEvent {
   resourceKey: string;
   engine?: GovernanceEngine | null;
+  trafficClass?: TrafficClass | null;
+  priority?: GovernancePriority | null;
   action: RuntimeAction;
   outcome: CallOutcome;
   rejectionReason: RejectionReason;
+  isolationReason?: IsolationReason | null;
   blockReason?: BlockReason | null;
   cancellationReason: CancellationReason;
   retryStopReason?: RetryStopReason | null;
@@ -168,11 +191,16 @@ export interface ResourceFilters {
   kind: string;
   circuitState: string;
   provider: string;
+  trafficClass: string;
+  priority: string;
 }
 
 export interface EventFilters {
   keyword: string;
   outcome: string;
   rejectionReason: string;
+  isolationReason: string;
+  trafficClass: string;
+  priority: string;
   circuitState: string;
 }

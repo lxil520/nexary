@@ -89,6 +89,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("name", descriptor.name());
             body.put("provider", descriptor.provider());
             body.put("operation", descriptor.operation());
+            body.put("trafficClass", descriptor.trafficClass());
             body.put("priority", descriptor.priority());
             body.put("engine", descriptor.engine().name());
             body.put("policySnapshot", policy(descriptor.policySnapshot()));
@@ -120,6 +121,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             }
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("resourceKey", snapshot.resourceKey());
+            body.put("trafficClass", snapshot.trafficClass());
             body.put("priority", snapshot.priority());
             body.put("circuitState", snapshot.circuitState().name());
             body.put("windowCalls", snapshot.windowCalls());
@@ -128,6 +130,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("consecutiveFailures", snapshot.consecutiveFailures());
             body.put("totalRejections", snapshot.totalRejections());
             body.put("lastRejectionReason", snapshot.lastRejectionReason().name());
+            body.put("lastIsolationReason", snapshot.lastIsolationReason().name());
             body.put("lastCancellationReason", snapshot.lastCancellationReason().name());
             body.put("lastRetryStopReason", snapshot.lastRetryStopReason().name());
             body.put("openUntil", optionalInstant(snapshot.openUntil()));
@@ -156,9 +159,12 @@ public class GovernanceDiagnosticsAutoConfiguration {
         private static Map<String, Object> event(GovernanceRuntimeEvent event) {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("resourceKey", event.resourceKey());
+            body.put("trafficClass", event.trafficClass().name());
+            body.put("priority", event.priority().name());
             body.put("action", event.action().name());
             body.put("outcome", event.outcome().name());
             body.put("rejectionReason", event.rejectionReason().name());
+            body.put("isolationReason", event.isolationReason().name());
             body.put("cancellationReason", event.cancellationReason().name());
             body.put("engine", event.engine().name());
             body.put("blockReason", event.blockReason().name());
@@ -180,6 +186,9 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("cancelledCount", summary.cancelledCount());
             body.put("retryStoppedCount", summary.retryStoppedCount());
             body.put("blockedCount", summary.blockedCount());
+            body.put("isolatedCount", summary.isolatedCount());
+            body.put("trafficClassCounts", summary.trafficClassCounts());
+            body.put("priorityCounts", summary.priorityCounts());
             body.put("fallbackCount", summary.fallbackCount());
             body.put("openCircuitCount", summary.openCircuitCount());
             body.put("halfOpenCircuitCount", summary.halfOpenCircuitCount());

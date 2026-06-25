@@ -18,6 +18,8 @@ const { formatTimestamp, t } = useLocale();
           <th scope="col">{{ t('table.time') }}</th>
           <th scope="col">{{ t('table.resource') }}</th>
           <th scope="col">{{ t('table.engine') }}</th>
+          <th scope="col">{{ t('table.traffic') }}</th>
+          <th scope="col">{{ t('table.priority') }}</th>
           <th scope="col">{{ t('table.action') }}</th>
           <th scope="col">{{ t('table.outcome') }}</th>
           <th scope="col">{{ t('table.reason') }}</th>
@@ -32,9 +34,11 @@ const { formatTimestamp, t } = useLocale();
           <td>{{ formatTimestamp(event.timestamp) }}</td>
           <td class="table-monospace">{{ event.resourceKey }}</td>
           <td><StatusBadge :label="event.engine ?? 'LOCAL'" :state="event.engine ?? 'LOCAL'" /></td>
+          <td><StatusBadge :label="event.trafficClass ?? 'ONLINE'" :state="event.trafficClass ?? 'ONLINE'" /></td>
+          <td><StatusBadge :label="event.priority ?? 'NORMAL'" :state="event.priority ?? 'NORMAL'" /></td>
           <td><StatusBadge :label="event.action" :state="event.action" /></td>
           <td><StatusBadge :label="event.outcome" :state="event.outcome" /></td>
-          <td><StatusBadge :label="event.blockReason ?? event.rejectionReason" :state="event.blockReason ?? event.rejectionReason" /></td>
+          <td><StatusBadge :label="event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" :state="event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" /></td>
           <td><StatusBadge :label="event.cancellationReason" :state="event.cancellationReason" /></td>
           <td><StatusBadge :label="event.retryStopReason ?? 'NONE'" :state="event.retryStopReason ?? 'NONE'" /></td>
           <td><StatusBadge :label="event.circuitState" :state="event.circuitState" /></td>

@@ -10,6 +10,7 @@ public final class ConsoleResourceItem {
     private final String name;
     private final String provider;
     private final String operation;
+    private final String trafficClass;
     private final String priority;
     private final ConsolePolicySnapshot policySnapshot;
     private final ConsoleRuntimeSnapshot runtimeSnapshot;
@@ -26,7 +27,7 @@ public final class ConsoleResourceItem {
             String priority,
             ConsolePolicySnapshot policySnapshot,
             ConsoleRuntimeSnapshot runtimeSnapshot) {
-        this(resourceKey, null, kind, name, provider, operation, priority, policySnapshot, runtimeSnapshot);
+        this(resourceKey, null, kind, name, provider, operation, "online", priority, policySnapshot, runtimeSnapshot);
     }
 
     /**
@@ -42,12 +43,30 @@ public final class ConsoleResourceItem {
             String priority,
             ConsolePolicySnapshot policySnapshot,
             ConsoleRuntimeSnapshot runtimeSnapshot) {
+        this(resourceKey, engine, kind, name, provider, operation, "online", priority, policySnapshot, runtimeSnapshot);
+    }
+
+    /**
+     * Creates a resource item from bounded resource, traffic, policy, runtime, and engine fields.
+     */
+    public ConsoleResourceItem(
+            String resourceKey,
+            String engine,
+            String kind,
+            String name,
+            String provider,
+            String operation,
+            String trafficClass,
+            String priority,
+            ConsolePolicySnapshot policySnapshot,
+            ConsoleRuntimeSnapshot runtimeSnapshot) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.kind = kind;
         this.name = name;
         this.provider = provider;
         this.operation = operation;
+        this.trafficClass = trafficClass;
         this.priority = priority;
         this.policySnapshot = policySnapshot;
         this.runtimeSnapshot = runtimeSnapshot;
@@ -81,6 +100,11 @@ public final class ConsoleResourceItem {
     /** Returns the stable operation name. */
     public String getOperation() {
         return operation;
+    }
+
+    /** Returns the fixed low-cardinality traffic class. */
+    public String getTrafficClass() {
+        return trafficClass;
     }
 
     /** Returns the request priority bucket. */

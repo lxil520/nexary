@@ -93,8 +93,8 @@ public final class TrafficTag {
                 + ']';
     }
 
-    /** Traffic channel. */
-    public enum Channel { ONLINE, OFFLINE }
+    /** Fixed low-cardinality traffic class. */
+    public enum Channel { ONLINE, OFFLINE, BATCH, BACKGROUND }
 
     /** Traffic priority. */
     public enum Priority { LOW, NORMAL, HIGH, CRITICAL }

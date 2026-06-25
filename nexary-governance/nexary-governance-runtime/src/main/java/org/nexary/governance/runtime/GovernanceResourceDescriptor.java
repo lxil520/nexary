@@ -10,6 +10,7 @@ public final class GovernanceResourceDescriptor {
     private final String name;
     private final String provider;
     private final String operation;
+    private final String trafficClass;
     private final String priority;
     private final GovernanceEngine engine;
     private final GovernancePolicySnapshot policySnapshot;
@@ -31,6 +32,7 @@ public final class GovernanceResourceDescriptor {
                 name,
                 provider,
                 operation,
+                "online",
                 priority,
                 GovernanceEngine.LOCAL,
                 policySnapshot,
@@ -48,11 +50,27 @@ public final class GovernanceResourceDescriptor {
             GovernanceEngine engine,
             GovernancePolicySnapshot policySnapshot,
             GovernanceRuntimeSnapshot runtimeSnapshot) {
+        this(resourceKey, kind, name, provider, operation, "online", priority, engine, policySnapshot, runtimeSnapshot);
+    }
+
+    /** Creates a descriptor for a resource traffic/priority bucket and governance engine. */
+    public GovernanceResourceDescriptor(
+            String resourceKey,
+            GovernanceResource.ResourceKind kind,
+            String name,
+            String provider,
+            String operation,
+            String trafficClass,
+            String priority,
+            GovernanceEngine engine,
+            GovernancePolicySnapshot policySnapshot,
+            GovernanceRuntimeSnapshot runtimeSnapshot) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.kind = kind == null ? GovernanceResource.ResourceKind.CUSTOM : kind;
         this.name = name == null ? "unknown" : name;
         this.provider = provider == null ? "unknown" : provider;
         this.operation = operation == null ? "default" : operation;
+        this.trafficClass = trafficClass == null ? "online" : trafficClass;
         this.priority = priority == null ? "normal" : priority;
         this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
         this.policySnapshot = policySnapshot == null
@@ -84,6 +102,11 @@ public final class GovernanceResourceDescriptor {
     /** Returns the stable operation name. */
     public String operation() {
         return operation;
+    }
+
+    /** Returns the fixed low-cardinality traffic class. */
+    public String trafficClass() {
+        return trafficClass;
     }
 
     /** Returns the request priority bucket. */
@@ -120,6 +143,7 @@ public final class GovernanceResourceDescriptor {
                 && name.equals(that.name)
                 && provider.equals(that.provider)
                 && operation.equals(that.operation)
+                && trafficClass.equals(that.trafficClass)
                 && priority.equals(that.priority)
                 && engine == that.engine
                 && policySnapshot.equals(that.policySnapshot)
@@ -128,6 +152,7 @@ public final class GovernanceResourceDescriptor {
 
     @Override
     public int hashCode() {
-        return Objects.hash(resourceKey, kind, name, provider, operation, priority, engine, policySnapshot, runtimeSnapshot);
+        return Objects.hash(
+                resourceKey, kind, name, provider, operation, trafficClass, priority, engine, policySnapshot, runtimeSnapshot);
     }
 }

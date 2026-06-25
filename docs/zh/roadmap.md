@@ -430,6 +430,25 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - Sentinel Dashboard 替代品。
 - 未通过样例和 gate 的 Boot2 / Boot4 Sentinel provider 声明。
 
+## `0.14.x` 流量隔离与优先级治理
+
+`0.14.0` 已实现 Boot3 主线的固定流量类型和优先级隔离。在线请求、离线任务、批处理和后台修复任务共用同一个资源时，可以让低优先级流量先被限流、并发隔离或走 fallback，避免拖垮在线请求。
+
+已纳入范围：
+
+- Core：固定 `GovernanceTrafficClass` 为 `ONLINE`、`OFFLINE`、`BATCH`、`BACKGROUND`，固定 `GovernancePriority` 为 `HIGH`、`NORMAL`、`LOW`。
+- Context：`GovernanceContext` 支持绑定 traffic class 和 priority，并在嵌套调用后恢复旧上下文。
+- Runtime：本地 runtime 按 resource、traffic class、priority 维护独立窗口；priority policy 优先，其次 resource policy，最后 default policy。
+- Sentinel：Boot3 Sentinel provider 保持 Sentinel resource name 稳定，同时在 Nexary 侧先执行 priority-aware window，避免低优先级规则误伤高优先级在线请求。
+- Diagnostics / Console：新增 `trafficClass`、`priority`、`isolationReason`、`trafficClassCounts`、`priorityCounts` 和 `isolatedCount`。
+- Samples：`nexary-sample-governance-sentinel` 增加 `/priority/online`、`/priority/batch` 和 `scripts/governance-priority/smoke.sh`。
+
+`0.14.x` 不包含：
+
+- Sentinel Dashboard 替代品。
+- 远程规则平台、跨实例聚合或策略编辑页面。
+- 用这一版本补 Boot2 / Boot4 Sentinel provider 支持矩阵。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。

@@ -8,6 +8,8 @@ const props = defineProps<{
   kindOptions: string[];
   circuitOptions: string[];
   providerOptions: string[];
+  trafficOptions: string[];
+  priorityOptions: string[];
 }>();
 
 const emit = defineEmits<{
@@ -61,6 +63,23 @@ function updateFilter(key: keyof ResourceFilters, value: string): void {
       <select :value="filters.provider" @change="updateFilter('provider', ($event.target as HTMLSelectElement).value)">
         <option value="ALL">{{ t('filters.all') }}</option>
         <option v-for="provider in providerOptions" :key="provider" :value="provider">{{ provider }}</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>{{ t('filters.traffic') }}</span>
+      <select
+        :value="filters.trafficClass"
+        @change="updateFilter('trafficClass', ($event.target as HTMLSelectElement).value)"
+      >
+        <option value="ALL">{{ t('filters.all') }}</option>
+        <option v-for="traffic in trafficOptions" :key="traffic" :value="traffic">{{ enumLabel(traffic) }}</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>{{ t('filters.priority') }}</span>
+      <select :value="filters.priority" @change="updateFilter('priority', ($event.target as HTMLSelectElement).value)">
+        <option value="ALL">{{ t('filters.all') }}</option>
+        <option v-for="priority in priorityOptions" :key="priority" :value="priority">{{ enumLabel(priority) }}</option>
       </select>
     </label>
   </section>

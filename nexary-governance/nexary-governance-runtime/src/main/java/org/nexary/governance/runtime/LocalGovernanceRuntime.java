@@ -5,8 +5,8 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -16,8 +16,11 @@ import org.nexary.core.context.CancellationContext;
 import org.nexary.core.context.CancellationReason;
 import org.nexary.core.fault.FaultSignal;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceIsolationReason;
 import org.nexary.core.governance.GovernanceObservationEvents;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.governance.GovernanceTrafficClass;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetryStopClassifier;
 import org.nexary.core.retry.RetryStopReason;
@@ -27,6 +30,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
     private final GovernancePolicyRegistry policyRegistry;
     private final NexaryObservationPublisher observationPublisher;
     private final Map<String, State> states = new ConcurrentHashMap<>();
+    private final Map<String, GovernanceTrafficClass> firstTrafficClassByResource = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> mixedTrafficReported = new ConcurrentHashMap<>();
     private final ArrayDeque<GovernanceRuntimeEvent> recentEvents = new ArrayDeque<>();
     private final int recentEventCapacity;
 
@@ -53,15 +58,20 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
     public List<GovernanceResourceDescriptor> resources() {
         Map<String, GovernanceResourceDescriptor> resources = new ConcurrentHashMap<>();
         for (GovernanceResourceDescriptor descriptor : policyRegistry.resources()) {
-            resources.put(descriptor.resourceKey() + ":" + descriptor.priority(), descriptor);
+            resources.put(
+                    descriptor.resourceKey() + ":" + descriptor.trafficClass() + ":" + descriptor.priority(),
+                    descriptor);
         }
         for (State state : states.values()) {
             GovernanceResourceDescriptor descriptor = state.descriptor();
-            resources.put(descriptor.resourceKey() + ":" + descriptor.priority(), descriptor);
+            resources.put(
+                    descriptor.resourceKey() + ":" + descriptor.trafficClass() + ":" + descriptor.priority(),
+                    descriptor);
         }
         List<GovernanceResourceDescriptor> sorted = new ArrayList<>(resources.values());
         sorted.sort(Comparator
                 .comparing(GovernanceResourceDescriptor::resourceKey)
+                .thenComparing(GovernanceResourceDescriptor::trafficClass)
                 .thenComparing(GovernanceResourceDescriptor::priority));
         return sorted;
     }
@@ -75,6 +85,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         }
         snapshots.sort(Comparator
                 .comparing(GovernanceRuntimeSnapshot::resourceKey)
+                .thenComparing(GovernanceRuntimeSnapshot::trafficClass)
                 .thenComparing(GovernanceRuntimeSnapshot::priority));
         return snapshots;
     }
@@ -96,16 +107,25 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         long fallback = 0L;
         long cancelled = 0L;
         long retryStopped = 0L;
+        long isolated = 0L;
+        Map<String, Long> trafficClassCounts = new LinkedHashMap<>();
+        Map<String, Long> priorityCounts = new LinkedHashMap<>();
         Instant lastEventAt = null;
         for (GovernanceRuntimeEvent event : currentEvents) {
+            trafficClassCounts.merge(event.trafficClass().diagnosticName(), 1L, Long::sum);
+            priorityCounts.merge(event.priority().diagnosticName(), 1L, Long::sum);
             if (event.outcome() == GovernanceCallOutcome.SUCCESS) {
                 successes++;
             } else if (event.outcome() == GovernanceCallOutcome.FAILURE) {
                 failures++;
-            } else if (event.outcome() == GovernanceCallOutcome.REJECTED) {
+            } else if (event.outcome() == GovernanceCallOutcome.REJECTED
+                    || event.outcome() == GovernanceCallOutcome.ISOLATED) {
                 rejected++;
             } else if (event.outcome() == GovernanceCallOutcome.CANCELLED) {
                 cancelled++;
+            }
+            if (actualIsolation(event.isolationReason())) {
+                isolated++;
             }
             if (event.action() == GovernanceRuntimeAction.FALLBACK) {
                 fallback++;
@@ -137,7 +157,10 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 cancelled,
                 retryStopped,
                 0L,
+                isolated,
                 0L,
+                trafficClassCounts,
+                priorityCounts,
                 openCircuits,
                 halfOpenCircuits,
                 degradedResources,
@@ -161,6 +184,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         GovernanceContext effectiveContext = withPolicyDeadline(safeContext, policy, startedAt);
         State state = stateFor(effectiveContext, policy);
         state.touchPolicy(policy);
+        recordMixedTrafficWarning(state, startedAt);
         GovernanceDecision cancelled = cancelBeforeAcquire(effectiveContext, state);
         if (cancelled != null) {
             recordRuntimeEvent(
@@ -180,8 +204,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             recordRuntimeEvent(
                     state,
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
-                    GovernanceCallOutcome.REJECTED,
+                    outcomeForIsolation(isolationReason(state, state.lastRejectionReason)),
                     state.lastRejectionReason,
+                    isolationReason(state, state.lastRejectionReason),
                     CancellationReason.NONE,
                     retryStopReason(rejected),
                     startedAt,
@@ -203,8 +228,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             recordRuntimeEvent(
                     state,
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
-                    GovernanceCallOutcome.REJECTED,
+                    outcomeForIsolation(isolationReason(state, circuitPermit.rejectionReason())),
                     circuitPermit.rejectionReason(),
+                    isolationReason(state, circuitPermit.rejectionReason()),
                     CancellationReason.NONE,
                     retryStopReason(decision),
                     startedAt,
@@ -221,8 +247,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             recordRuntimeEvent(
                     state,
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
-                    GovernanceCallOutcome.REJECTED,
+                    outcomeForIsolation(isolationReason(state, GovernanceRejectionReason.RATE_LIMITED)),
                     GovernanceRejectionReason.RATE_LIMITED,
+                    isolationReason(state, GovernanceRejectionReason.RATE_LIMITED),
                     CancellationReason.NONE,
                     retryStopReason(decision),
                     startedAt,
@@ -241,8 +268,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             recordRuntimeEvent(
                     state,
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
-                    GovernanceCallOutcome.REJECTED,
+                    outcomeForIsolation(isolationReason(state, GovernanceRejectionReason.CONCURRENCY_LIMITED)),
                     GovernanceRejectionReason.CONCURRENCY_LIMITED,
+                    isolationReason(state, GovernanceRejectionReason.CONCURRENCY_LIMITED),
                     CancellationReason.NONE,
                     retryStopReason(decision),
                     startedAt,
@@ -389,14 +417,37 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
     }
 
     private State stateFor(GovernanceContext context, GovernancePolicy policy) {
-        String key = context.resource().key() + ":" + context.priority().name().toLowerCase(Locale.ROOT);
+        GovernanceTrafficClass trafficClass = context.trafficClass();
+        GovernancePriority priority = context.governancePriority();
+        String key = context.resource().key() + ":"
+                + trafficClass.diagnosticName() + ":"
+                + priority.diagnosticName();
         return states.compute(key, (ignored, current) -> {
-            String priority = context.priority().name().toLowerCase(Locale.ROOT);
             if (current != null && current.maxConcurrency == policy.maxConcurrency()) {
                 return current;
             }
-            return new State(context.resource(), priority, policy.maxConcurrency());
+            return new State(context.resource(), trafficClass, priority, policy.maxConcurrency());
         });
+    }
+
+    private void recordMixedTrafficWarning(State state, Instant startedAt) {
+        GovernanceTrafficClass previous = firstTrafficClassByResource.putIfAbsent(state.resourceKey, state.trafficClass);
+        if (previous == null || previous == state.trafficClass) {
+            return;
+        }
+        if (mixedTrafficReported.putIfAbsent(state.resourceKey, Boolean.TRUE) != null) {
+            return;
+        }
+        recordRuntimeEvent(
+                state,
+                GovernanceRuntimeAction.WARN,
+                GovernanceCallOutcome.NONE,
+                GovernanceRejectionReason.NONE,
+                GovernanceIsolationReason.MIXED_TRAFFIC,
+                CancellationReason.NONE,
+                RetryStopReason.NONE,
+                startedAt,
+                Instant.now());
     }
 
     private void recordRuntimeEvent(
@@ -408,14 +459,39 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             RetryStopReason retryStopReason,
             Instant startedAt,
             Instant endedAt) {
+        recordRuntimeEvent(
+                state,
+                action,
+                outcome,
+                rejectionReason,
+                GovernanceIsolationReason.NONE,
+                cancellationReason,
+                retryStopReason,
+                startedAt,
+                endedAt);
+    }
+
+    private void recordRuntimeEvent(
+            State state,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            GovernanceIsolationReason isolationReason,
+            CancellationReason cancellationReason,
+            RetryStopReason retryStopReason,
+            Instant startedAt,
+            Instant endedAt) {
         Duration duration = startedAt == null || endedAt == null
                 ? null
                 : Duration.between(startedAt, endedAt);
         GovernanceRuntimeEvent event = new GovernanceRuntimeEvent(
                 state.resourceKey,
+                state.trafficClass,
+                state.priority,
                 action,
                 outcome,
                 rejectionReason,
+                isolationReason,
                 cancellationReason,
                 GovernanceEngine.LOCAL,
                 GovernanceBlockReason.NONE,
@@ -423,6 +499,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 state.currentCircuitState(),
                 endedAt,
                 GovernanceDurationBucket.from(duration));
+        state.recordIsolation(isolationReason);
         state.recordRetryStop(retryStopReason);
         synchronized (recentEvents) {
             recentEvents.addLast(event);
@@ -438,13 +515,44 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 : decision.retrySignal().stopReason();
     }
 
+    private static GovernanceIsolationReason isolationReason(State state, GovernanceRejectionReason rejectionReason) {
+        if (state == null || state.priority != GovernancePriority.LOW) {
+            return GovernanceIsolationReason.NONE;
+        }
+        if (rejectionReason == GovernanceRejectionReason.RATE_LIMITED) {
+            return GovernanceIsolationReason.PRIORITY_RATE_LIMITED;
+        }
+        if (rejectionReason == GovernanceRejectionReason.CONCURRENCY_LIMITED) {
+            return GovernanceIsolationReason.PRIORITY_BULKHEAD_FULL;
+        }
+        if (rejectionReason == GovernanceRejectionReason.DEGRADED) {
+            return GovernanceIsolationReason.PRIORITY_DEGRADED;
+        }
+        if (rejectionReason == GovernanceRejectionReason.CIRCUIT_OPEN
+                || rejectionReason == GovernanceRejectionReason.HALF_OPEN_LIMITED) {
+            return GovernanceIsolationReason.PRIORITY_CIRCUIT_OPEN;
+        }
+        return GovernanceIsolationReason.NONE;
+    }
+
+    private static GovernanceCallOutcome outcomeForIsolation(GovernanceIsolationReason reason) {
+        return actualIsolation(reason) ? GovernanceCallOutcome.ISOLATED : GovernanceCallOutcome.REJECTED;
+    }
+
+    private static boolean actualIsolation(GovernanceIsolationReason reason) {
+        return reason != null
+                && reason != GovernanceIsolationReason.NONE
+                && reason != GovernanceIsolationReason.MIXED_TRAFFIC;
+    }
+
     private static final class State {
         private final String resourceKey;
         private final GovernanceResource.ResourceKind kind;
         private final String name;
         private final String provider;
         private final String operation;
-        private final String priority;
+        private final GovernanceTrafficClass trafficClass;
+        private final GovernancePriority priority;
         private final int maxConcurrency;
         private final Semaphore semaphore;
         private long windowStartedNanos = System.nanoTime();
@@ -458,6 +566,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private int consecutiveFailures;
         private long totalRejections;
         private GovernanceRejectionReason lastRejectionReason = GovernanceRejectionReason.NONE;
+        private GovernanceIsolationReason lastIsolationReason = GovernanceIsolationReason.NONE;
         private CancellationReason lastCancellationReason = CancellationReason.NONE;
         private RetryStopReason lastRetryStopReason = RetryStopReason.NONE;
         private Instant lastStateTransitionAt = Instant.now();
@@ -478,14 +587,19 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private int lastConsecutiveFailureThreshold = Integer.MAX_VALUE;
         private GovernancePolicySnapshot lastPolicySnapshot = GovernancePolicySnapshot.from(GovernancePolicy.allowAll());
 
-        private State(GovernanceResource resource, String priority, int maxConcurrency) {
+        private State(
+                GovernanceResource resource,
+                GovernanceTrafficClass trafficClass,
+                GovernancePriority priority,
+                int maxConcurrency) {
             GovernanceResource safeResource = resource == null ? GovernanceResource.custom("unknown", "default") : resource;
             this.resourceKey = safeResource.key();
             this.kind = safeResource.kind();
             this.name = safeResource.name();
             this.provider = safeResource.provider();
             this.operation = safeResource.operation();
-            this.priority = priority;
+            this.trafficClass = trafficClass == null ? GovernanceTrafficClass.ONLINE : trafficClass;
+            this.priority = priority == null ? GovernancePriority.NORMAL : priority;
             this.maxConcurrency = maxConcurrency;
             this.semaphore = new Semaphore(maxConcurrency);
         }
@@ -640,6 +754,12 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             }
         }
 
+        private synchronized void recordIsolation(GovernanceIsolationReason reason) {
+            if (reason != null && reason != GovernanceIsolationReason.NONE) {
+                lastIsolationReason = reason;
+            }
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -647,7 +767,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     name,
                     provider,
                     operation,
-                    priority,
+                    trafficClass.diagnosticName(),
+                    priority.diagnosticName(),
+                    GovernanceEngine.LOCAL,
                     lastPolicySnapshot,
                     snapshot());
         }
@@ -658,7 +780,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             WindowCounts counts = windowCounts();
             return new GovernanceRuntimeSnapshot(
                     resourceKey,
-                    priority,
+                    trafficClass.diagnosticName(),
+                    priority.diagnosticName(),
+                    GovernanceEngine.LOCAL,
                     circuitState,
                     counts.total(),
                     counts.failures(),
@@ -666,6 +790,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     consecutiveFailures,
                     totalRejections,
                     lastRejectionReason,
+                    GovernanceBlockReason.NONE,
+                    lastIsolationReason,
                     lastCancellationReason,
                     lastRetryStopReason,
                     openUntil,

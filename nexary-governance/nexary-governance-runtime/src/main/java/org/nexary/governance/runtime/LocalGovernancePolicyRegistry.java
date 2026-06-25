@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.core.governance.RequestPriority;
 
@@ -39,7 +40,7 @@ public final class LocalGovernancePolicyRegistry implements GovernancePolicyRegi
         if (context == null) {
             return defaultPolicy;
         }
-        GovernancePolicy byPriority = policies.get(priorityKey(context.resource(), context.priority()));
+        GovernancePolicy byPriority = policies.get(priorityKey(context.resource(), context.governancePriority()));
         if (byPriority != null) {
             return byPriority;
         }
@@ -53,7 +54,11 @@ public final class LocalGovernancePolicyRegistry implements GovernancePolicyRegi
     }
 
     private static String priorityKey(GovernanceResource resource, RequestPriority priority) {
-        return resource.key() + ":" + priority.name().toLowerCase();
+        return priorityKey(resource, GovernancePriority.fromRequestPriority(priority));
+    }
+
+    private static String priorityKey(GovernanceResource resource, GovernancePriority priority) {
+        return resource.key() + ":" + priority.name().toLowerCase(Locale.ROOT);
     }
 
     /** Builder for LocalGovernancePolicyRegistry. */
@@ -70,12 +75,16 @@ public final class LocalGovernancePolicyRegistry implements GovernancePolicyRegi
         public Builder policy(GovernanceResource resource, GovernancePolicy policy) {
             if (resource != null && policy != null) {
                 policies.put(resource.key(), policy);
-                resources.put(resource.key() + ":normal", descriptor(resource, RequestPriority.NORMAL, policy));
+                resources.put(resource.key() + ":normal", descriptor(resource, GovernancePriority.NORMAL, policy));
             }
             return this;
         }
 
         public Builder policy(GovernanceResource resource, RequestPriority priority, GovernancePolicy policy) {
+            return policy(resource, GovernancePriority.fromRequestPriority(priority), policy);
+        }
+
+        public Builder policy(GovernanceResource resource, GovernancePriority priority, GovernancePolicy policy) {
             if (resource != null && priority != null && policy != null) {
                 policies.put(priorityKey(resource, priority), policy);
                 resources.put(priorityKey(resource, priority), descriptor(resource, priority, policy));
@@ -89,7 +98,7 @@ public final class LocalGovernancePolicyRegistry implements GovernancePolicyRegi
 
         private static GovernanceResourceDescriptor descriptor(
                 GovernanceResource resource,
-                RequestPriority priority,
+                GovernancePriority priority,
                 GovernancePolicy policy) {
             return new GovernanceResourceDescriptor(
                     resource.key(),

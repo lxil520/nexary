@@ -7,8 +7,12 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.nexary.core.context.CancellationReason;
 import org.nexary.core.context.CancellationToken;
+import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceIsolationReason;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.governance.GovernanceTrafficClass;
 import org.nexary.core.retry.RetryStopReason;
 import org.nexary.governance.runtime.GovernanceBlockReason;
 import org.nexary.governance.runtime.GovernanceCallOutcome;
@@ -75,5 +79,54 @@ class SentinelGovernanceRuntimeTest {
         assertThat(runtime.recentEvents().get(0).blockReason()).isEqualTo(GovernanceBlockReason.NONE);
         assertThat(runtime.recentEvents().get(0).cancellationReason()).isEqualTo(CancellationReason.UPSTREAM_CANCELLED);
         assertThat(runtime.recentEvents().get(0).retryStopReason()).isEqualTo(RetryStopReason.UPSTREAM_CANCELLED);
+    }
+
+    @Test
+    void priorityIsolationHappensBeforeSharedSentinelResourceRules() throws Exception {
+        GovernanceResource resource = GovernanceResource.http("sentinel-priority-api", "query");
+        SentinelGovernanceRuntime runtime = new SentinelGovernanceRuntime(
+                LocalGovernancePolicyRegistry.builder()
+                        .policy(resource, GovernancePriority.LOW, GovernancePolicy.builder()
+                                .maxRequestsPerWindow(1)
+                                .rateLimitWindow(Duration.ofSeconds(60))
+                                .build())
+                        .policy(resource, GovernancePriority.HIGH, GovernancePolicy.allowAll())
+                        .build(),
+                null);
+        GovernanceContext lowBatch = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.BATCH)
+                        .priority(TrafficTag.Priority.LOW)
+                        .build())
+                .build();
+        GovernanceContext highOnline = GovernanceContext.builder()
+                .resource(resource)
+                .trafficTag(TrafficTag.builder()
+                        .channel(TrafficTag.Channel.ONLINE)
+                        .priority(TrafficTag.Priority.HIGH)
+                        .build())
+                .build();
+
+        assertThat(runtime.execute(lowBatch, () -> "batch-1")).isEqualTo("batch-1");
+        assertThat(runtime.execute(lowBatch, () -> "batch-main", () -> "batch-fallback")).isEqualTo("batch-fallback");
+        assertThat(runtime.execute(highOnline, () -> "online")).isEqualTo("online");
+
+        assertThat(runtime.summary().isolatedCount()).isEqualTo(1);
+        assertThat(runtime.summary().blockedCount()).isEqualTo(1);
+        assertThat(runtime.recentEvents())
+                .anySatisfy(event -> {
+                    assertThat(event.engine()).isEqualTo(GovernanceEngine.SENTINEL);
+                    assertThat(event.trafficClass()).isEqualTo(GovernanceTrafficClass.BATCH);
+                    assertThat(event.priority()).isEqualTo(GovernancePriority.LOW);
+                    assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.ISOLATED);
+                    assertThat(event.isolationReason()).isEqualTo(GovernanceIsolationReason.PRIORITY_RATE_LIMITED);
+                    assertThat(event.blockReason()).isEqualTo(GovernanceBlockReason.RATE_LIMITED);
+                })
+                .anySatisfy(event -> {
+                    assertThat(event.trafficClass()).isEqualTo(GovernanceTrafficClass.ONLINE);
+                    assertThat(event.priority()).isEqualTo(GovernancePriority.HIGH);
+                    assertThat(event.outcome()).isEqualTo(GovernanceCallOutcome.SUCCESS);
+                });
     }
 }

@@ -22,6 +22,8 @@ const filters = ref<ResourceFilters>({
   kind: 'ALL',
   circuitState: 'ALL',
   provider: 'ALL',
+  trafficClass: 'ALL',
+  priority: 'ALL',
 });
 
 const filteredResources = useFilteredResources(resources, filters);
@@ -31,6 +33,8 @@ const circuitOptions = computed(() =>
   uniqueSorted(resources.value.map((resource) => resource.runtimeSnapshot?.circuitState ?? 'NO_STATE')),
 );
 const providerOptions = computed(() => uniqueSorted(resources.value.map((resource) => resource.provider)));
+const trafficOptions = computed(() => uniqueSorted(resources.value.map((resource) => resource.trafficClass ?? 'online')));
+const priorityOptions = computed(() => uniqueSorted(resources.value.map((resource) => resource.priority)));
 
 onMounted(() => {
   if (!hasLoaded.value) {
@@ -54,6 +58,8 @@ onMounted(() => {
       :kind-options="kindOptions"
       :circuit-options="circuitOptions"
       :provider-options="providerOptions"
+      :traffic-options="trafficOptions"
+      :priority-options="priorityOptions"
       @update="filters = $event"
     />
     <EmptyState

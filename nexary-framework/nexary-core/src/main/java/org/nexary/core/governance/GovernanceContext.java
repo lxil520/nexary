@@ -26,6 +26,8 @@ public final class GovernanceContext {
     private final GovernanceResource resource;
     private final TrafficTag trafficTag;
     private final RequestPriority priority;
+    private final GovernanceTrafficClass trafficClass;
+    private final GovernancePriority governancePriority;
     private final Instant deadline;
     private final CancellationToken cancellationToken;
     private final Map<String, String> attributes;
@@ -47,6 +49,8 @@ public final class GovernanceContext {
         this.resource = resource == null ? GovernanceResource.custom("default", "default") : resource;
         this.trafficTag = trafficTag == null ? TrafficTag.defaults() : trafficTag;
         this.priority = priority == null ? RequestPriority.fromTrafficTag(this.trafficTag) : priority;
+        this.trafficClass = GovernanceTrafficClass.fromTrafficTag(this.trafficTag);
+        this.governancePriority = GovernancePriority.fromRequestPriority(this.priority);
         this.deadline = deadline;
         this.cancellationToken = cancellationToken;
         this.attributes = attributes == null
@@ -127,6 +131,41 @@ public final class GovernanceContext {
         return priority;
     }
 
+    /** Returns the fixed low-cardinality traffic class used by isolation policies. */
+    public GovernanceTrafficClass trafficClass() {
+        return trafficClass;
+    }
+
+    /** Returns the fixed low-cardinality priority used by isolation policies. */
+    public GovernancePriority governancePriority() {
+        return governancePriority;
+    }
+
+    /** Returns a copy with a new fixed traffic class. */
+    public GovernanceContext withTraffic(GovernanceTrafficClass trafficClass) {
+        return builder()
+                .resource(resource)
+                .trafficTag(retag(trafficTag, trafficClass, governancePriority))
+                .priority(priority)
+                .deadline(deadline)
+                .cancellationToken(cancellationToken)
+                .attributes(attributes)
+                .build();
+    }
+
+    /** Returns a copy with a new fixed priority. */
+    public GovernanceContext withPriority(GovernancePriority priority) {
+        GovernancePriority safePriority = priority == null ? GovernancePriority.NORMAL : priority;
+        return builder()
+                .resource(resource)
+                .trafficTag(retag(trafficTag, trafficClass, safePriority))
+                .priority(safePriority.toRequestPriority())
+                .deadline(deadline)
+                .cancellationToken(cancellationToken)
+                .attributes(attributes)
+                .build();
+    }
+
     /** Returns the optional deadline. */
     public Optional<Instant> deadline() {
         return Optional.ofNullable(deadline);
@@ -166,6 +205,8 @@ public final class GovernanceContext {
         return resource.equals(that.resource)
                 && trafficTag.equals(that.trafficTag)
                 && priority == that.priority
+                && trafficClass == that.trafficClass
+                && governancePriority == that.governancePriority
                 && Objects.equals(deadline, that.deadline)
                 && Objects.equals(cancellationToken, that.cancellationToken)
                 && attributes.equals(that.attributes);
@@ -173,7 +214,7 @@ public final class GovernanceContext {
 
     @Override
     public int hashCode() {
-        return Objects.hash(resource, trafficTag, priority, deadline, cancellationToken, attributes);
+        return Objects.hash(resource, trafficTag, priority, trafficClass, governancePriority, deadline, cancellationToken, attributes);
     }
 
     @Override
@@ -181,6 +222,8 @@ public final class GovernanceContext {
         return "GovernanceContext[resource=" + resource
                 + ", trafficTag=" + trafficTag
                 + ", priority=" + priority
+                + ", trafficClass=" + trafficClass
+                + ", governancePriority=" + governancePriority
                 + ", deadline=" + deadline
                 + ", cancellationToken=" + (cancellationToken == null ? "none" : "present")
                 + ", attributes=" + attributes
@@ -208,9 +251,23 @@ public final class GovernanceContext {
             return this;
         }
 
+        /** Sets the fixed traffic class for isolation policies. */
+        public Builder trafficClass(GovernanceTrafficClass trafficClass) {
+            this.trafficTag = retag(trafficTag, Objects.requireNonNull(trafficClass, "trafficClass"), null);
+            return this;
+        }
+
         /** Sets the request priority explicitly instead of deriving it from the traffic tag. */
         public Builder priority(RequestPriority priority) {
             this.priority = Objects.requireNonNull(priority, "priority");
+            return this;
+        }
+
+        /** Sets the fixed priority bucket for isolation policies. */
+        public Builder governancePriority(GovernancePriority priority) {
+            GovernancePriority safePriority = Objects.requireNonNull(priority, "priority");
+            this.priority = safePriority.toRequestPriority();
+            this.trafficTag = retag(trafficTag, null, safePriority);
             return this;
         }
 
@@ -222,7 +279,7 @@ public final class GovernanceContext {
 
         /** Sets the cooperative cancellation token for this context. */
         public Builder cancellationToken(CancellationToken cancellationToken) {
-            this.cancellationToken = Objects.requireNonNull(cancellationToken, "cancellationToken");
+            this.cancellationToken = cancellationToken;
             return this;
         }
 
@@ -234,9 +291,39 @@ public final class GovernanceContext {
             return this;
         }
 
+        /** Adds bounded, low-cardinality context attributes. */
+        public Builder attributes(Map<String, String> attributes) {
+            if (attributes != null) {
+                for (Map.Entry<String, String> entry : attributes.entrySet()) {
+                    attribute(entry.getKey(), entry.getValue());
+                }
+            }
+            return this;
+        }
+
         /** Builds an immutable governance context. */
         public GovernanceContext build() {
             return new GovernanceContext(resource, trafficTag, priority, deadline, cancellationToken, attributes);
         }
+    }
+
+    private static TrafficTag retag(
+            TrafficTag source,
+            GovernanceTrafficClass trafficClass,
+            GovernancePriority priority) {
+        TrafficTag safeSource = source == null ? TrafficTag.defaults() : source;
+        GovernanceTrafficClass safeTraffic =
+                trafficClass == null ? GovernanceTrafficClass.fromTrafficTag(safeSource) : trafficClass;
+        GovernancePriority safePriority =
+                priority == null ? GovernancePriority.fromTrafficTag(safeSource) : priority;
+        TrafficTag.Builder builder = TrafficTag.builder()
+                .channel(TrafficTag.Channel.valueOf(safeTraffic.name()))
+                .priority(safePriority.toTrafficTagPriority())
+                .tenant(safeSource.tenant())
+                .bizKey(safeSource.bizKey());
+        for (Map.Entry<String, String> entry : safeSource.attributes().entrySet()) {
+            builder.attribute(entry.getKey(), entry.getValue());
+        }
+        return builder.build();
     }
 }

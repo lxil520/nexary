@@ -4,8 +4,8 @@ import java.time.Duration;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
-import org.nexary.core.governance.RequestPriority;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /** Configuration for the local Nexary governance runtime. */
@@ -487,7 +487,7 @@ public class GovernanceRuntimeProperties {
         private String name;
         private String provider = "nexary";
         private String operation = "default";
-        private Map<RequestPriority, Policy> priorities = new EnumMap<>(RequestPriority.class);
+        private Map<GovernancePriority, Policy> priorities = new EnumMap<>(GovernancePriority.class);
 
         /** Returns the governed resource kind. */
         public GovernanceResource.ResourceKind getKind() {
@@ -530,13 +530,13 @@ public class GovernanceRuntimeProperties {
         }
 
         /** Returns priority-specific policy overrides for this resource. */
-        public Map<RequestPriority, Policy> getPriorities() {
+        public Map<GovernancePriority, Policy> getPriorities() {
             return priorities;
         }
 
         /** Sets priority-specific policy overrides for this resource. */
-        public void setPriorities(Map<RequestPriority, Policy> priorities) {
-            this.priorities = new EnumMap<>(RequestPriority.class);
+        public void setPriorities(Map<GovernancePriority, Policy> priorities) {
+            this.priorities = new EnumMap<>(GovernancePriority.class);
             if (priorities != null) {
                 this.priorities.putAll(priorities);
             }

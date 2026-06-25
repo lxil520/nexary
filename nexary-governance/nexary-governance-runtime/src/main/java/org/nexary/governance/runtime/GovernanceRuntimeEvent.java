@@ -3,14 +3,20 @@ package org.nexary.governance.runtime;
 import java.time.Instant;
 import java.util.Objects;
 import org.nexary.core.context.CancellationReason;
+import org.nexary.core.governance.GovernanceIsolationReason;
+import org.nexary.core.governance.GovernancePriority;
+import org.nexary.core.governance.GovernanceTrafficClass;
 import org.nexary.core.retry.RetryStopReason;
 
 /** Recent low-cardinality event recorded by the local governance runtime. */
 public final class GovernanceRuntimeEvent {
     private final String resourceKey;
+    private final GovernanceTrafficClass trafficClass;
+    private final GovernancePriority priority;
     private final GovernanceRuntimeAction action;
     private final GovernanceCallOutcome outcome;
     private final GovernanceRejectionReason rejectionReason;
+    private final GovernanceIsolationReason isolationReason;
     private final CancellationReason cancellationReason;
     private final GovernanceEngine engine;
     private final GovernanceBlockReason blockReason;
@@ -43,9 +49,12 @@ public final class GovernanceRuntimeEvent {
             GovernanceDurationBucket durationBucket) {
         this(
                 resourceKey,
+                GovernanceTrafficClass.ONLINE,
+                GovernancePriority.NORMAL,
                 action,
                 outcome,
                 rejectionReason,
+                GovernanceIsolationReason.NONE,
                 cancellationReason,
                 GovernanceEngine.LOCAL,
                 GovernanceBlockReason.NONE,
@@ -69,9 +78,12 @@ public final class GovernanceRuntimeEvent {
             GovernanceDurationBucket durationBucket) {
         this(
                 resourceKey,
+                GovernanceTrafficClass.ONLINE,
+                GovernancePriority.NORMAL,
                 action,
                 outcome,
                 rejectionReason,
+                GovernanceIsolationReason.NONE,
                 cancellationReason,
                 engine,
                 blockReason,
@@ -94,10 +106,46 @@ public final class GovernanceRuntimeEvent {
             GovernanceCircuitState circuitState,
             Instant timestamp,
             GovernanceDurationBucket durationBucket) {
+        this(
+                resourceKey,
+                GovernanceTrafficClass.ONLINE,
+                GovernancePriority.NORMAL,
+                action,
+                outcome,
+                rejectionReason,
+                GovernanceIsolationReason.NONE,
+                cancellationReason,
+                engine,
+                blockReason,
+                retryStopReason,
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /** Creates a low-cardinality runtime event with traffic, priority, engine, block, and retry-stop metadata. */
+    public GovernanceRuntimeEvent(
+            String resourceKey,
+            GovernanceTrafficClass trafficClass,
+            GovernancePriority priority,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            GovernanceIsolationReason isolationReason,
+            CancellationReason cancellationReason,
+            GovernanceEngine engine,
+            GovernanceBlockReason blockReason,
+            RetryStopReason retryStopReason,
+            GovernanceCircuitState circuitState,
+            Instant timestamp,
+            GovernanceDurationBucket durationBucket) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
+        this.trafficClass = trafficClass == null ? GovernanceTrafficClass.ONLINE : trafficClass;
+        this.priority = priority == null ? GovernancePriority.NORMAL : priority;
         this.action = action == null ? GovernanceRuntimeAction.EXECUTE : action;
         this.outcome = outcome == null ? GovernanceCallOutcome.NONE : outcome;
         this.rejectionReason = rejectionReason == null ? GovernanceRejectionReason.NONE : rejectionReason;
+        this.isolationReason = isolationReason == null ? GovernanceIsolationReason.NONE : isolationReason;
         this.cancellationReason = cancellationReason == null ? CancellationReason.NONE : cancellationReason;
         this.engine = engine == null ? GovernanceEngine.LOCAL : engine;
         this.blockReason = blockReason == null ? GovernanceBlockReason.NONE : blockReason;
@@ -110,6 +158,16 @@ public final class GovernanceRuntimeEvent {
     /** Returns the stable governed resource key. */
     public String resourceKey() {
         return resourceKey;
+    }
+
+    /** Returns the fixed low-cardinality traffic class. */
+    public GovernanceTrafficClass trafficClass() {
+        return trafficClass;
+    }
+
+    /** Returns the fixed low-cardinality priority bucket. */
+    public GovernancePriority priority() {
+        return priority;
     }
 
     /** Returns the low-cardinality action. */
@@ -125,6 +183,11 @@ public final class GovernanceRuntimeEvent {
     /** Returns the low-cardinality rejection reason. */
     public GovernanceRejectionReason rejectionReason() {
         return rejectionReason;
+    }
+
+    /** Returns why priority isolation was applied, if any. */
+    public GovernanceIsolationReason isolationReason() {
+        return isolationReason;
     }
 
     /** Returns the low-cardinality cancellation reason. */
@@ -172,9 +235,12 @@ public final class GovernanceRuntimeEvent {
         }
         GovernanceRuntimeEvent that = (GovernanceRuntimeEvent) other;
         return resourceKey.equals(that.resourceKey)
+                && trafficClass == that.trafficClass
+                && priority == that.priority
                 && action == that.action
                 && outcome == that.outcome
                 && rejectionReason == that.rejectionReason
+                && isolationReason == that.isolationReason
                 && cancellationReason == that.cancellationReason
                 && engine == that.engine
                 && blockReason == that.blockReason
@@ -188,9 +254,12 @@ public final class GovernanceRuntimeEvent {
     public int hashCode() {
         return Objects.hash(
                 resourceKey,
+                trafficClass,
+                priority,
                 action,
                 outcome,
                 rejectionReason,
+                isolationReason,
                 cancellationReason,
                 engine,
                 blockReason,

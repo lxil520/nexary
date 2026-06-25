@@ -2,6 +2,7 @@ package org.nexary.samples.governance.sentinel.api;
 
 import java.time.Duration;
 import java.time.Instant;
+import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.retry.RetrySignal;
 import org.nexary.core.retry.RetryStopReason;
@@ -107,5 +108,37 @@ public class SentinelGovernanceSampleController {
             }
         }
         return new SentinelSampleResult("retry-stop", "completed", boundedAttempts, "NONE");
+    }
+
+    /** High-priority online traffic should continue through the shared resource. */
+    @GetMapping("/priority/online")
+    public SentinelSampleResult priorityOnline() throws Exception {
+        return governanceRuntime.execute(
+                GovernanceContext.builder()
+                        .resource(SentinelGovernanceSampleResources.PRIORITY_RESOURCE)
+                        .trafficTag(TrafficTag.builder()
+                                .channel(TrafficTag.Channel.ONLINE)
+                                .priority(TrafficTag.Priority.HIGH)
+                                .build())
+                        .deadline(Instant.now().plusSeconds(2))
+                        .build(),
+                service::ok,
+                service::fallback);
+    }
+
+    /** Low-priority batch traffic is isolated first when it overuses the shared resource. */
+    @GetMapping("/priority/batch")
+    public SentinelSampleResult priorityBatch() throws Exception {
+        return governanceRuntime.execute(
+                GovernanceContext.builder()
+                        .resource(SentinelGovernanceSampleResources.PRIORITY_RESOURCE)
+                        .trafficTag(TrafficTag.builder()
+                                .channel(TrafficTag.Channel.BATCH)
+                                .priority(TrafficTag.Priority.LOW)
+                                .build())
+                        .deadline(Instant.now().plusSeconds(2))
+                        .build(),
+                service::ok,
+                service::fallback);
     }
 }

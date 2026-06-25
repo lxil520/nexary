@@ -2,8 +2,8 @@ package org.nexary.boot.governance;
 
 import java.util.Map;
 import org.nexary.core.governance.GovernanceExecution;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
-import org.nexary.core.governance.RequestPriority;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.governance.runtime.GovernancePolicy;
 import org.nexary.governance.runtime.GovernancePolicyRegistry;
@@ -33,7 +33,7 @@ public class GovernanceRuntimeAutoConfiguration {
                     : entry.getValue();
             GovernanceResource resource = toResource(entry.getKey(), resourcePolicy);
             builder.policy(resource, toPolicy(resourcePolicy));
-            for (Map.Entry<RequestPriority, GovernanceRuntimeProperties.Policy> priority
+            for (Map.Entry<GovernancePriority, GovernanceRuntimeProperties.Policy> priority
                     : resourcePolicy.getPriorities().entrySet()) {
                 builder.policy(resource, priority.getKey(), toPolicy(priority.getValue()));
             }

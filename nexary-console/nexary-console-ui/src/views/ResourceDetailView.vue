@@ -61,6 +61,7 @@ watch(
         <p class="resource-key">{{ resource.resourceKey }}</p>
       </div>
       <div class="detail-header__badges">
+        <StatusBadge :label="resource.trafficClass ?? 'online'" :state="resource.trafficClass ?? 'online'" />
         <StatusBadge :label="resource.priority" :state="resource.priority" />
         <StatusBadge :label="resource.engine ?? 'LOCAL'" :state="resource.engine ?? 'LOCAL'" />
         <StatusBadge

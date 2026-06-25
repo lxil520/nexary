@@ -430,6 +430,25 @@ Included scope:
 - a Sentinel Dashboard replacement.
 - Boot2 / Boot4 Sentinel provider claims before samples and gates pass.
 
+## `0.14.x` Traffic Isolation and Priority Governance
+
+`0.14.0` implements fixed traffic classes and priority isolation on the Boot3 mainline. When online requests share a resource with offline tasks, batch work, or background repair work, lower-priority traffic can be rate-limited, bulkhead-isolated, or sent to fallback first so online requests keep capacity.
+
+Included scope:
+
+- Core: fixed `GovernanceTrafficClass` values are `ONLINE`, `OFFLINE`, `BATCH`, and `BACKGROUND`; fixed `GovernancePriority` values are `HIGH`, `NORMAL`, and `LOW`.
+- Context: `GovernanceContext` can bind traffic class and priority, then restore the previous context after nested calls.
+- Runtime: the local runtime keeps separate windows by resource, traffic class, and priority; priority policy wins, then resource policy, then default policy.
+- Sentinel: the Boot3 Sentinel provider keeps the Sentinel resource name stable while applying Nexary-side priority-aware windows first, so lower-priority rules do not block high-priority online requests.
+- Diagnostics / Console: add `trafficClass`, `priority`, `isolationReason`, `trafficClassCounts`, `priorityCounts`, and `isolatedCount`.
+- Samples: `nexary-sample-governance-sentinel` adds `/priority/online`, `/priority/batch`, and `scripts/governance-priority/smoke.sh`.
+
+`0.14.x` does not include:
+
+- a Sentinel Dashboard replacement.
+- remote rule platforms, cross-instance aggregation, or rule-editing pages.
+- using this release to fill Boot2 / Boot4 Sentinel provider support matrix gaps.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

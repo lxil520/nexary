@@ -70,5 +70,18 @@ nexary:
         provider: nexary
         operation: load
         degraded: true
+      sentinel-priority:
+        kind: downstream
+        name: priority-shared-service
+        provider: nexary
+        operation: load
+        max-requests-per-window: 100
+        rate-limit-window: 1s
+        max-concurrency: 32
+        priorities:
+          low:
+            max-requests-per-window: 1
+            rate-limit-window: 1m
+            max-concurrency: 1
   console:
     enabled: true

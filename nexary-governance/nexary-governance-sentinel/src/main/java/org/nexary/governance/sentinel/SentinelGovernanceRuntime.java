@@ -22,13 +22,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.nexary.core.context.CancellationContext;
 import org.nexary.core.context.CancellationReason;
 import org.nexary.core.fault.FaultSignal;
 import org.nexary.core.governance.GovernanceContext;
+import org.nexary.core.governance.GovernanceIsolationReason;
 import org.nexary.core.governance.GovernanceObservationEvents;
+import org.nexary.core.governance.GovernancePriority;
 import org.nexary.core.governance.GovernanceResource;
+import org.nexary.core.governance.GovernanceTrafficClass;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.core.retry.RetryStopClassifier;
 import org.nexary.core.retry.RetryStopReason;
@@ -57,6 +61,8 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
     private final NexaryObservationPublisher observationPublisher;
     private final SentinelRuleMapper ruleMapper;
     private final Map<String, State> states = new ConcurrentHashMap<>();
+    private final Map<String, GovernanceTrafficClass> firstTrafficClassByResource = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> mixedTrafficReported = new ConcurrentHashMap<>();
     private final ArrayDeque<GovernanceRuntimeEvent> recentEvents = new ArrayDeque<>();
     private final int recentEventCapacity;
     private final Object ruleLock = new Object();
@@ -91,15 +97,20 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
     public List<GovernanceResourceDescriptor> resources() {
         Map<String, GovernanceResourceDescriptor> descriptors = new LinkedHashMap<>();
         for (GovernanceResourceDescriptor descriptor : policyRegistry.resources()) {
-            descriptors.put(descriptor.resourceKey() + ":" + descriptor.priority(), sentinelDescriptor(descriptor));
+            descriptors.put(
+                    descriptor.resourceKey() + ":" + descriptor.trafficClass() + ":" + descriptor.priority(),
+                    sentinelDescriptor(descriptor));
         }
         for (State state : states.values()) {
             GovernanceResourceDescriptor descriptor = state.descriptor();
-            descriptors.put(descriptor.resourceKey() + ":" + descriptor.priority(), descriptor);
+            descriptors.put(
+                    descriptor.resourceKey() + ":" + descriptor.trafficClass() + ":" + descriptor.priority(),
+                    descriptor);
         }
         List<GovernanceResourceDescriptor> sorted = new ArrayList<>(descriptors.values());
         sorted.sort(Comparator
                 .comparing(GovernanceResourceDescriptor::resourceKey)
+                .thenComparing(GovernanceResourceDescriptor::trafficClass)
                 .thenComparing(GovernanceResourceDescriptor::priority));
         return sorted;
     }
@@ -112,6 +123,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         }
         snapshots.sort(Comparator
                 .comparing(GovernanceRuntimeSnapshot::resourceKey)
+                .thenComparing(GovernanceRuntimeSnapshot::trafficClass)
                 .thenComparing(GovernanceRuntimeSnapshot::priority));
         return snapshots;
     }
@@ -134,13 +146,19 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         long cancelled = 0L;
         long retryStopped = 0L;
         long blocked = 0L;
+        long isolated = 0L;
+        Map<String, Long> trafficClassCounts = new LinkedHashMap<>();
+        Map<String, Long> priorityCounts = new LinkedHashMap<>();
         Instant lastEventAt = null;
         for (GovernanceRuntimeEvent event : currentEvents) {
+            trafficClassCounts.merge(event.trafficClass().diagnosticName(), 1L, Long::sum);
+            priorityCounts.merge(event.priority().diagnosticName(), 1L, Long::sum);
             if (event.outcome() == GovernanceCallOutcome.SUCCESS) {
                 successes++;
             } else if (event.outcome() == GovernanceCallOutcome.FAILURE) {
                 failures++;
-            } else if (event.outcome() == GovernanceCallOutcome.REJECTED) {
+            } else if (event.outcome() == GovernanceCallOutcome.REJECTED
+                    || event.outcome() == GovernanceCallOutcome.ISOLATED) {
                 rejected++;
             } else if (event.outcome() == GovernanceCallOutcome.CANCELLED) {
                 cancelled++;
@@ -153,6 +171,9 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             }
             if (event.blockReason() != GovernanceBlockReason.NONE) {
                 blocked++;
+            }
+            if (actualIsolation(event.isolationReason())) {
+                isolated++;
             }
             if (lastEventAt == null || event.timestamp().isAfter(lastEventAt)) {
                 lastEventAt = event.timestamp();
@@ -181,7 +202,10 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 cancelled,
                 retryStopped,
                 blocked,
+                isolated,
                 sentinelResources,
+                trafficClassCounts,
+                priorityCounts,
                 openCircuits,
                 halfOpenCircuits,
                 degradedResources,
@@ -205,7 +229,8 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         GovernanceContext effectiveContext = withPolicyDeadline(safeContext, policy, startedAt);
         State state = stateFor(effectiveContext, policy);
         state.touchPolicy(policy);
-        ensureRules(state.stateKey, state.resourceKey, policy);
+        recordMixedTrafficWarning(state, startedAt);
+        ensureRules(state, policy);
 
         GovernanceDecision cancelled = cancelBeforeAcquire(effectiveContext, state);
         if (cancelled != null) {
@@ -227,9 +252,10 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             recordRuntimeEvent(
                     state,
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
-                    GovernanceCallOutcome.REJECTED,
+                    outcomeForIsolation(isolationReason(state, state.lastRejectionReason)),
                     state.lastRejectionReason,
                     state.lastBlockReason,
+                    isolationReason(state, state.lastRejectionReason),
                     CancellationReason.NONE,
                     retryStopReason(rejected),
                     startedAt,
@@ -238,6 +264,42 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         }
 
         Entry entry = null;
+        boolean priorityPermitAcquired = false;
+        if (!state.allowRate(policy)) {
+            state.recordBlock(GovernanceBlockReason.RATE_LIMITED, GovernanceRejectionReason.RATE_LIMITED);
+            GovernanceDecision decision = decisionFor(GovernanceBlockReason.RATE_LIMITED);
+            publishBlock(effectiveContext, decision, GovernanceRejectionReason.RATE_LIMITED, startedAt);
+            recordRuntimeEvent(
+                    state,
+                    fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
+                    outcomeForIsolation(isolationReason(state, GovernanceRejectionReason.RATE_LIMITED)),
+                    GovernanceRejectionReason.RATE_LIMITED,
+                    GovernanceBlockReason.RATE_LIMITED,
+                    isolationReason(state, GovernanceRejectionReason.RATE_LIMITED),
+                    CancellationReason.NONE,
+                    retryStopReason(decision),
+                    startedAt,
+                    Instant.now());
+            return fallbackOrThrow(fallback, decision);
+        }
+        if (!state.tryAcquire(policy)) {
+            state.recordBlock(GovernanceBlockReason.BULKHEAD_FULL, GovernanceRejectionReason.CONCURRENCY_LIMITED);
+            GovernanceDecision decision = decisionFor(GovernanceBlockReason.BULKHEAD_FULL);
+            publishBlock(effectiveContext, decision, GovernanceRejectionReason.CONCURRENCY_LIMITED, startedAt);
+            recordRuntimeEvent(
+                    state,
+                    fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
+                    outcomeForIsolation(isolationReason(state, GovernanceRejectionReason.CONCURRENCY_LIMITED)),
+                    GovernanceRejectionReason.CONCURRENCY_LIMITED,
+                    GovernanceBlockReason.BULKHEAD_FULL,
+                    isolationReason(state, GovernanceRejectionReason.CONCURRENCY_LIMITED),
+                    CancellationReason.NONE,
+                    retryStopReason(decision),
+                    startedAt,
+                    Instant.now());
+            return fallbackOrThrow(fallback, decision);
+        }
+        priorityPermitAcquired = true;
         long actionStartedNanos = System.nanoTime();
         Throwable failure = null;
         CancellationReason completionCancellationReason = CancellationReason.NONE;
@@ -259,9 +321,10 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             recordRuntimeEvent(
                     state,
                     fallback == null ? GovernanceRuntimeAction.REJECT : GovernanceRuntimeAction.FALLBACK,
-                    GovernanceCallOutcome.REJECTED,
+                    outcomeForIsolation(isolationReason(state, rejectionReason)),
                     rejectionReason,
                     blockReason,
+                    isolationReason(state, rejectionReason),
                     CancellationReason.NONE,
                     retryStopReason(decision),
                     startedAt,
@@ -277,6 +340,9 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             if (entry != null) {
                 entry.exit();
                 state.activeConcurrency.updateAndGet(current -> Math.max(0, current - 1));
+            }
+            if (priorityPermitAcquired) {
+                state.release();
             }
             state.recordCall(policy, actionStartedNanos, System.nanoTime(), failure != null, completionCancellationReason);
             if (entry != null) {
@@ -303,19 +369,31 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
     private void loadConfiguredRules() {
         synchronized (ruleLock) {
             for (GovernanceResourceDescriptor descriptor : policyRegistry.resources()) {
-                String stateKey = descriptor.resourceKey() + ":" + descriptor.priority();
+                String stateKey = descriptor.resourceKey() + ":"
+                        + descriptor.trafficClass() + ":"
+                        + descriptor.priority();
                 GovernancePolicy policy = policyFromSnapshot(descriptor.policySnapshot());
-                flowRulesByState.put(stateKey, ruleMapper.flowRules(descriptor.resourceKey(), policy));
-                degradeRulesByState.put(stateKey, ruleMapper.degradeRules(descriptor.resourceKey(), policy));
+                if (isDefaultSentinelBucket(descriptor.trafficClass(), descriptor.priority())) {
+                    flowRulesByState.put(stateKey, ruleMapper.flowRules(descriptor.resourceKey(), policy));
+                    degradeRulesByState.put(stateKey, ruleMapper.degradeRules(descriptor.resourceKey(), policy));
+                } else {
+                    flowRulesByState.put(stateKey, java.util.Collections.emptyList());
+                    degradeRulesByState.put(stateKey, java.util.Collections.emptyList());
+                }
             }
             publishRules();
         }
     }
 
-    private void ensureRules(String stateKey, String resourceKey, GovernancePolicy policy) {
+    private void ensureRules(State state, GovernancePolicy policy) {
         synchronized (ruleLock) {
-            flowRulesByState.put(stateKey, ruleMapper.flowRules(resourceKey, policy));
-            degradeRulesByState.put(stateKey, ruleMapper.degradeRules(resourceKey, policy));
+            if (isDefaultSentinelBucket(state.trafficClass.diagnosticName(), state.priority.diagnosticName())) {
+                flowRulesByState.put(state.stateKey, ruleMapper.flowRules(state.resourceKey, policy));
+                degradeRulesByState.put(state.stateKey, ruleMapper.degradeRules(state.resourceKey, policy));
+            } else {
+                flowRulesByState.put(state.stateKey, java.util.Collections.emptyList());
+                degradeRulesByState.put(state.stateKey, java.util.Collections.emptyList());
+            }
             publishRules();
         }
     }
@@ -334,14 +412,38 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
     }
 
     private State stateFor(GovernanceContext context, GovernancePolicy policy) {
-        String priority = context.priority().name().toLowerCase();
-        String stateKey = context.resource().key() + ":" + priority;
+        GovernanceTrafficClass trafficClass = context.trafficClass();
+        GovernancePriority priority = context.governancePriority();
+        String stateKey = context.resource().key() + ":"
+                + trafficClass.diagnosticName() + ":"
+                + priority.diagnosticName();
         return states.compute(stateKey, (ignored, current) -> {
             if (current != null) {
                 return current;
             }
-            return new State(stateKey, context.resource(), priority, policy);
+            return new State(stateKey, context.resource(), trafficClass, priority, policy);
         });
+    }
+
+    private void recordMixedTrafficWarning(State state, Instant startedAt) {
+        GovernanceTrafficClass previous = firstTrafficClassByResource.putIfAbsent(state.resourceKey, state.trafficClass);
+        if (previous == null || previous == state.trafficClass) {
+            return;
+        }
+        if (mixedTrafficReported.putIfAbsent(state.resourceKey, Boolean.TRUE) != null) {
+            return;
+        }
+        recordRuntimeEvent(
+                state,
+                GovernanceRuntimeAction.WARN,
+                GovernanceCallOutcome.NONE,
+                GovernanceRejectionReason.NONE,
+                GovernanceBlockReason.NONE,
+                GovernanceIsolationReason.MIXED_TRAFFIC,
+                CancellationReason.NONE,
+                RetryStopReason.NONE,
+                startedAt,
+                Instant.now());
     }
 
     private GovernanceContext withPolicyDeadline(GovernanceContext context, GovernancePolicy policy, Instant startedAt) {
@@ -523,14 +625,41 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             RetryStopReason retryStopReason,
             Instant startedAt,
             Instant endedAt) {
+        recordRuntimeEvent(
+                state,
+                action,
+                outcome,
+                rejectionReason,
+                blockReason,
+                GovernanceIsolationReason.NONE,
+                cancellationReason,
+                retryStopReason,
+                startedAt,
+                endedAt);
+    }
+
+    private void recordRuntimeEvent(
+            State state,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            GovernanceBlockReason blockReason,
+            GovernanceIsolationReason isolationReason,
+            CancellationReason cancellationReason,
+            RetryStopReason retryStopReason,
+            Instant startedAt,
+            Instant endedAt) {
         Duration duration = startedAt == null || endedAt == null
                 ? null
                 : Duration.between(startedAt, endedAt);
         GovernanceRuntimeEvent event = new GovernanceRuntimeEvent(
                 state.resourceKey,
+                state.trafficClass,
+                state.priority,
                 action,
                 outcome,
                 rejectionReason,
+                isolationReason,
                 cancellationReason,
                 GovernanceEngine.SENTINEL,
                 blockReason,
@@ -538,6 +667,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 state.currentCircuitState(),
                 endedAt,
                 GovernanceDurationBucket.from(duration));
+        state.recordIsolation(isolationReason);
         state.recordRetryStop(retryStopReason);
         synchronized (recentEvents) {
             recentEvents.addLast(event);
@@ -553,6 +683,40 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 : decision.retrySignal().stopReason();
     }
 
+    private static GovernanceIsolationReason isolationReason(State state, GovernanceRejectionReason rejectionReason) {
+        if (state == null || state.priority != GovernancePriority.LOW) {
+            return GovernanceIsolationReason.NONE;
+        }
+        if (rejectionReason == GovernanceRejectionReason.RATE_LIMITED) {
+            return GovernanceIsolationReason.PRIORITY_RATE_LIMITED;
+        }
+        if (rejectionReason == GovernanceRejectionReason.CONCURRENCY_LIMITED) {
+            return GovernanceIsolationReason.PRIORITY_BULKHEAD_FULL;
+        }
+        if (rejectionReason == GovernanceRejectionReason.DEGRADED) {
+            return GovernanceIsolationReason.PRIORITY_DEGRADED;
+        }
+        if (rejectionReason == GovernanceRejectionReason.CIRCUIT_OPEN
+                || rejectionReason == GovernanceRejectionReason.HALF_OPEN_LIMITED) {
+            return GovernanceIsolationReason.PRIORITY_CIRCUIT_OPEN;
+        }
+        return GovernanceIsolationReason.NONE;
+    }
+
+    private static GovernanceCallOutcome outcomeForIsolation(GovernanceIsolationReason reason) {
+        return actualIsolation(reason) ? GovernanceCallOutcome.ISOLATED : GovernanceCallOutcome.REJECTED;
+    }
+
+    private static boolean isDefaultSentinelBucket(String trafficClass, String priority) {
+        return "online".equalsIgnoreCase(trafficClass) && "normal".equalsIgnoreCase(priority);
+    }
+
+    private static boolean actualIsolation(GovernanceIsolationReason reason) {
+        return reason != null
+                && reason != GovernanceIsolationReason.NONE
+                && reason != GovernanceIsolationReason.MIXED_TRAFFIC;
+    }
+
     private static GovernanceResourceDescriptor sentinelDescriptor(GovernanceResourceDescriptor descriptor) {
         return new GovernanceResourceDescriptor(
                 descriptor.resourceKey(),
@@ -560,6 +724,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 descriptor.name(),
                 descriptor.provider(),
                 descriptor.operation(),
+                descriptor.trafficClass(),
                 descriptor.priority(),
                 GovernanceEngine.SENTINEL,
                 descriptor.policySnapshot(),
@@ -595,13 +760,19 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         private final String name;
         private final String provider;
         private final String operation;
-        private final String priority;
+        private final GovernanceTrafficClass trafficClass;
+        private final GovernancePriority priority;
         private final AtomicInteger activeConcurrency = new AtomicInteger();
+        private int maxConcurrency;
+        private Semaphore semaphore;
+        private long windowStartedNanos = System.nanoTime();
+        private int used;
         private final ArrayDeque<CallRecord> calls = new ArrayDeque<>();
         private GovernanceCircuitState circuitState = GovernanceCircuitState.CLOSED;
         private long totalRejections;
         private GovernanceRejectionReason lastRejectionReason = GovernanceRejectionReason.NONE;
         private GovernanceBlockReason lastBlockReason = GovernanceBlockReason.NONE;
+        private GovernanceIsolationReason lastIsolationReason = GovernanceIsolationReason.NONE;
         private CancellationReason lastCancellationReason = CancellationReason.NONE;
         private RetryStopReason lastRetryStopReason = RetryStopReason.NONE;
         private Instant lastStateTransitionAt = Instant.now();
@@ -609,7 +780,12 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         private Instant lastOutcomeAt;
         private GovernancePolicySnapshot lastPolicySnapshot;
 
-        private State(String stateKey, GovernanceResource resource, String priority, GovernancePolicy policy) {
+        private State(
+                String stateKey,
+                GovernanceResource resource,
+                GovernanceTrafficClass trafficClass,
+                GovernancePriority priority,
+                GovernancePolicy policy) {
             GovernanceResource safeResource = resource == null ? GovernanceResource.custom("unknown", "default") : resource;
             this.stateKey = stateKey;
             this.resourceKey = safeResource.key();
@@ -617,13 +793,48 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             this.name = safeResource.name();
             this.provider = safeResource.provider();
             this.operation = safeResource.operation();
-            this.priority = priority == null ? "normal" : priority;
+            this.trafficClass = trafficClass == null ? GovernanceTrafficClass.ONLINE : trafficClass;
+            this.priority = priority == null ? GovernancePriority.NORMAL : priority;
+            this.maxConcurrency = safeMaxConcurrency(policy);
+            this.semaphore = new Semaphore(this.maxConcurrency);
             this.lastPolicySnapshot = GovernancePolicySnapshot.from(policy);
         }
 
         private synchronized void touchPolicy(GovernancePolicy policy) {
+            int nextMaxConcurrency = safeMaxConcurrency(policy);
+            if (nextMaxConcurrency != maxConcurrency) {
+                maxConcurrency = nextMaxConcurrency;
+                semaphore = new Semaphore(nextMaxConcurrency);
+            }
             this.lastPolicySnapshot = GovernancePolicySnapshot.from(policy);
             pruneCalls(System.nanoTime());
+        }
+
+        private synchronized boolean allowRate(GovernancePolicy policy) {
+            if (policy.maxRequestsPerWindow() == Integer.MAX_VALUE) {
+                return true;
+            }
+            long now = System.nanoTime();
+            long windowNanos = policy.rateLimitWindow().toNanos();
+            if (now - windowStartedNanos >= windowNanos) {
+                windowStartedNanos = now;
+                used = 0;
+            }
+            if (used >= policy.maxRequestsPerWindow()) {
+                return false;
+            }
+            used++;
+            return true;
+        }
+
+        private boolean tryAcquire(GovernancePolicy policy) {
+            return policy.maxConcurrency() == Integer.MAX_VALUE || semaphore.tryAcquire();
+        }
+
+        private void release() {
+            if (maxConcurrency != Integer.MAX_VALUE) {
+                semaphore.release();
+            }
         }
 
         private synchronized void recordCall(
@@ -676,6 +887,12 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             }
         }
 
+        private synchronized void recordIsolation(GovernanceIsolationReason reason) {
+            if (reason != null && reason != GovernanceIsolationReason.NONE) {
+                lastIsolationReason = reason;
+            }
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -683,7 +900,8 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     name,
                     provider,
                     operation,
-                    priority,
+                    trafficClass.diagnosticName(),
+                    priority.diagnosticName(),
                     GovernanceEngine.SENTINEL,
                     lastPolicySnapshot,
                     snapshot());
@@ -695,7 +913,8 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             GovernancePolicySnapshot policy = lastPolicySnapshot;
             return new GovernanceRuntimeSnapshot(
                     resourceKey,
-                    priority,
+                    trafficClass.diagnosticName(),
+                    priority.diagnosticName(),
                     GovernanceEngine.SENTINEL,
                     circuitState,
                     counts.total(),
@@ -705,6 +924,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     totalRejections,
                     lastRejectionReason,
                     lastBlockReason,
+                    lastIsolationReason,
                     lastCancellationReason,
                     lastRetryStopReason,
                     null,
@@ -763,6 +983,12 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 }
             }
             return new WindowCounts(calls.size(), failures, slowCalls);
+        }
+
+        private static int safeMaxConcurrency(GovernancePolicy policy) {
+            return policy == null || policy.maxConcurrency() == Integer.MAX_VALUE
+                    ? Integer.MAX_VALUE
+                    : Math.max(1, policy.maxConcurrency());
         }
     }
 

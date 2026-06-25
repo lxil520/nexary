@@ -15,5 +15,8 @@ public enum GovernanceRuntimeAction {
     CANCEL,
 
     /** A retry loop was explicitly told not to schedule another attempt. */
-    STOP_RETRY
+    STOP_RETRY,
+
+    /** A low-cardinality warning was recorded without mutating policy. */
+    WARN
 }

@@ -60,6 +60,17 @@ Retry stop propagation:
 curl -s http://localhost:8080/governance/sentinel/retry-stop
 ```
 
+Priority isolation:
+
+```bash
+curl -s http://localhost:8080/governance/sentinel/priority/online
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/batch
+curl -s http://localhost:8080/governance/sentinel/priority/online
+```
+
+The second batch request should return fallback, while the later online request should still return the business result.
+
 ## Inspect Diagnostics and Console
 
 ```bash
@@ -73,6 +84,7 @@ You can also run the smoke script:
 
 ```bash
 NEXARY_GOVERNANCE_SENTINEL_BASE_URL=http://localhost:8080 ./scripts/governance-sentinel/smoke.sh
+NEXARY_GOVERNANCE_PRIORITY_BASE_URL=http://localhost:8080 ./scripts/governance-priority/smoke.sh
 ```
 
 Important fields:
@@ -85,6 +97,10 @@ Important fields:
 - `blockedCount`: Sentinel blocks in the current JVM
 - `retryStoppedCount`: retry-stop events in the current JVM
 - `sentinelResourceCount`: Sentinel resources in the current JVM
+- `trafficClass`: `ONLINE`, `OFFLINE`, `BATCH`, or `BACKGROUND`
+- `priority`: `HIGH`, `NORMAL`, or `LOW`
+- `isolationReason`: `PRIORITY_RATE_LIMITED`, `PRIORITY_BULKHEAD_FULL`, `PRIORITY_DEGRADED`, `PRIORITY_CIRCUIT_OPEN`, or `MIXED_TRAFFIC`
+- `isolatedCount`: priority isolation events in the current JVM
 
 Diagnostics and Console do not expose Sentinel origin, cancellation id, user id, tenant, order id, cache key, message id, payload, exception text, or stack traces.
 
