@@ -33,6 +33,8 @@ const hasAttention = computed(
     (summary.value?.retryStoppedCount ?? 0) > 0 ||
     (summary.value?.blockedCount ?? 0) > 0 ||
     (summary.value?.isolatedCount ?? 0) > 0 ||
+    (summary.value?.instanceSuspectCount ?? 0) > 0 ||
+    (summary.value?.quarantineCandidateCount ?? 0) > 0 ||
     (summary.value?.failureCount ?? 0) > 0 ||
     degradedCount.value > 0,
 );
@@ -91,6 +93,9 @@ onMounted(() => {
       <MetricCard :label="t('overview.rejected')" :value="summary?.rejectedCount ?? 0" :detail="t('overview.rejectedDetail')" tone="warning" />
       <MetricCard :label="t('overview.blocked')" :value="summary?.blockedCount ?? 0" :detail="t('overview.blockedDetail')" tone="warning" />
       <MetricCard :label="t('overview.isolated')" :value="summary?.isolatedCount ?? 0" :detail="t('overview.isolatedDetail')" tone="warning" />
+      <MetricCard :label="t('overview.instanceSuspect')" :value="summary?.instanceSuspectCount ?? 0" :detail="t('overview.instanceSuspectDetail')" tone="warning" />
+      <MetricCard :label="t('overview.quarantineCandidate')" :value="summary?.quarantineCandidateCount ?? 0" :detail="t('overview.quarantineCandidateDetail')" tone="danger" />
+      <MetricCard :label="t('overview.recoveryProbe')" :value="summary?.recoveryProbeCount ?? 0" :detail="t('overview.recoveryProbeDetail')" tone="info" />
       <MetricCard :label="t('overview.sentinel')" :value="summary?.sentinelResourceCount ?? 0" :detail="t('overview.sentinelDetail')" tone="info" />
       <MetricCard :label="t('overview.cancelled')" :value="summary?.cancelledCount ?? 0" :detail="t('overview.cancelledDetail')" tone="warning" />
       <MetricCard :label="t('overview.retryStopped')" :value="summary?.retryStoppedCount ?? 0" :detail="t('overview.retryStoppedDetail')" tone="warning" />
@@ -127,7 +132,7 @@ onMounted(() => {
           <li v-for="event in recentEvents" :key="`${event.timestamp}-${event.resourceKey}`">
             <span>{{ enumLabel(event.outcome) }}</span>
             <strong>{{ event.resourceKey }}</strong>
-            <small>{{ enumLabel(event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.retryStopReason && event.retryStopReason !== 'NONE' ? event.retryStopReason : event.blockReason && event.blockReason !== 'NONE' ? event.blockReason : event.cancellationReason !== 'NONE' ? event.cancellationReason : event.rejectionReason) }}</small>
+            <small>{{ enumLabel(event.quarantineReason && event.quarantineReason !== 'NONE' ? event.quarantineReason : event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.retryStopReason && event.retryStopReason !== 'NONE' ? event.retryStopReason : event.blockReason && event.blockReason !== 'NONE' ? event.blockReason : event.cancellationReason !== 'NONE' ? event.cancellationReason : event.rejectionReason) }}</small>
           </li>
         </ul>
       </div>

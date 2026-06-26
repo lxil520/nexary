@@ -1,5 +1,8 @@
 package org.nexary.console.api;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Read-only console view of one governed resource.
  */
@@ -14,6 +17,7 @@ public final class ConsoleResourceItem {
     private final String priority;
     private final ConsolePolicySnapshot policySnapshot;
     private final ConsoleRuntimeSnapshot runtimeSnapshot;
+    private final List<ConsoleInstanceHealthSnapshot> instanceHealthSnapshots;
 
     /**
      * Creates a resource item from bounded resource, policy, and runtime fields.
@@ -60,6 +64,35 @@ public final class ConsoleResourceItem {
             String priority,
             ConsolePolicySnapshot policySnapshot,
             ConsoleRuntimeSnapshot runtimeSnapshot) {
+        this(
+                resourceKey,
+                engine,
+                kind,
+                name,
+                provider,
+                operation,
+                trafficClass,
+                priority,
+                policySnapshot,
+                runtimeSnapshot,
+                Collections.emptyList());
+    }
+
+    /**
+     * Creates a resource item from bounded resource, traffic, policy, runtime, engine, and instance fields.
+     */
+    public ConsoleResourceItem(
+            String resourceKey,
+            String engine,
+            String kind,
+            String name,
+            String provider,
+            String operation,
+            String trafficClass,
+            String priority,
+            ConsolePolicySnapshot policySnapshot,
+            ConsoleRuntimeSnapshot runtimeSnapshot,
+            List<ConsoleInstanceHealthSnapshot> instanceHealthSnapshots) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.kind = kind;
@@ -70,6 +103,9 @@ public final class ConsoleResourceItem {
         this.priority = priority;
         this.policySnapshot = policySnapshot;
         this.runtimeSnapshot = runtimeSnapshot;
+        this.instanceHealthSnapshots = instanceHealthSnapshots == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(instanceHealthSnapshots);
     }
 
     /** Returns the stable governed resource key. */
@@ -120,5 +156,10 @@ public final class ConsoleResourceItem {
     /** Returns the latest runtime snapshot, or null when the resource has no local state. */
     public ConsoleRuntimeSnapshot getRuntimeSnapshot() {
         return runtimeSnapshot;
+    }
+
+    /** Returns current local instance health snapshots for this resource. */
+    public List<ConsoleInstanceHealthSnapshot> getInstanceHealthSnapshots() {
+        return instanceHealthSnapshots;
     }
 }

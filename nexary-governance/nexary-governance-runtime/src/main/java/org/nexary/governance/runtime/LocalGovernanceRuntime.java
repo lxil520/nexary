@@ -29,6 +29,7 @@ import org.nexary.core.retry.RetryStopReason;
 public final class LocalGovernanceRuntime implements GovernanceRuntime {
     private final GovernancePolicyRegistry policyRegistry;
     private final NexaryObservationPublisher observationPublisher;
+    private final GovernanceInstanceHealth instanceHealth;
     private final Map<String, State> states = new ConcurrentHashMap<>();
     private final Map<String, GovernanceTrafficClass> firstTrafficClassByResource = new ConcurrentHashMap<>();
     private final Map<String, Boolean> mixedTrafficReported = new ConcurrentHashMap<>();
@@ -45,12 +46,22 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             GovernancePolicyRegistry policyRegistry,
             NexaryObservationPublisher observationPublisher,
             int recentEventCapacity) {
+        this(policyRegistry, observationPublisher, GovernanceInstanceHealth.noop(), recentEventCapacity);
+    }
+
+    /** Creates a runtime with instance health diagnostics and an explicit event capacity. */
+    public LocalGovernanceRuntime(
+            GovernancePolicyRegistry policyRegistry,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceInstanceHealth instanceHealth,
+            int recentEventCapacity) {
         this.policyRegistry = policyRegistry == null
                 ? LocalGovernancePolicyRegistry.builder().build()
                 : policyRegistry;
         this.observationPublisher = observationPublisher == null
                 ? NexaryObservationPublisher.noop()
                 : observationPublisher;
+        this.instanceHealth = instanceHealth == null ? GovernanceInstanceHealth.noop() : instanceHealth;
         this.recentEventCapacity = Math.max(1, recentEventCapacity);
     }
 
@@ -60,13 +71,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         for (GovernanceResourceDescriptor descriptor : policyRegistry.resources()) {
             resources.put(
                     descriptor.resourceKey() + ":" + descriptor.trafficClass() + ":" + descriptor.priority(),
-                    descriptor);
+                    withInstanceHealth(descriptor));
         }
         for (State state : states.values()) {
             GovernanceResourceDescriptor descriptor = state.descriptor();
             resources.put(
                     descriptor.resourceKey() + ":" + descriptor.trafficClass() + ":" + descriptor.priority(),
-                    descriptor);
+                    withInstanceHealth(descriptor));
         }
         List<GovernanceResourceDescriptor> sorted = new ArrayList<>(resources.values());
         sorted.sort(Comparator
@@ -92,9 +103,23 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
 
     @Override
     public List<GovernanceRuntimeEvent> recentEvents() {
+        List<GovernanceRuntimeEvent> events;
         synchronized (recentEvents) {
-            return new ArrayList<>(recentEvents);
+            events = new ArrayList<>(recentEvents);
         }
+        events.addAll(instanceHealth.recentEvents());
+        events.sort(Comparator.comparing(GovernanceRuntimeEvent::timestamp));
+        return events;
+    }
+
+    @Override
+    public List<InstanceHealthSnapshot> instanceHealthSnapshots() {
+        return instanceHealth.snapshots();
+    }
+
+    @Override
+    public InstanceHealthSummary instanceHealthSummary() {
+        return instanceHealth.summary();
     }
 
     @Override
@@ -108,6 +133,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         long cancelled = 0L;
         long retryStopped = 0L;
         long isolated = 0L;
+        InstanceHealthSummary instanceSummary = instanceHealth.summary();
         Map<String, Long> trafficClassCounts = new LinkedHashMap<>();
         Map<String, Long> priorityCounts = new LinkedHashMap<>();
         Instant lastEventAt = null;
@@ -159,12 +185,34 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 0L,
                 isolated,
                 0L,
+                instanceSummary.suspectCount(),
+                instanceSummary.quarantineCandidateCount(),
+                instanceSummary.recoveryProbeCount(),
                 trafficClassCounts,
                 priorityCounts,
                 openCircuits,
                 halfOpenCircuits,
                 degradedResources,
                 lastEventAt);
+    }
+
+    private GovernanceResourceDescriptor withInstanceHealth(GovernanceResourceDescriptor descriptor) {
+        List<InstanceHealthSnapshot> snapshots = instanceHealth.snapshots(descriptor.resourceKey());
+        if (snapshots.isEmpty()) {
+            return descriptor;
+        }
+        return new GovernanceResourceDescriptor(
+                descriptor.resourceKey(),
+                descriptor.kind(),
+                descriptor.name(),
+                descriptor.provider(),
+                descriptor.operation(),
+                descriptor.trafficClass(),
+                descriptor.priority(),
+                descriptor.engine(),
+                descriptor.policySnapshot(),
+                descriptor.runtimeSnapshot(),
+                snapshots);
     }
 
     @Override

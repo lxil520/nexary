@@ -1,6 +1,6 @@
 # nexary-sample-governance
 
-This sample shows three paths:
+This sample shows several local governance paths:
 
 - How the Spring Boot starter reads `application.yml` for deadlines, rate limits, bulkheads, and explicit degradation.
 - How the local governance data plane connects `GovernanceContext`, `GovernanceRuntime`, fallback, and bounded diagnostic snapshots.
@@ -8,6 +8,8 @@ This sample shows three paths:
 - How the read-only governance diagnostic Console reads current-JVM resources, windows, circuit state, and recent events.
 
 v0.11 adds request cancellation for stale work: when a deadline has already expired, the upstream has canceled, or Gateway sees the client disconnect, the request should stop quickly. This sample demonstrates both cancellation before business work starts and cooperative stop checks inside a business loop. Nexary does not replace Sentinel. The Sentinel provider is planned for v0.12, and retry stop propagation is planned for v0.13.
+
+v0.15 adds abnormal instance detection. Under the same `profile-service` resource, the sample simulates three stable aliases: `instance-a`, `instance-b`, and `instance-c`. It only marks abnormal instances as candidates and returns suggested actions. It does not drain traffic automatically and does not call a registry or Gateway.
 
 The sample also adds `nexary-observation-micrometer-spring-boot-starter`. Tests register a local `SimpleMeterRegistry`, so rate-limit, degradation, and bulkhead events are recorded in `nexary.observation.events.total` and `nexary.observation.events.duration`.
 
@@ -53,6 +55,24 @@ curl -s http://localhost:8080/nexary/governance/events
 
 Events show `action=CANCEL`, `outcome=CANCELLED`, and `cancellationReason=CLIENT_DISCONNECTED`, but they do not expose `demo-hidden-id`.
 
+The instance health path needs the `instance-health` profile:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=instance-health'
+```
+
+From another terminal, trigger simulated results:
+
+```bash
+curl -s -X POST http://localhost:8080/governance/instance-health/scenario
+curl -s http://localhost:8080/nexary/governance/instance-health
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_INSTANCE_HEALTH_BASE_URL=http://localhost:8080 ./scripts/governance-instance-health/smoke.sh
+```
+
+`instance-a` stays `HEALTHY`. `instance-b` moves to `SUSPECT` or `QUARANTINE_CANDIDATE` because of `SLOW_RATIO`. `instance-c` moves to `QUARANTINE_CANDIDATE` because of `SERVER_ERROR_RATIO` or `READ_TIMEOUT_SPIKE`. Output does not include raw internal addresses, payloads, exception text, or stack traces.
+
 ## Read-Only Diagnostic Endpoints
 
 The sample enables `nexary.governance.diagnostics.enabled=true`. Inspect local summary, resources, and recent events for the current process:
@@ -96,6 +116,9 @@ Useful fields:
 | `lastOutcome` | Most recent result, such as `SUCCESS`, `FAILURE`, or `REJECTED`. |
 | `action` | Recent event action, such as `EXECUTE`, `REJECT`, `FALLBACK`, or `CANCEL`. |
 | `cancellationReason` | Cancellation reason for the event; `NONE` when no cancellation happened. |
+| `instanceHealthState` | Instance health state, such as `HEALTHY`, `SUSPECT`, or `QUARANTINE_CANDIDATE`. |
+| `quarantineReason` | Abnormal instance candidate reason, such as `SLOW_RATIO`, `SERVER_ERROR_RATIO`, or `READ_TIMEOUT_SPIKE`. |
+| `recoveryAdvice` | Suggested action, such as `BACKOFF`, `QUARANTINE_CANDIDATE`, or `RECOVERY_PROBE`. |
 | `durationBucket` | Coarse duration bucket. |
 
 These endpoints are read-only and disabled by default; the starter registers them only when `nexary.governance.diagnostics.enabled=true`.

@@ -1,5 +1,8 @@
 package org.nexary.governance.runtime;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import org.nexary.core.governance.GovernanceResource;
 
@@ -15,6 +18,7 @@ public final class GovernanceResourceDescriptor {
     private final GovernanceEngine engine;
     private final GovernancePolicySnapshot policySnapshot;
     private final GovernanceRuntimeSnapshot runtimeSnapshot;
+    private final List<InstanceHealthSnapshot> instanceHealthSnapshots;
 
     /** Creates a descriptor for a resource priority bucket. */
     public GovernanceResourceDescriptor(
@@ -65,6 +69,33 @@ public final class GovernanceResourceDescriptor {
             GovernanceEngine engine,
             GovernancePolicySnapshot policySnapshot,
             GovernanceRuntimeSnapshot runtimeSnapshot) {
+        this(
+                resourceKey,
+                kind,
+                name,
+                provider,
+                operation,
+                trafficClass,
+                priority,
+                engine,
+                policySnapshot,
+                runtimeSnapshot,
+                Collections.emptyList());
+    }
+
+    /** Creates a descriptor for a resource traffic/priority bucket with instance health snapshots. */
+    public GovernanceResourceDescriptor(
+            String resourceKey,
+            GovernanceResource.ResourceKind kind,
+            String name,
+            String provider,
+            String operation,
+            String trafficClass,
+            String priority,
+            GovernanceEngine engine,
+            GovernancePolicySnapshot policySnapshot,
+            GovernanceRuntimeSnapshot runtimeSnapshot,
+            List<InstanceHealthSnapshot> instanceHealthSnapshots) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.kind = kind == null ? GovernanceResource.ResourceKind.CUSTOM : kind;
         this.name = name == null ? "unknown" : name;
@@ -77,6 +108,7 @@ public final class GovernanceResourceDescriptor {
                 ? GovernancePolicySnapshot.from(GovernancePolicy.allowAll())
                 : policySnapshot;
         this.runtimeSnapshot = runtimeSnapshot;
+        this.instanceHealthSnapshots = immutableSnapshots(instanceHealthSnapshots);
     }
 
     /** Returns the stable governed resource key. */
@@ -129,6 +161,11 @@ public final class GovernanceResourceDescriptor {
         return runtimeSnapshot;
     }
 
+    /** Returns local instance health snapshots associated with this resource. */
+    public List<InstanceHealthSnapshot> instanceHealthSnapshots() {
+        return instanceHealthSnapshots;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -147,12 +184,30 @@ public final class GovernanceResourceDescriptor {
                 && priority.equals(that.priority)
                 && engine == that.engine
                 && policySnapshot.equals(that.policySnapshot)
-                && Objects.equals(runtimeSnapshot, that.runtimeSnapshot);
+                && Objects.equals(runtimeSnapshot, that.runtimeSnapshot)
+                && instanceHealthSnapshots.equals(that.instanceHealthSnapshots);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                resourceKey, kind, name, provider, operation, trafficClass, priority, engine, policySnapshot, runtimeSnapshot);
+                resourceKey,
+                kind,
+                name,
+                provider,
+                operation,
+                trafficClass,
+                priority,
+                engine,
+                policySnapshot,
+                runtimeSnapshot,
+                instanceHealthSnapshots);
+    }
+
+    private static List<InstanceHealthSnapshot> immutableSnapshots(List<InstanceHealthSnapshot> snapshots) {
+        if (snapshots == null || snapshots.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(snapshots));
     }
 }

@@ -18,6 +18,7 @@ const { events, isLoading, errorMessage, hasLoaded, refreshAll, loadResource, re
 const { enumLabel, t } = useLocale();
 const resource = computed(() => resourceByKey(props.resourceKey));
 const relatedEvents = computed(() => events.value.filter((event) => event.resourceKey === props.resourceKey).slice(0, 10));
+const instanceSnapshots = computed(() => resource.value?.instanceHealthSnapshots ?? []);
 
 async function ensureResourceLoaded(): Promise<void> {
   if (!hasLoaded.value) {
@@ -74,6 +75,44 @@ watch(
     <section class="split-grid split-grid--balanced">
       <RuntimeWindowStats :runtime="resource.runtimeSnapshot" />
       <PolicySummary :policy="resource.policySnapshot" />
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2>{{ t('detail.instanceHealth') }}</h2>
+        <span>{{ instanceSnapshots.length }} {{ t('state.shown') }}</span>
+      </div>
+      <EmptyState
+        v-if="instanceSnapshots.length === 0"
+        :title="t('detail.noInstances')"
+        :message="t('detail.noInstancesMessage')"
+      />
+      <div v-else class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">{{ t('table.instance') }}</th>
+              <th scope="col">{{ t('table.zone') }}</th>
+              <th scope="col">{{ t('table.state') }}</th>
+              <th scope="col">{{ t('table.reason') }}</th>
+              <th scope="col">{{ t('table.advice') }}</th>
+              <th scope="col">{{ t('table.calls') }}</th>
+              <th scope="col">{{ t('table.ratios') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="snapshot in instanceSnapshots" :key="`${snapshot.resourceKey}-${snapshot.instanceKey}`">
+              <td class="table-monospace">{{ snapshot.instanceKey }}</td>
+              <td>{{ snapshot.zone }}</td>
+              <td><StatusBadge :label="snapshot.state" :state="snapshot.state" /></td>
+              <td><StatusBadge :label="snapshot.quarantineReason" :state="snapshot.quarantineReason" /></td>
+              <td><StatusBadge :label="snapshot.recoveryAdvice" :state="snapshot.recoveryAdvice" /></td>
+              <td>{{ snapshot.windowCalls }} / {{ snapshot.failureCount }} / {{ snapshot.slowCallCount }}</td>
+              <td>{{ snapshot.failureRatio.toFixed(2) }} / {{ snapshot.slowRatio.toFixed(2) }} / {{ snapshot.timeoutRatio.toFixed(2) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="panel">

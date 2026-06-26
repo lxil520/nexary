@@ -23,6 +23,7 @@ const { formatTimestamp, t } = useLocale();
           <th scope="col">{{ t('table.action') }}</th>
           <th scope="col">{{ t('table.outcome') }}</th>
           <th scope="col">{{ t('table.reason') }}</th>
+          <th scope="col">{{ t('table.instanceState') }}</th>
           <th scope="col">{{ t('table.cancelReason') }}</th>
           <th scope="col">{{ t('table.retryStopReason') }}</th>
           <th scope="col">{{ t('table.circuit') }}</th>
@@ -38,7 +39,8 @@ const { formatTimestamp, t } = useLocale();
           <td><StatusBadge :label="event.priority ?? 'NORMAL'" :state="event.priority ?? 'NORMAL'" /></td>
           <td><StatusBadge :label="event.action" :state="event.action" /></td>
           <td><StatusBadge :label="event.outcome" :state="event.outcome" /></td>
-          <td><StatusBadge :label="event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" :state="event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" /></td>
+          <td><StatusBadge :label="event.quarantineReason && event.quarantineReason !== 'NONE' ? event.quarantineReason : event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" :state="event.quarantineReason && event.quarantineReason !== 'NONE' ? event.quarantineReason : event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" /></td>
+          <td><StatusBadge :label="event.instanceHealthState ?? 'HEALTHY'" :state="event.instanceHealthState ?? 'HEALTHY'" /></td>
           <td><StatusBadge :label="event.cancellationReason" :state="event.cancellationReason" /></td>
           <td><StatusBadge :label="event.retryStopReason ?? 'NONE'" :state="event.retryStopReason ?? 'NONE'" /></td>
           <td><StatusBadge :label="event.circuitState" :state="event.circuitState" /></td>

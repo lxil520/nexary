@@ -4,7 +4,7 @@
 
 它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
-`0.14.0` 不替代 Sentinel Dashboard、集群限流或远程规则平台。它解决三件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop；当在线请求和批处理、离线任务、后台修复任务共用同一个资源时，可以用固定的 `ONLINE/OFFLINE/BATCH/BACKGROUND` 和 `HIGH/NORMAL/LOW` 策略让低优先级流量先被限流、隔离或走 fallback。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口。
+`0.15.0` 不替代 Sentinel Dashboard、集群限流、远程规则平台或自动摘流平台。它解决四件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop；当在线请求和批处理、离线任务、后台修复任务共用同一个资源时，可以用固定的 `ONLINE/OFFLINE/BATCH/BACKGROUND` 和 `HIGH/NORMAL/LOW` 策略让低优先级流量先被限流、隔离或走 fallback；当同一个 downstream resource 背后多个实例表现不一致时，Nexary 在当前 JVM 内标记异常实例候选并给出建议动作。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障。
 
 ## 引入依赖
 
@@ -134,6 +134,57 @@ NEXARY_GOVERNANCE_PRIORITY_BASE_URL=http://localhost:8080 ./scripts/governance-p
 - `isolationReason`: `PRIORITY_RATE_LIMITED`、`PRIORITY_BULKHEAD_FULL`、`PRIORITY_DEGRADED`、`PRIORITY_CIRCUIT_OPEN` 或 `MIXED_TRAFFIC`。
 - `isolatedCount`: 当前 JVM 内优先级隔离事件数量。
 
+## v0.15 实例异常发现与本地封禁模型
+
+实例健康检测默认关闭。开启后，Nexary 只在当前 JVM 内记录下游实例结果，并给出只读诊断：
+
+```yaml
+nexary:
+  governance:
+    diagnostics:
+      enabled: true
+    instance-health:
+      enabled: true
+      window: 60s
+      minimum-calls: 20
+      suspect-windows: 2
+      recovery-windows: 2
+      slow-call-threshold: 2s
+      slow-ratio-threshold: 0.60
+      failure-ratio-threshold: 0.50
+      timeout-ratio-threshold: 0.30
+      skew-factor-threshold: 3.0
+      expose-raw-instance-key: false
+```
+
+它不会自动摘除实例，不会调用注册中心、Spring Cloud LoadBalancer、Gateway route、云厂商或 PaaS API。`instanceKey` 默认使用稳定别名或脱敏 fingerprint，诊断字段不写 URL、query、userId、tenant、订单号、payload、异常全文或 stack trace。
+
+运行样例：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=instance-health'
+```
+
+另开终端触发三个模拟实例：
+
+```bash
+curl -s -X POST http://localhost:8080/governance/instance-health/scenario
+curl -s http://localhost:8080/nexary/governance/instance-health
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_INSTANCE_HEALTH_BASE_URL=http://localhost:8080 ./scripts/governance-instance-health/smoke.sh
+```
+
+重点字段：
+
+- `instanceHealthState`: `HEALTHY`、`SUSPECT`、`QUARANTINE_CANDIDATE` 或 `RECOVERING`。
+- `quarantineReason`: `SERVER_ERROR_RATIO`、`SLOW_RATIO`、`READ_TIMEOUT_SPIKE`、`CONNECT_TIMEOUT_SPIKE`、`RESET_SPIKE` 或 `STATUS_CODE_SKEW`。
+- `recoveryAdvice`: `BACKOFF`、`QUARANTINE_CANDIDATE`、`MANUAL_ACTION_REQUIRED` 或 `RECOVERY_PROBE`。
+- `instanceSuspectCount`: 当前 JVM 内异常实例候选数量。
+- `quarantineCandidateCount`: 当前 JVM 内封禁候选数量。
+
+Console 的 Overview 会显示 suspect / quarantine candidate / recovery probe 数量，Resource detail 会显示实例状态表，Events 会显示 `INSTANCE_SUSPECT`、`QUARANTINE_CANDIDATE`、`RECOVERY_PROBE` 和 `INSTANCE_RECOVERED`。这些页面仍是只读页面，没有封禁按钮和策略编辑。
+
 ## v0.13 停止重试传播
 
 停止重试传播使用固定枚举，不把业务 key、message id、cache key、payload 或异常全文写进事件：
@@ -178,7 +229,7 @@ curl -s http://localhost:8080/nexary/governance/events
 | `blockedCount` | 当前 JVM 内 Sentinel 拦截次数。 |
 | `sentinelResourceCount` | 当前 JVM 内由 Sentinel 执行的资源数量。 |
 
-Sentinel transport 默认关闭，不要求 Sentinel Dashboard。只有显式设置 `nexary.governance.sentinel.transport.enabled=true` 并配置 dashboard server 时，才会设置 Sentinel dashboard 地址。v0.14.0 只声明 Spring Boot 3.3 主线 Sentinel provider；Boot2 / Boot4 Sentinel starter 要等独立样例和 gate 通过后再写入支持矩阵。
+Sentinel transport 默认关闭，不要求 Sentinel Dashboard。只有显式设置 `nexary.governance.sentinel.transport.enabled=true` 并配置 dashboard server 时，才会设置 Sentinel dashboard 地址。当前只声明 Spring Boot 3.3 主线 Sentinel provider；Boot2 / Boot4 Sentinel starter 要等独立样例和 gate 通过后再写入支持矩阵。
 
 ## 配置 starter 策略
 
@@ -513,7 +564,7 @@ nexary:
 
 - deadline 是启动前检查和上下文传播，不会强行杀掉已经进入业务方法的普通 Java 代码。
 - v0.11 的取消语义覆盖启动前取消和执行中协作式停止；不承诺强制中断已经运行的业务线程，也不替代应用服务器或客户端的连接取消机制。
-- Nexary 不替代 Sentinel Dashboard、cluster flow control 或远程规则平台；v0.14.0 只声明 Boot3 主线的 Sentinel provider。
+- Nexary 不替代 Sentinel Dashboard、cluster flow control 或远程规则平台；当前只声明 Boot3 主线的 Sentinel provider。
 - Boot2 / Boot4 Sentinel provider 还没有写入支持矩阵；通过独立样例和 gate 前不要复制 Boot3 starter 到 Boot2 / Boot4 应用。
 - 熔断窗口是当前 JVM 内的本地状态；多实例之间不会共享失败计数、慢调用计数或半开探测结果。
 - Cache 的治理包裹只声明在 Spring Boot 3 Redis 主线；Boot2 / Boot4 的 cache 入口要按对应样例和测试结果再扩大说明。

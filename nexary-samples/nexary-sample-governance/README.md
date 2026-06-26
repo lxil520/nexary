@@ -1,6 +1,6 @@
 # nexary-sample-governance
 
-这个样例演示三件事：
+这个样例演示本地治理的几条路径：
 
 - Spring Boot starter 如何用 `application.yml` 配置 deadline、限流、并发隔离和手动降级。
 - 本地治理数据平面如何把 `GovernanceContext`、`GovernanceRuntime`、fallback 和低数量诊断快照串起来。
@@ -8,6 +8,8 @@
 - 只读治理诊断 Console 如何读取当前 JVM 的治理资源、窗口、熔断状态和最近事件。
 
 v0.11 增加请求失效终止：deadline 已经过期、上游已经取消、或者 Gateway 发现客户端断开时，请求应尽快停止。这个样例同时演示进入业务前的取消和业务循环里的协作式停止。Nexary 不替代 Sentinel，Sentinel provider 放在 v0.12，retry stop 继续传播放在 v0.13。
+
+v0.15 增加实例异常发现：同一个 `profile-service` resource 下模拟 `instance-a`、`instance-b`、`instance-c` 三个稳定别名。样例只把异常实例标记为候选并输出建议动作，不自动摘流，也不调用注册中心或网关。
 
 样例引入 `nexary-observation-micrometer-spring-boot-starter`，并在测试里注册 `SimpleMeterRegistry`。触发限流、降级或并发隔离时，治理事件会写入 `nexary.observation.events.total` 和 `nexary.observation.events.duration`。
 
@@ -53,6 +55,24 @@ curl -s http://localhost:8080/nexary/governance/events
 
 事件里可以看到 `action=CANCEL`、`outcome=CANCELLED`、`cancellationReason=CLIENT_DISCONNECTED`，但不会出现 `demo-hidden-id`。
 
+实例健康路径需要启用 `instance-health` profile：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=instance-health'
+```
+
+另开一个终端触发模拟结果：
+
+```bash
+curl -s -X POST http://localhost:8080/governance/instance-health/scenario
+curl -s http://localhost:8080/nexary/governance/instance-health
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_INSTANCE_HEALTH_BASE_URL=http://localhost:8080 ./scripts/governance-instance-health/smoke.sh
+```
+
+`instance-a` 保持 `HEALTHY`，`instance-b` 会因为 `SLOW_RATIO` 进入 `SUSPECT` 或 `QUARANTINE_CANDIDATE`，`instance-c` 会因为 `SERVER_ERROR_RATIO` 或 `READ_TIMEOUT_SPIKE` 进入 `QUARANTINE_CANDIDATE`。输出里不会包含原始内网地址、payload、异常全文或堆栈。
+
 ## 只读诊断端点
 
 样例打开了 `nexary.governance.diagnostics.enabled=true`。查看当前进程里的本地治理汇总、资源目录和最近事件：
@@ -96,6 +116,9 @@ curl -s http://localhost:8080/nexary/governance/events
 | `lastOutcome` | 最近一次结果，例如 `SUCCESS`、`FAILURE`、`REJECTED`。 |
 | `action` | 最近事件动作，例如 `EXECUTE`、`REJECT`、`FALLBACK`、`CANCEL`。 |
 | `cancellationReason` | 最近事件里的取消原因；没有取消时是 `NONE`。 |
+| `instanceHealthState` | 实例健康状态，例如 `HEALTHY`、`SUSPECT`、`QUARANTINE_CANDIDATE`。 |
+| `quarantineReason` | 实例异常候选原因，例如 `SLOW_RATIO`、`SERVER_ERROR_RATIO`、`READ_TIMEOUT_SPIKE`。 |
+| `recoveryAdvice` | 建议动作，例如 `BACKOFF`、`QUARANTINE_CANDIDATE`、`RECOVERY_PROBE`。 |
 | `durationBucket` | 粗粒度耗时桶。 |
 
 这些端点只读，默认不会暴露；starter 只有在显式配置 `nexary.governance.diagnostics.enabled=true` 后才注册 HTTP 路径。

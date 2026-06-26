@@ -63,3 +63,30 @@ nexary:
       timer-name: nexary.observation.events.duration
   console:
     enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: instance-health
+
+nexary:
+  governance:
+    instance-health:
+      enabled: true
+      window: 30s
+      minimum-calls: 4
+      suspect-windows: 1
+      recovery-windows: 2
+      slow-call-threshold: 500ms
+      slow-ratio-threshold: 0.50
+      failure-ratio-threshold: 0.50
+      timeout-ratio-threshold: 0.30
+      skew-factor-threshold: 3.0
+      expose-raw-instance-key: false
+    resources:
+      profile-service-instance-health:
+        kind: downstream
+        name: profile-service
+        provider: nexary
+        operation: instance-health

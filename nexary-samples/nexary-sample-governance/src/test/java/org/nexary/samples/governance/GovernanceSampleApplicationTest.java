@@ -12,6 +12,7 @@ import org.nexary.governance.runtime.GovernanceRuntime;
 import org.nexary.governance.runtime.GovernanceRejectionReason;
 import org.nexary.samples.governance.common.CircuitProfileResult;
 import org.nexary.samples.governance.api.GovernanceSampleController;
+import org.nexary.samples.governance.config.GovernanceSampleConfiguration;
 import org.nexary.samples.governance.service.LocalCircuitBreakerProfileGateway;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -26,7 +27,8 @@ import org.springframework.http.ResponseEntity;
 
 @SpringBootTest(
         classes = org.nexary.samples.governance.app.GovernanceSampleApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "spring.profiles.active=instance-health")
 @Import(GovernanceSampleApplicationTest.MetricsTestConfiguration.class)
 class GovernanceSampleApplicationTest {
     @Autowired
@@ -171,6 +173,41 @@ class GovernanceSampleApplicationTest {
         assertThat(events)
                 .contains("\"cancellationReason\":\"CLIENT_DISCONNECTED\"")
                 .doesNotContain("sample-cancel-hidden-id", "u-50");
+    }
+
+    @Test
+    void instanceHealthProfileDetectsLocalQuarantineCandidate() {
+        ResponseEntity<String> scenario = restTemplate.postForEntity(
+                "/governance/instance-health/scenario",
+                null,
+                String.class);
+        String health = restTemplate.getForObject("/nexary/governance/instance-health", String.class);
+        String resourceHealth = restTemplate.getForObject(
+                "/nexary/governance/instance-health/" + GovernanceSampleConfiguration.INSTANCE_HEALTH_RESOURCE.key(),
+                String.class);
+        String summary = restTemplate.getForObject("/nexary/governance/summary", String.class);
+        String events = restTemplate.getForObject("/nexary/governance/events", String.class);
+
+        assertThat(scenario.getBody())
+                .contains("\"scenario\":\"scenario\"")
+                .contains("instance-a")
+                .contains("instance-c")
+                .contains("QUARANTINE_CANDIDATE");
+        assertThat(health)
+                .contains("instance-a")
+                .contains("instance-b")
+                .contains("instance-c")
+                .contains("SLOW_RATIO")
+                .doesNotContain("10.", "stackTrace", "payload");
+        assertThat(health).containsAnyOf("SERVER_ERROR_RATIO", "READ_TIMEOUT_SPIKE");
+        assertThat(resourceHealth).contains("QUARANTINE_CANDIDATE");
+        assertThat(summary)
+                .contains("\"instanceSuspectCount\"")
+                .contains("\"quarantineCandidateCount\"");
+        assertThat(events)
+                .contains("\"action\":\"QUARANTINE_CANDIDATE\"")
+                .contains("\"quarantineReason\"")
+                .doesNotContain("stackTrace", "payload");
     }
 
     @TestConfiguration

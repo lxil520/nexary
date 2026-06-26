@@ -24,6 +24,9 @@ public final class GovernanceRuntimeEvent {
     private final GovernanceCircuitState circuitState;
     private final Instant timestamp;
     private final GovernanceDurationBucket durationBucket;
+    private final InstanceHealthState instanceHealthState;
+    private final InstanceQuarantineReason quarantineReason;
+    private final InstanceRecoveryAdvice recoveryAdvice;
 
     /** Creates a low-cardinality runtime event. */
     public GovernanceRuntimeEvent(
@@ -139,6 +142,77 @@ public final class GovernanceRuntimeEvent {
             GovernanceCircuitState circuitState,
             Instant timestamp,
             GovernanceDurationBucket durationBucket) {
+        this(
+                resourceKey,
+                trafficClass,
+                priority,
+                action,
+                outcome,
+                rejectionReason,
+                isolationReason,
+                cancellationReason,
+                engine,
+                blockReason,
+                retryStopReason,
+                circuitState,
+                timestamp,
+                durationBucket,
+                InstanceHealthState.HEALTHY,
+                InstanceQuarantineReason.NONE,
+                InstanceRecoveryAdvice.NONE);
+    }
+
+    /** Creates a low-cardinality runtime event with instance health metadata. */
+    public GovernanceRuntimeEvent(
+            String resourceKey,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            GovernanceCircuitState circuitState,
+            Instant timestamp,
+            GovernanceDurationBucket durationBucket,
+            InstanceHealthState instanceHealthState,
+            InstanceQuarantineReason quarantineReason,
+            InstanceRecoveryAdvice recoveryAdvice) {
+        this(
+                resourceKey,
+                GovernanceTrafficClass.ONLINE,
+                GovernancePriority.NORMAL,
+                action,
+                outcome,
+                rejectionReason,
+                GovernanceIsolationReason.NONE,
+                CancellationReason.NONE,
+                GovernanceEngine.LOCAL,
+                GovernanceBlockReason.NONE,
+                RetryStopReason.NONE,
+                circuitState,
+                timestamp,
+                durationBucket,
+                instanceHealthState,
+                quarantineReason,
+                recoveryAdvice);
+    }
+
+    /** Creates a low-cardinality runtime event with all diagnostic metadata. */
+    public GovernanceRuntimeEvent(
+            String resourceKey,
+            GovernanceTrafficClass trafficClass,
+            GovernancePriority priority,
+            GovernanceRuntimeAction action,
+            GovernanceCallOutcome outcome,
+            GovernanceRejectionReason rejectionReason,
+            GovernanceIsolationReason isolationReason,
+            CancellationReason cancellationReason,
+            GovernanceEngine engine,
+            GovernanceBlockReason blockReason,
+            RetryStopReason retryStopReason,
+            GovernanceCircuitState circuitState,
+            Instant timestamp,
+            GovernanceDurationBucket durationBucket,
+            InstanceHealthState instanceHealthState,
+            InstanceQuarantineReason quarantineReason,
+            InstanceRecoveryAdvice recoveryAdvice) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.trafficClass = trafficClass == null ? GovernanceTrafficClass.ONLINE : trafficClass;
         this.priority = priority == null ? GovernancePriority.NORMAL : priority;
@@ -153,6 +227,9 @@ public final class GovernanceRuntimeEvent {
         this.circuitState = circuitState == null ? GovernanceCircuitState.CLOSED : circuitState;
         this.timestamp = timestamp == null ? Instant.now() : timestamp;
         this.durationBucket = durationBucket == null ? GovernanceDurationBucket.NOT_RUN : durationBucket;
+        this.instanceHealthState = instanceHealthState == null ? InstanceHealthState.HEALTHY : instanceHealthState;
+        this.quarantineReason = quarantineReason == null ? InstanceQuarantineReason.NONE : quarantineReason;
+        this.recoveryAdvice = recoveryAdvice == null ? InstanceRecoveryAdvice.NONE : recoveryAdvice;
     }
 
     /** Returns the stable governed resource key. */
@@ -225,6 +302,21 @@ public final class GovernanceRuntimeEvent {
         return durationBucket;
     }
 
+    /** Returns the local instance health state associated with this event. */
+    public InstanceHealthState instanceHealthState() {
+        return instanceHealthState;
+    }
+
+    /** Returns the local instance quarantine reason associated with this event. */
+    public InstanceQuarantineReason quarantineReason() {
+        return quarantineReason;
+    }
+
+    /** Returns the local instance recovery advice associated with this event. */
+    public InstanceRecoveryAdvice recoveryAdvice() {
+        return recoveryAdvice;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -247,7 +339,10 @@ public final class GovernanceRuntimeEvent {
                 && retryStopReason == that.retryStopReason
                 && circuitState == that.circuitState
                 && timestamp.equals(that.timestamp)
-                && durationBucket == that.durationBucket;
+                && durationBucket == that.durationBucket
+                && instanceHealthState == that.instanceHealthState
+                && quarantineReason == that.quarantineReason
+                && recoveryAdvice == that.recoveryAdvice;
     }
 
     @Override
@@ -266,6 +361,9 @@ public final class GovernanceRuntimeEvent {
                 retryStopReason,
                 circuitState,
                 timestamp,
-                durationBucket);
+                durationBucket,
+                instanceHealthState,
+                quarantineReason,
+                recoveryAdvice);
     }
 }

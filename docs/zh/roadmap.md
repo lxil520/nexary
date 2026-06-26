@@ -449,6 +449,47 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 远程规则平台、跨实例聚合或策略编辑页面。
 - 用这一版本补 Boot2 / Boot4 Sentinel provider 支持矩阵。
 
+## `0.15.x` 实例异常发现与本地封禁模型
+
+`0.15.0` 在当前 JVM 内识别异常实例候选。一个 downstream resource 背后有多个实例时，如果某个实例的 5xx、timeout、reset 或慢调用比例明显偏离同 resource 基线，Nexary 会把它标记为 `SUSPECT` 或 `QUARANTINE_CANDIDATE`，并输出固定原因和建议动作。
+
+已纳入范围：
+
+- Runtime：按 `resourceKey + instanceKey` 维护滑动窗口，统计信号类型、结果、状态码大类和耗时桶。
+- API：新增 `GovernanceInstanceRef`、`InstanceHealthSignal`、`InstanceHealthState`、`InstanceQuarantineReason`、`InstanceRecoveryAdvice` 和 `GovernanceInstanceHealth`。
+- Safety：实例 key 默认脱敏，不输出原始 host、port、URL、query、userId、tenant、payload、异常全文或堆栈。
+- Diagnostics / Console：新增异常实例数、封禁候选数、恢复探测数、实例状态表和最近实例事件。
+- Samples：`nexary-sample-governance` 增加 `instance-health` profile 和 `scripts/governance-instance-health/smoke.sh`。
+
+`0.15.x` 不包含：
+
+- 自动摘流。
+- 注册中心、Spring Cloud LoadBalancer、Gateway route、云厂商或 PaaS 的实例摘除 adapter。
+- 跨实例聚合或远程封禁平台。
+- 用这一版本补 Boot2 / Boot4 Sentinel provider 支持矩阵。
+
+## `0.16.x` Trace 与故障定位
+
+下一步把治理事件、请求取消、停止重试、优先级隔离和实例异常候选串到 trace 视角。目标是让用户看到一次调用为什么停止、被哪个治理规则拦住、是否命中异常实例候选，以及应先排查哪个 resource。
+
+计划范围：
+
+- 为治理事件补 trace / span 关联字段的低基数摘要。
+- 在样例中展示请求、下游调用、治理事件和实例健康事件的关联。
+- 文档说明如何和 Micrometer Observation / OpenTelemetry 一起看问题。
+
+不做分布式追踪后端，不内置日志采集平台，不保存业务请求体。
+
+## `0.17+` 容量、混沌与自动止损评估
+
+更后面的版本再评估容量保护、故障注入和自动止损。前提是 v0.15 的实例异常候选、v0.16 的 trace 定位都已经稳定，且用户能看清建议动作的依据。
+
+可能方向：
+
+- 容量水位和低优先级流量退让。
+- 本地故障注入样例，用来验证 fallback、停止重试和异常实例检测。
+- 自动摘流 adapter 的设计讨论，但默认仍不改注册中心或网关。
+
 ## `1.0.0` 稳定版目标
 
 - 公共 API 冻结到可长期维护水平。

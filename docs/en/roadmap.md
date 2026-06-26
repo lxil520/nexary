@@ -449,6 +449,47 @@ Included scope:
 - remote rule platforms, cross-instance aggregation, or rule-editing pages.
 - using this release to fill Boot2 / Boot4 Sentinel provider support matrix gaps.
 
+## `0.15.x` Abnormal Instance Detection and Local Quarantine Model
+
+`0.15.0` detects abnormal instance candidates inside the current JVM. When several instances sit behind the same downstream resource and one instance has a much higher 5xx, timeout, reset, or slow-call ratio than the resource baseline, Nexary marks it as `SUSPECT` or `QUARANTINE_CANDIDATE` and exposes a fixed reason plus a suggested action.
+
+Included scope:
+
+- Runtime: keep sliding windows by `resourceKey + instanceKey`, recording only signal type, outcome, status-code class, and duration bucket.
+- API: add `GovernanceInstanceRef`, `InstanceHealthSignal`, `InstanceHealthState`, `InstanceQuarantineReason`, `InstanceRecoveryAdvice`, and `GovernanceInstanceHealth`.
+- Safety: instance keys are masked by default, and diagnostics do not expose raw hosts, ports, URLs, queries, user ids, tenants, payloads, exception text, or stack traces.
+- Diagnostics / Console: add suspect instance count, quarantine candidate count, recovery probe count, per-resource instance tables, and recent instance events.
+- Samples: `nexary-sample-governance` adds the `instance-health` profile and `scripts/governance-instance-health/smoke.sh`.
+
+`0.15.x` does not include:
+
+- automatic traffic drain.
+- registry, Spring Cloud LoadBalancer, Gateway route, cloud vendor, or PaaS instance-removal adapters.
+- cross-instance aggregation or a remote quarantine platform.
+- using this release to fill Boot2 / Boot4 Sentinel provider support matrix gaps.
+
+## `0.16.x` Trace and Fault Location
+
+The next step connects governance events, request cancellation, retry-stop, priority isolation, and abnormal instance candidates into a trace-oriented view. Users should be able to see why a call stopped, which governance rule blocked it, whether an abnormal instance candidate was involved, and which resource should be checked first.
+
+Planned scope:
+
+- Add low-cardinality trace / span summaries to governance events.
+- Show request, downstream call, governance event, and instance health event relationships in samples.
+- Document how to inspect problems together with Micrometer Observation / OpenTelemetry.
+
+This does not add a distributed tracing backend, a log collection platform, or request-body storage.
+
+## `0.17+` Capacity, Fault Injection, and Automatic Stop-Loss Evaluation
+
+Later releases can evaluate capacity protection, local fault injection, and automatic stop-loss. The prerequisite is that v0.15 abnormal instance candidates and v0.16 trace location are stable enough for users to understand why a suggested action appears.
+
+Possible directions:
+
+- Capacity watermarks and lower-priority traffic backoff.
+- Local fault-injection samples to validate fallback, retry-stop, and abnormal instance detection.
+- Design discussion for automatic traffic-drain adapters, while keeping the default behavior read-only and local.
+
 ## `1.0.0` Stability Target
 
 - Public APIs are stable enough for long-term maintenance.

@@ -101,6 +101,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
+      JAVA_OPTS: "-XX:TieredStopAtLevel=1"
       PARAMS: >-
         --spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai
         --spring.datasource.username=root

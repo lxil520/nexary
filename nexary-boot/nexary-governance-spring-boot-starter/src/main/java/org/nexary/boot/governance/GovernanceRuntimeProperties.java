@@ -16,6 +16,7 @@ public class GovernanceRuntimeProperties {
     private Sentinel sentinel = new Sentinel();
     private Diagnostics diagnostics = new Diagnostics();
     private Cancellation cancellation = new Cancellation();
+    private InstanceHealth instanceHealth = new InstanceHealth();
     private Policy defaultPolicy = new Policy();
     private Map<String, ResourcePolicy> resources = new LinkedHashMap<>();
 
@@ -128,6 +129,16 @@ public class GovernanceRuntimeProperties {
     /** Sets cooperative cancellation settings. */
     public void setCancellation(Cancellation cancellation) {
         this.cancellation = cancellation == null ? new Cancellation() : cancellation;
+    }
+
+    /** Returns local instance health detection settings. */
+    public InstanceHealth getInstanceHealth() {
+        return instanceHealth;
+    }
+
+    /** Sets local instance health detection settings. */
+    public void setInstanceHealth(InstanceHealth instanceHealth) {
+        this.instanceHealth = instanceHealth == null ? new InstanceHealth() : instanceHealth;
     }
 
     /** Returns the default policy used when no resource policy matches. */
@@ -294,6 +305,131 @@ public class GovernanceRuntimeProperties {
         /** Sets the optional token required by the receiver endpoint. */
         public void setToken(String token) {
             this.token = token;
+        }
+    }
+
+    /** Local instance abnormality detection settings. */
+    public static class InstanceHealth {
+        private boolean enabled;
+        private Duration window = Duration.ofSeconds(60);
+        private int minimumCalls = 20;
+        private int suspectWindows = 2;
+        private int recoveryWindows = 2;
+        private Duration slowCallThreshold = Duration.ofSeconds(2);
+        private double slowRatioThreshold = 0.60d;
+        private double failureRatioThreshold = 0.50d;
+        private double timeoutRatioThreshold = 0.30d;
+        private double skewFactorThreshold = 3.0d;
+        private boolean exposeRawInstanceKey;
+
+        /** Returns whether local instance health detection is enabled. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether local instance health detection is enabled. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns the rolling detection window. */
+        public Duration getWindow() {
+            return window;
+        }
+
+        /** Sets the rolling detection window. */
+        public void setWindow(Duration window) {
+            this.window = window;
+        }
+
+        /** Returns the minimum calls before anomaly detection starts. */
+        public int getMinimumCalls() {
+            return minimumCalls;
+        }
+
+        /** Sets the minimum calls before anomaly detection starts. */
+        public void setMinimumCalls(int minimumCalls) {
+            this.minimumCalls = minimumCalls;
+        }
+
+        /** Returns the abnormal windows needed before quarantine candidate state. */
+        public int getSuspectWindows() {
+            return suspectWindows;
+        }
+
+        /** Sets the abnormal windows needed before quarantine candidate state. */
+        public void setSuspectWindows(int suspectWindows) {
+            this.suspectWindows = suspectWindows;
+        }
+
+        /** Returns the healthy probe windows needed for recovery. */
+        public int getRecoveryWindows() {
+            return recoveryWindows;
+        }
+
+        /** Sets the healthy probe windows needed for recovery. */
+        public void setRecoveryWindows(int recoveryWindows) {
+            this.recoveryWindows = recoveryWindows;
+        }
+
+        /** Returns the slow-call duration threshold. */
+        public Duration getSlowCallThreshold() {
+            return slowCallThreshold;
+        }
+
+        /** Sets the slow-call duration threshold. */
+        public void setSlowCallThreshold(Duration slowCallThreshold) {
+            this.slowCallThreshold = slowCallThreshold;
+        }
+
+        /** Returns the slow-call ratio threshold. */
+        public double getSlowRatioThreshold() {
+            return slowRatioThreshold;
+        }
+
+        /** Sets the slow-call ratio threshold. */
+        public void setSlowRatioThreshold(double slowRatioThreshold) {
+            this.slowRatioThreshold = slowRatioThreshold;
+        }
+
+        /** Returns the failure ratio threshold. */
+        public double getFailureRatioThreshold() {
+            return failureRatioThreshold;
+        }
+
+        /** Sets the failure ratio threshold. */
+        public void setFailureRatioThreshold(double failureRatioThreshold) {
+            this.failureRatioThreshold = failureRatioThreshold;
+        }
+
+        /** Returns the timeout/reset ratio threshold. */
+        public double getTimeoutRatioThreshold() {
+            return timeoutRatioThreshold;
+        }
+
+        /** Sets the timeout/reset ratio threshold. */
+        public void setTimeoutRatioThreshold(double timeoutRatioThreshold) {
+            this.timeoutRatioThreshold = timeoutRatioThreshold;
+        }
+
+        /** Returns the peer skew factor threshold. */
+        public double getSkewFactorThreshold() {
+            return skewFactorThreshold;
+        }
+
+        /** Sets the peer skew factor threshold. */
+        public void setSkewFactorThreshold(double skewFactorThreshold) {
+            this.skewFactorThreshold = skewFactorThreshold;
+        }
+
+        /** Returns whether raw instance keys may be exposed. */
+        public boolean isExposeRawInstanceKey() {
+            return exposeRawInstanceKey;
+        }
+
+        /** Sets whether raw instance keys may be exposed. */
+        public void setExposeRawInstanceKey(boolean exposeRawInstanceKey) {
+            this.exposeRawInstanceKey = exposeRawInstanceKey;
         }
     }
 

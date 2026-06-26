@@ -8,6 +8,9 @@ import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.governance.runtime.GovernancePolicy;
 import org.nexary.governance.runtime.GovernancePolicyRegistry;
 import org.nexary.governance.runtime.GovernanceRuntime;
+import org.nexary.governance.runtime.GovernanceInstanceHealth;
+import org.nexary.governance.runtime.InstanceHealthSettings;
+import org.nexary.governance.runtime.LocalGovernanceInstanceHealth;
 import org.nexary.governance.runtime.LocalGovernancePolicyRegistry;
 import org.nexary.governance.runtime.LocalGovernanceRuntime;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -41,16 +44,28 @@ public class GovernanceRuntimeAutoConfiguration {
         return builder.build();
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "nexary.governance", name = "provider", havingValue = "local", matchIfMissing = true)
-    public GovernanceRuntime nexaryGovernanceRuntime(
-            GovernancePolicyRegistry policyRegistry,
-            GovernanceRuntimeProperties properties,
-            java.util.Optional<NexaryObservationPublisher> observationPublisher) {
-        NexaryObservationPublisher publisher = observationPublisher.orElse(NexaryObservationPublisher.noop());
-        return new LocalGovernanceRuntime(policyRegistry, publisher);
-    }
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = "nexary.governance", name = "provider", havingValue = "local", matchIfMissing = true)
+	public GovernanceRuntime nexaryGovernanceRuntime(
+			GovernancePolicyRegistry policyRegistry,
+			GovernanceRuntimeProperties properties,
+			java.util.Optional<NexaryObservationPublisher> observationPublisher,
+			java.util.Optional<GovernanceInstanceHealth> instanceHealth) {
+		NexaryObservationPublisher publisher = observationPublisher.orElse(NexaryObservationPublisher.noop());
+		return new LocalGovernanceRuntime(
+				policyRegistry,
+				publisher,
+				instanceHealth.orElse(GovernanceInstanceHealth.noop()),
+				256);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = "nexary.governance.instance-health", name = "enabled", havingValue = "true")
+	public GovernanceInstanceHealth nexaryGovernanceInstanceHealth(GovernanceRuntimeProperties properties) {
+		return new LocalGovernanceInstanceHealth(toInstanceHealthSettings(properties.getInstanceHealth()));
+	}
 
     @Bean
     @ConditionalOnBean(GovernanceRuntime.class)
@@ -66,7 +81,7 @@ public class GovernanceRuntimeAutoConfiguration {
         return properties.getDefaultPolicy();
     }
 
-    private static GovernancePolicy toPolicy(GovernanceRuntimeProperties.Policy properties) {
+	private static GovernancePolicy toPolicy(GovernanceRuntimeProperties.Policy properties) {
         GovernanceRuntimeProperties.Policy safeProperties =
                 properties == null ? new GovernanceRuntimeProperties.Policy() : properties;
         GovernancePolicy.Builder builder = GovernancePolicy.builder()
@@ -87,8 +102,23 @@ public class GovernanceRuntimeAutoConfiguration {
                     .slidingWindowDuration(circuitBreaker.getWindow())
                     .consecutiveFailureThreshold(circuitBreaker.getConsecutiveFailureThreshold());
         }
-        return builder.build();
-    }
+		return builder.build();
+	}
+
+	private static InstanceHealthSettings toInstanceHealthSettings(GovernanceRuntimeProperties.InstanceHealth properties) {
+		GovernanceRuntimeProperties.InstanceHealth safeProperties =
+				properties == null ? new GovernanceRuntimeProperties.InstanceHealth() : properties;
+		return new InstanceHealthSettings(
+				safeProperties.getWindow(),
+				safeProperties.getMinimumCalls(),
+				safeProperties.getSuspectWindows(),
+				safeProperties.getRecoveryWindows(),
+				safeProperties.getSlowCallThreshold(),
+				safeProperties.getSlowRatioThreshold(),
+				safeProperties.getFailureRatioThreshold(),
+				safeProperties.getTimeoutRatioThreshold(),
+				safeProperties.getSkewFactorThreshold());
+	}
 
     private static GovernanceResource toResource(String id, GovernanceRuntimeProperties.ResourcePolicy properties) {
         GovernanceRuntimeProperties.ResourcePolicy safeProperties =

@@ -8,11 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.nexary.governance.runtime.GovernanceDiagnostics;
+import org.nexary.governance.runtime.GovernanceInstanceHealth;
 import org.nexary.governance.runtime.GovernancePolicySnapshot;
 import org.nexary.governance.runtime.GovernanceResourceDescriptor;
 import org.nexary.governance.runtime.GovernanceRuntimeEvent;
 import org.nexary.governance.runtime.GovernanceRuntimeSnapshot;
 import org.nexary.governance.runtime.GovernanceRuntimeSummary;
+import org.nexary.governance.runtime.InstanceHealthSnapshot;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -94,6 +96,7 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("engine", descriptor.engine().name());
             body.put("policySnapshot", policy(descriptor.policySnapshot()));
             body.put("runtimeSnapshot", snapshot(descriptor.runtimeSnapshot()));
+            body.put("instanceHealthSnapshots", instanceSnapshots(descriptor.instanceHealthSnapshots()));
             return body;
         }
 
@@ -169,6 +172,9 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("engine", event.engine().name());
             body.put("blockReason", event.blockReason().name());
             body.put("retryStopReason", event.retryStopReason().name());
+            body.put("instanceHealthState", event.instanceHealthState().name());
+            body.put("quarantineReason", event.quarantineReason().name());
+            body.put("recoveryAdvice", event.recoveryAdvice().name());
             body.put("circuitState", event.circuitState().name());
             body.put("timestamp", instant(event.timestamp()));
             body.put("durationBucket", event.durationBucket().name());
@@ -187,6 +193,9 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("retryStoppedCount", summary.retryStoppedCount());
             body.put("blockedCount", summary.blockedCount());
             body.put("isolatedCount", summary.isolatedCount());
+            body.put("instanceSuspectCount", summary.instanceSuspectCount());
+            body.put("quarantineCandidateCount", summary.quarantineCandidateCount());
+            body.put("recoveryProbeCount", summary.recoveryProbeCount());
             body.put("trafficClassCounts", summary.trafficClassCounts());
             body.put("priorityCounts", summary.priorityCounts());
             body.put("fallbackCount", summary.fallbackCount());
@@ -195,6 +204,43 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("degradedResourceCount", summary.degradedResourceCount());
             body.put("sentinelResourceCount", summary.sentinelResourceCount());
             body.put("lastEventAt", optionalInstant(summary.lastEventAt()));
+            return body;
+        }
+
+        private static List<Map<String, Object>> instanceSnapshots(List<InstanceHealthSnapshot> snapshots) {
+            List<Map<String, Object>> body = new ArrayList<>();
+            if (snapshots == null) {
+                return body;
+            }
+            for (InstanceHealthSnapshot snapshot : snapshots) {
+                body.add(instanceSnapshot(snapshot));
+            }
+            return body;
+        }
+
+        private static Map<String, Object> instanceSnapshot(InstanceHealthSnapshot snapshot) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            Map<String, Object> ref = new LinkedHashMap<>();
+            ref.put("resourceKey", snapshot.instanceRef().resourceKey());
+            ref.put("serviceKey", snapshot.instanceRef().serviceKey());
+            ref.put("instanceKey", snapshot.instanceRef().instanceKey());
+            ref.put("zone", snapshot.instanceRef().zone());
+            body.put("instanceRef", ref);
+            body.put("state", snapshot.state().name());
+            body.put("quarantineReason", snapshot.quarantineReason().name());
+            body.put("recoveryAdvice", snapshot.recoveryAdvice().name());
+            body.put("windowCalls", snapshot.windowCalls());
+            body.put("failureCount", snapshot.failureCount());
+            body.put("slowCallCount", snapshot.slowCallCount());
+            body.put("timeoutCount", snapshot.timeoutCount());
+            body.put("resetCount", snapshot.resetCount());
+            body.put("serverErrorCount", snapshot.serverErrorCount());
+            body.put("failureRatio", snapshot.failureRatio());
+            body.put("slowRatio", snapshot.slowRatio());
+            body.put("timeoutRatio", snapshot.timeoutRatio());
+            body.put("skewFactor", snapshot.skewFactor());
+            body.put("lastSignalAt", instant(snapshot.lastSignalAt()));
+            body.put("lastChangedAt", instant(snapshot.lastChangedAt()));
             return body;
         }
 
@@ -216,6 +262,31 @@ public class GovernanceDiagnosticsAutoConfiguration {
 
         private static Double threshold(double value) {
             return Double.isInfinite(value) ? null : value;
+        }
+    }
+
+    /** Read-only HTTP endpoint for local instance health diagnostics. */
+    @RestController
+    @ConditionalOnBean(GovernanceInstanceHealth.class)
+    @ConditionalOnProperty(prefix = "nexary.governance.instance-health", name = "enabled", havingValue = "true")
+    @RequestMapping("${nexary.governance.diagnostics.path-prefix:/nexary/governance}")
+    public static final class GovernanceInstanceHealthEndpoint {
+        private final GovernanceInstanceHealth instanceHealth;
+
+        public GovernanceInstanceHealthEndpoint(GovernanceInstanceHealth instanceHealth) {
+            this.instanceHealth = instanceHealth;
+        }
+
+        /** Returns all known local instance health snapshots. */
+        @GetMapping("/instance-health")
+        public List<Map<String, Object>> instanceHealth() {
+            return GovernanceDiagnosticsEndpoint.instanceSnapshots(instanceHealth.snapshots());
+        }
+
+        /** Returns local instance health snapshots for one resource. */
+        @GetMapping("/instance-health/{resourceKey}")
+        public List<Map<String, Object>> instanceHealth(@PathVariable String resourceKey) {
+            return GovernanceDiagnosticsEndpoint.instanceSnapshots(instanceHealth.snapshots(resourceKey));
         }
     }
 }

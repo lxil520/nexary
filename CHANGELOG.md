@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.0
+
+- Added local instance health detection for downstream resources with several instances behind the same resource key.
+- Added fixed low-cardinality instance health models: instance references, health signals, health state, quarantine reason, and recovery advice.
+- Added local sliding-window detection for slow-call ratio, timeout spikes, reset spikes, server-error ratio, and status-code skew.
+- Added read-only diagnostics endpoints for `/nexary/governance/instance-health` and `/nexary/governance/instance-health/{resourceKey}`.
+- Extended runtime diagnostics and the read-only Console with suspect instance counts, quarantine candidate counts, recovery probe counts, and per-resource instance health snapshots.
+- Extended `nexary-sample-governance` with an `instance-health` profile and added `scripts/governance-instance-health/smoke.sh`.
+- Kept quarantine as local diagnostic state and suggested action only; this release does not call registries, Gateway route APIs, cloud APIs, or Sentinel rule updates.
+
 ## 0.14.0
 
 - Added fixed low-cardinality traffic classes and governance priority buckets for local governance and the Boot3 Sentinel provider.

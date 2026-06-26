@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import org.nexary.console.api.ConsoleEventItem;
 import org.nexary.console.api.ConsoleEventsResponse;
+import org.nexary.console.api.ConsoleInstanceHealthSnapshot;
 import org.nexary.console.api.ConsolePolicySnapshot;
 import org.nexary.console.api.ConsoleResourceItem;
 import org.nexary.console.api.ConsoleResourcesResponse;
@@ -19,6 +20,7 @@ import org.nexary.governance.runtime.GovernanceResourceDescriptor;
 import org.nexary.governance.runtime.GovernanceRuntimeEvent;
 import org.nexary.governance.runtime.GovernanceRuntimeSnapshot;
 import org.nexary.governance.runtime.GovernanceRuntimeSummary;
+import org.nexary.governance.runtime.InstanceHealthSnapshot;
 
 /** Maps local governance diagnostics into the read-only console API model. */
 public final class ConsoleDiagnosticsService {
@@ -33,9 +35,9 @@ public final class ConsoleDiagnosticsService {
     public ConsoleSummaryResponse summary() {
         GovernanceRuntimeSummary summary = diagnostics == null ? null : diagnostics.summary();
         if (summary == null) {
-            return new ConsoleSummaryResponse(
-                    0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
-                    Collections.<String, Long>emptyMap(), Collections.<String, Long>emptyMap(), 0L, 0L, 0L, null);
+	            return new ConsoleSummaryResponse(
+	                    0, 0, 0, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+	                    Collections.<String, Long>emptyMap(), Collections.<String, Long>emptyMap(), 0L, 0L, 0L, null);
         }
         return new ConsoleSummaryResponse(
                 summary.resourceCount(),
@@ -48,9 +50,12 @@ public final class ConsoleDiagnosticsService {
                 summary.fallbackCount(),
                 summary.retryStoppedCount(),
                 summary.blockedCount(),
-                summary.isolatedCount(),
-                summary.sentinelResourceCount(),
-                summary.trafficClassCounts(),
+	                summary.isolatedCount(),
+	                summary.sentinelResourceCount(),
+	                summary.instanceSuspectCount(),
+	                summary.quarantineCandidateCount(),
+	                summary.recoveryProbeCount(),
+	                summary.trafficClassCounts(),
                 summary.priorityCounts(),
                 summary.openCircuitCount(),
                 summary.halfOpenCircuitCount(),
@@ -107,10 +112,11 @@ public final class ConsoleDiagnosticsService {
                 descriptor.name(),
                 descriptor.provider(),
                 descriptor.operation(),
-                descriptor.trafficClass(),
-                descriptor.priority(),
-                policy(descriptor.policySnapshot()),
-                runtime(descriptor.runtimeSnapshot()));
+	                descriptor.trafficClass(),
+	                descriptor.priority(),
+	                policy(descriptor.policySnapshot()),
+	                runtime(descriptor.runtimeSnapshot()),
+	                instanceSnapshots(descriptor.instanceHealthSnapshots()));
     }
 
     private static ConsolePolicySnapshot policy(GovernancePolicySnapshot snapshot) {
@@ -185,12 +191,45 @@ public final class ConsoleDiagnosticsService {
                 event.rejectionReason().name(),
                 event.isolationReason().name(),
                 event.blockReason().name(),
-                event.cancellationReason().name(),
-                event.retryStopReason().name(),
-                event.circuitState().name(),
-                instant(event.timestamp()),
-                event.durationBucket().name());
-    }
+	                event.cancellationReason().name(),
+	                event.retryStopReason().name(),
+	                event.instanceHealthState().name(),
+	                event.quarantineReason().name(),
+	                event.recoveryAdvice().name(),
+	                event.circuitState().name(),
+	                instant(event.timestamp()),
+	                event.durationBucket().name());
+	}
+
+	private static List<ConsoleInstanceHealthSnapshot> instanceSnapshots(List<InstanceHealthSnapshot> snapshots) {
+	    if (snapshots == null || snapshots.isEmpty()) {
+	        return Collections.emptyList();
+	    }
+	    List<ConsoleInstanceHealthSnapshot> items = new ArrayList<>();
+	    for (InstanceHealthSnapshot snapshot : snapshots) {
+	        items.add(new ConsoleInstanceHealthSnapshot(
+	                snapshot.instanceRef().resourceKey(),
+	                snapshot.instanceRef().serviceKey(),
+	                snapshot.instanceRef().instanceKey(),
+	                snapshot.instanceRef().zone(),
+	                snapshot.state().name(),
+	                snapshot.quarantineReason().name(),
+	                snapshot.recoveryAdvice().name(),
+	                snapshot.windowCalls(),
+	                snapshot.failureCount(),
+	                snapshot.slowCallCount(),
+	                snapshot.timeoutCount(),
+	                snapshot.resetCount(),
+	                snapshot.serverErrorCount(),
+	                snapshot.failureRatio(),
+	                snapshot.slowRatio(),
+	                snapshot.timeoutRatio(),
+	                snapshot.skewFactor(),
+	                instant(snapshot.lastSignalAt()),
+	                instant(snapshot.lastChangedAt())));
+	    }
+	    return items;
+	}
 
     private static String duration(Duration duration) {
         return duration == null ? null : duration.toString();

@@ -21,6 +21,9 @@ public final class GovernanceRuntimeSummary {
     private final long blockedCount;
     private final long isolatedCount;
     private final long sentinelResourceCount;
+    private final long instanceSuspectCount;
+    private final long quarantineCandidateCount;
+    private final long recoveryProbeCount;
     private final Map<String, Long> trafficClassCounts;
     private final Map<String, Long> priorityCounts;
     private final long openCircuitCount;
@@ -225,6 +228,53 @@ public final class GovernanceRuntimeSummary {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             Instant lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                fallbackCount,
+                cancelledCount,
+                retryStoppedCount,
+                blockedCount,
+                isolatedCount,
+                sentinelResourceCount,
+                0L,
+                0L,
+                0L,
+                trafficClassCounts,
+                priorityCounts,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /** Creates a runtime summary with priority isolation, instance health, and fixed traffic distributions. */
+    public GovernanceRuntimeSummary(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long fallbackCount,
+            long cancelledCount,
+            long retryStoppedCount,
+            long blockedCount,
+            long isolatedCount,
+            long sentinelResourceCount,
+            long instanceSuspectCount,
+            long quarantineCandidateCount,
+            long recoveryProbeCount,
+            Map<String, Long> trafficClassCounts,
+            Map<String, Long> priorityCounts,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            Instant lastEventAt) {
         this.resourceCount = Math.max(0, resourceCount);
         this.snapshotCount = Math.max(0, snapshotCount);
         this.eventCount = Math.max(0, eventCount);
@@ -237,6 +287,9 @@ public final class GovernanceRuntimeSummary {
         this.blockedCount = Math.max(0L, blockedCount);
         this.isolatedCount = Math.max(0L, isolatedCount);
         this.sentinelResourceCount = Math.max(0L, sentinelResourceCount);
+        this.instanceSuspectCount = Math.max(0L, instanceSuspectCount);
+        this.quarantineCandidateCount = Math.max(0L, quarantineCandidateCount);
+        this.recoveryProbeCount = Math.max(0L, recoveryProbeCount);
         this.trafficClassCounts = immutableCounts(trafficClassCounts);
         this.priorityCounts = immutableCounts(priorityCounts);
         this.openCircuitCount = Math.max(0L, openCircuitCount);
@@ -305,6 +358,21 @@ public final class GovernanceRuntimeSummary {
         return sentinelResourceCount;
     }
 
+    /** Returns instances currently suspect in local instance health diagnostics. */
+    public long instanceSuspectCount() {
+        return instanceSuspectCount;
+    }
+
+    /** Returns instances currently marked as quarantine candidates. */
+    public long quarantineCandidateCount() {
+        return quarantineCandidateCount;
+    }
+
+    /** Returns instances currently advised for recovery probe. */
+    public long recoveryProbeCount() {
+        return recoveryProbeCount;
+    }
+
     /** Returns retained recent-event counts by fixed traffic class. */
     public Map<String, Long> trafficClassCounts() {
         return trafficClassCounts;
@@ -356,6 +424,9 @@ public final class GovernanceRuntimeSummary {
                 && blockedCount == that.blockedCount
                 && isolatedCount == that.isolatedCount
                 && sentinelResourceCount == that.sentinelResourceCount
+                && instanceSuspectCount == that.instanceSuspectCount
+                && quarantineCandidateCount == that.quarantineCandidateCount
+                && recoveryProbeCount == that.recoveryProbeCount
                 && trafficClassCounts.equals(that.trafficClassCounts)
                 && priorityCounts.equals(that.priorityCounts)
                 && openCircuitCount == that.openCircuitCount
@@ -379,6 +450,9 @@ public final class GovernanceRuntimeSummary {
                 blockedCount,
                 isolatedCount,
                 sentinelResourceCount,
+                instanceSuspectCount,
+                quarantineCandidateCount,
+                recoveryProbeCount,
                 trafficClassCounts,
                 priorityCounts,
                 openCircuitCount,

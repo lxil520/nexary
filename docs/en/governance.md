@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.14.0` line does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms. It fixes three boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops; when online requests share a resource with batch, offline, or background repair work, fixed `ONLINE/OFFLINE/BATCH/BACKGROUND` and `HIGH/NORMAL/LOW` policies can rate-limit, isolate, or fallback the lower-priority work first. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows.
+The `0.15.0` line does not replace Sentinel Dashboard, cluster flow control, remote rule platforms, or automatic traffic-drain platforms. It fixes four boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops; when online requests share a resource with batch, offline, or background repair work, fixed `ONLINE/OFFLINE/BATCH/BACKGROUND` and `HIGH/NORMAL/LOW` policies can rate-limit, isolate, or fallback the lower-priority work first; when several instances behind one downstream resource behave differently, Nexary marks abnormal instance candidates inside the current JVM and exposes a suggested action. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures.
 
 ## Add Dependencies
 
@@ -134,6 +134,57 @@ Important fields:
 - `isolationReason`: `PRIORITY_RATE_LIMITED`, `PRIORITY_BULKHEAD_FULL`, `PRIORITY_DEGRADED`, `PRIORITY_CIRCUIT_OPEN`, or `MIXED_TRAFFIC`.
 - `isolatedCount`: priority isolation events in the current JVM.
 
+## v0.15 Abnormal Instance Detection and Local Quarantine Model
+
+Instance health detection is disabled by default. After it is enabled, Nexary records downstream instance results only inside the current JVM and exposes read-only diagnostics:
+
+```yaml
+nexary:
+  governance:
+    diagnostics:
+      enabled: true
+    instance-health:
+      enabled: true
+      window: 60s
+      minimum-calls: 20
+      suspect-windows: 2
+      recovery-windows: 2
+      slow-call-threshold: 2s
+      slow-ratio-threshold: 0.60
+      failure-ratio-threshold: 0.50
+      timeout-ratio-threshold: 0.30
+      skew-factor-threshold: 3.0
+      expose-raw-instance-key: false
+```
+
+It does not remove instances automatically and does not call a registry, Spring Cloud LoadBalancer, Gateway route API, cloud vendor API, or PaaS API. `instanceKey` should be a stable alias or a masked fingerprint. Diagnostics do not write URLs, queries, user ids, tenants, order ids, payloads, exception text, or stack traces.
+
+Run the sample:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=instance-health'
+```
+
+From another terminal, trigger three simulated instances:
+
+```bash
+curl -s -X POST http://localhost:8080/governance/instance-health/scenario
+curl -s http://localhost:8080/nexary/governance/instance-health
+curl -s http://localhost:8080/nexary/governance/summary
+curl -s http://localhost:8080/nexary/governance/events
+NEXARY_GOVERNANCE_INSTANCE_HEALTH_BASE_URL=http://localhost:8080 ./scripts/governance-instance-health/smoke.sh
+```
+
+Important fields:
+
+- `instanceHealthState`: `HEALTHY`, `SUSPECT`, `QUARANTINE_CANDIDATE`, or `RECOVERING`.
+- `quarantineReason`: `SERVER_ERROR_RATIO`, `SLOW_RATIO`, `READ_TIMEOUT_SPIKE`, `CONNECT_TIMEOUT_SPIKE`, `RESET_SPIKE`, or `STATUS_CODE_SKEW`.
+- `recoveryAdvice`: `BACKOFF`, `QUARANTINE_CANDIDATE`, `MANUAL_ACTION_REQUIRED`, or `RECOVERY_PROBE`.
+- `instanceSuspectCount`: abnormal instance candidates in the current JVM.
+- `quarantineCandidateCount`: quarantine candidates in the current JVM.
+
+The Console Overview shows suspect / quarantine candidate / recovery probe counts. Resource detail shows the instance health table. Events show `INSTANCE_SUSPECT`, `QUARANTINE_CANDIDATE`, `RECOVERY_PROBE`, and `INSTANCE_RECOVERED`. These pages stay read-only; there is no quarantine button or policy editor.
+
 ## v0.13 Retry Stop Propagation
 
 Retry stop propagation uses fixed enum values and does not write business keys, message ids, cache keys, payloads, or exception text into events:
@@ -178,7 +229,7 @@ The added diagnostic fields stay low-cardinality:
 | `blockedCount` | Sentinel blocks seen in the current JVM. |
 | `sentinelResourceCount` | Resources executed by Sentinel in the current JVM. |
 
-Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. v0.14.0 only claims the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
+Sentinel transport is disabled by default and Sentinel Dashboard is not required. The dashboard server is used only when `nexary.governance.sentinel.transport.enabled=true` and a dashboard server is configured. The current support matrix claims only the Spring Boot 3.3 mainline Sentinel provider; Boot2 / Boot4 Sentinel starters should not be documented until their independent samples and gates pass.
 
 ## Configure Starter Policies
 
@@ -513,7 +564,7 @@ This policy only affects publish calls made by the current JVM. Check the result
 
 - Deadline is a pre-start check and context propagation. It does not forcibly stop ordinary Java code that has already entered the business method.
 - v0.11 cancellation covers pre-start cancellation and cooperative stop checks while business code is running. It does not promise forced interruption of running business threads, and it does not replace application-server or client connection cancellation.
-- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; v0.14.0 only claims the Boot3 mainline Sentinel provider.
+- Nexary does not replace Sentinel Dashboard, cluster flow control, or remote rule platforms; the current support matrix claims only the Boot3 mainline Sentinel provider.
 - Boot2 / Boot4 Sentinel provider support is not in the support matrix yet. Do not copy the Boot3 starter into Boot2 / Boot4 applications before their independent samples and gates pass.
 - Circuit windows are local to the current JVM. Instances do not share failure counts, slow-call counts, or half-open probe results.
 - Cache wrapping is claimed for the Spring Boot 3 Redis mainline. Boot2 / Boot4 cache entries should be expanded only after their samples and tests prove the same behavior.

@@ -4,7 +4,18 @@ export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN' | string;
 
 export type CallOutcome = 'SUCCESS' | 'FAILURE' | 'REJECTED' | 'CANCELLED' | 'RETRY_STOPPED' | 'ISOLATED' | 'NONE' | string;
 
-export type RuntimeAction = 'EXECUTE' | 'REJECT' | 'FALLBACK' | 'CANCEL' | 'STOP_RETRY' | 'WARN' | string;
+export type RuntimeAction =
+  | 'EXECUTE'
+  | 'REJECT'
+  | 'FALLBACK'
+  | 'CANCEL'
+  | 'STOP_RETRY'
+  | 'WARN'
+  | 'INSTANCE_SUSPECT'
+  | 'QUARANTINE_CANDIDATE'
+  | 'RECOVERY_PROBE'
+  | 'INSTANCE_RECOVERED'
+  | string;
 
 export type GovernanceEngine = 'LOCAL' | 'SENTINEL' | string;
 
@@ -60,7 +71,27 @@ export type IsolationReason =
   | 'UNKNOWN'
   | string;
 
-export type DurationBucket = 'NOT_RUN' | 'FAST' | 'NORMAL' | 'SLOW' | string;
+export type InstanceHealthState = 'HEALTHY' | 'SUSPECT' | 'QUARANTINE_CANDIDATE' | 'RECOVERING' | string;
+
+export type InstanceQuarantineReason =
+  | 'NONE'
+  | 'CONNECT_TIMEOUT_SPIKE'
+  | 'RESET_SPIKE'
+  | 'READ_TIMEOUT_SPIKE'
+  | 'SERVER_ERROR_RATIO'
+  | 'SLOW_RATIO'
+  | 'STATUS_CODE_SKEW'
+  | string;
+
+export type InstanceRecoveryAdvice =
+  | 'NONE'
+  | 'BACKOFF'
+  | 'QUARANTINE_CANDIDATE'
+  | 'MANUAL_ACTION_REQUIRED'
+  | 'RECOVERY_PROBE'
+  | string;
+
+export type DurationBucket = 'NOT_RUN' | 'LT_10_MS' | 'LT_100_MS' | 'LT_500_MS' | 'GE_500_MS' | string;
 
 export interface ConsoleSummary {
   resourceCount: number;
@@ -75,6 +106,9 @@ export interface ConsoleSummary {
   blockedCount?: number;
   isolatedCount?: number;
   sentinelResourceCount?: number;
+  instanceSuspectCount?: number;
+  quarantineCandidateCount?: number;
+  recoveryProbeCount?: number;
   trafficClassCounts?: Record<string, number>;
   priorityCounts?: Record<string, number>;
   openCircuitCount: number;
@@ -135,6 +169,28 @@ export interface ConsoleRuntimeSnapshot {
   lastOutcomeAt: string | null;
 }
 
+export interface ConsoleInstanceHealthSnapshot {
+  resourceKey: string;
+  serviceKey: string;
+  instanceKey: string;
+  zone: string;
+  state: InstanceHealthState;
+  quarantineReason: InstanceQuarantineReason;
+  recoveryAdvice: InstanceRecoveryAdvice;
+  windowCalls: number;
+  failureCount: number;
+  slowCallCount: number;
+  timeoutCount: number;
+  resetCount: number;
+  serverErrorCount: number;
+  failureRatio: number;
+  slowRatio: number;
+  timeoutRatio: number;
+  skewFactor: number;
+  lastSignalAt: string | null;
+  lastChangedAt: string | null;
+}
+
 export interface ConsoleResource {
   resourceKey: string;
   engine?: GovernanceEngine | null;
@@ -146,6 +202,7 @@ export interface ConsoleResource {
   priority: string;
   policySnapshot: ConsolePolicySnapshot;
   runtimeSnapshot: ConsoleRuntimeSnapshot | null;
+  instanceHealthSnapshots?: readonly ConsoleInstanceHealthSnapshot[];
 }
 
 export interface ConsoleEvent {
@@ -160,6 +217,9 @@ export interface ConsoleEvent {
   blockReason?: BlockReason | null;
   cancellationReason: CancellationReason;
   retryStopReason?: RetryStopReason | null;
+  instanceHealthState?: InstanceHealthState | null;
+  quarantineReason?: InstanceQuarantineReason | null;
+  recoveryAdvice?: InstanceRecoveryAdvice | null;
   circuitState: CircuitState;
   timestamp: string | null;
   durationBucket: DurationBucket;

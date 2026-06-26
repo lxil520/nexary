@@ -18,5 +18,17 @@ public enum GovernanceRuntimeAction {
     STOP_RETRY,
 
     /** A low-cardinality warning was recorded without mutating policy. */
-    WARN
+    WARN,
+
+    /** A downstream instance became locally suspect. */
+    INSTANCE_SUSPECT,
+
+    /** A downstream instance became a local quarantine candidate. */
+    QUARANTINE_CANDIDATE,
+
+    /** A downstream instance is being observed for recovery. */
+    RECOVERY_PROBE,
+
+    /** A downstream instance recovered to healthy state. */
+    INSTANCE_RECOVERED
 }

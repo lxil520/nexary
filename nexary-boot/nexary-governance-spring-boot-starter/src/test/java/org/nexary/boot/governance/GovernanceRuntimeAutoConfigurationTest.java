@@ -11,8 +11,15 @@ import org.nexary.core.governance.GovernanceContext;
 import org.nexary.core.governance.GovernanceExecution;
 import org.nexary.core.governance.GovernanceResource;
 import org.nexary.governance.runtime.GovernanceRuntime;
+import org.nexary.governance.runtime.GovernanceInstanceHealth;
 import org.nexary.governance.runtime.GovernancePolicy;
 import org.nexary.governance.runtime.GovernancePolicyRegistry;
+import org.nexary.governance.runtime.InstanceHealthSignal;
+import org.nexary.governance.runtime.InstanceHealthSignalType;
+import org.nexary.governance.runtime.InstanceStatusCodeClass;
+import org.nexary.governance.runtime.GovernanceCallOutcome;
+import org.nexary.governance.runtime.GovernanceDurationBucket;
+import org.nexary.governance.runtime.GovernanceInstanceRef;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -158,6 +165,95 @@ class GovernanceRuntimeAutoConfigurationTest {
                 .withPropertyValues("nexary.governance.diagnostics.enabled=true")
                 .run(context -> assertThat(context)
                         .hasSingleBean(GovernanceDiagnosticsAutoConfiguration.GovernanceDiagnosticsEndpoint.class));
+    }
+
+    @Test
+    void instanceHealthRecorderIsDisabledByDefault() {
+        contextRunner.run(context -> assertThat(context).doesNotHaveBean(GovernanceInstanceHealth.class));
+    }
+
+    @Test
+    void instanceHealthRecorderBindsTypedConfigurationWhenEnabled() {
+        contextRunner
+                .withPropertyValues(
+                        "nexary.governance.instance-health.enabled=true",
+                        "nexary.governance.instance-health.window=30s",
+                        "nexary.governance.instance-health.minimum-calls=4",
+                        "nexary.governance.instance-health.suspect-windows=1",
+                        "nexary.governance.instance-health.recovery-windows=1",
+                        "nexary.governance.instance-health.slow-call-threshold=750ms",
+                        "nexary.governance.instance-health.slow-ratio-threshold=0.5",
+                        "nexary.governance.instance-health.failure-ratio-threshold=0.4",
+                        "nexary.governance.instance-health.timeout-ratio-threshold=0.3",
+                        "nexary.governance.instance-health.skew-factor-threshold=2.5")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GovernanceInstanceHealth.class);
+                    GovernanceRuntimeProperties.InstanceHealth properties =
+                            context.getBean(GovernanceRuntimeProperties.class).getInstanceHealth();
+                    assertThat(properties.isEnabled()).isTrue();
+                    assertThat(properties.getWindow()).hasSeconds(30);
+                    assertThat(properties.getMinimumCalls()).isEqualTo(4);
+                    assertThat(properties.getSuspectWindows()).isEqualTo(1);
+                    assertThat(properties.getRecoveryWindows()).isEqualTo(1);
+                    assertThat(properties.getSlowCallThreshold()).hasMillis(750);
+                    assertThat(properties.getSlowRatioThreshold()).isEqualTo(0.5d);
+                    assertThat(properties.getFailureRatioThreshold()).isEqualTo(0.4d);
+                    assertThat(properties.getTimeoutRatioThreshold()).isEqualTo(0.3d);
+                    assertThat(properties.getSkewFactorThreshold()).isEqualTo(2.5d);
+                });
+    }
+
+    @Test
+    void instanceHealthEndpointRequiresDiagnosticsAndFeatureSwitches() {
+        webContextRunner
+                .withPropertyValues("nexary.governance.instance-health.enabled=true")
+                .run(context -> assertThat(context)
+                        .doesNotHaveBean(GovernanceDiagnosticsAutoConfiguration.GovernanceInstanceHealthEndpoint.class));
+
+        webContextRunner
+                .withPropertyValues(
+                        "nexary.governance.diagnostics.enabled=true",
+                        "nexary.governance.instance-health.enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(GovernanceDiagnosticsAutoConfiguration.GovernanceInstanceHealthEndpoint.class));
+    }
+
+    @Test
+    void instanceHealthEndpointReturnsStableJsonShape() {
+        webContextRunner
+                .withPropertyValues(
+                        "nexary.governance.diagnostics.enabled=true",
+                        "nexary.governance.instance-health.enabled=true")
+                .run(context -> {
+                    GovernanceInstanceHealth health = context.getBean(GovernanceInstanceHealth.class);
+                    GovernanceInstanceRef ref = GovernanceInstanceRef.of(
+                            "downstream:profile-service:lookup",
+                            "profile-service",
+                            "10.24.8.9:8080",
+                            "zone-a");
+                    health.record(new InstanceHealthSignal(
+                            ref,
+                            InstanceHealthSignalType.SERVER_ERROR,
+                            GovernanceCallOutcome.FAILURE,
+                            InstanceStatusCodeClass.HTTP_5XX,
+                            GovernanceDurationBucket.LT_100_MS,
+                            java.time.Instant.now()));
+
+                    GovernanceDiagnosticsAutoConfiguration.GovernanceInstanceHealthEndpoint endpoint =
+                            context.getBean(GovernanceDiagnosticsAutoConfiguration.GovernanceInstanceHealthEndpoint.class);
+
+                    assertThat(endpoint.instanceHealth())
+                            .singleElement()
+                            .satisfies(body -> {
+                                assertThat(body).containsKeys(
+                                        "instanceRef",
+                                        "state",
+                                        "quarantineReason",
+                                        "recoveryAdvice",
+                                        "windowCalls");
+                                assertThat(body.toString()).doesNotContain("10.24.8.9", "8080");
+                            });
+                });
     }
 
     @Test

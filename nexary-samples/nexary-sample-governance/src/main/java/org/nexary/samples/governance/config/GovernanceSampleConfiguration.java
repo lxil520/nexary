@@ -10,4 +10,6 @@ public class GovernanceSampleConfiguration {
     public static final GovernanceResource CANCELLATION_RESOURCE = GovernanceResource.http("profile-api", "slow-profile");
     public static final GovernanceResource DEGRADED_RESOURCE = GovernanceResource.downstream("inventory-service", "reserve");
     public static final GovernanceResource CIRCUIT_RESOURCE = GovernanceResource.downstream("profile-service", "load-profile");
+    public static final GovernanceResource INSTANCE_HEALTH_RESOURCE =
+            GovernanceResource.downstream("profile-service", "instance-health");
 }

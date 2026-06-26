@@ -15,6 +15,9 @@ public final class ConsoleEventItem {
     private final String blockReason;
     private final String cancellationReason;
     private final String retryStopReason;
+    private final String instanceHealthState;
+    private final String quarantineReason;
+    private final String recoveryAdvice;
     private final String circuitState;
     private final String timestamp;
     private final String durationBucket;
@@ -92,6 +95,9 @@ public final class ConsoleEventItem {
                 blockReason,
                 cancellationReason,
                 retryStopReason,
+                "HEALTHY",
+                "NONE",
+                "NONE",
                 circuitState,
                 timestamp,
                 durationBucket);
@@ -115,6 +121,47 @@ public final class ConsoleEventItem {
             String circuitState,
             String timestamp,
             String durationBucket) {
+        this(
+                resourceKey,
+                engine,
+                trafficClass,
+                priority,
+                action,
+                outcome,
+                rejectionReason,
+                isolationReason,
+                blockReason,
+                cancellationReason,
+                retryStopReason,
+                "HEALTHY",
+                "NONE",
+                "NONE",
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /**
+     * Creates an event item from low-cardinality event fields, including instance health metadata.
+     */
+    public ConsoleEventItem(
+            String resourceKey,
+            String engine,
+            String trafficClass,
+            String priority,
+            String action,
+            String outcome,
+            String rejectionReason,
+            String isolationReason,
+            String blockReason,
+            String cancellationReason,
+            String retryStopReason,
+            String instanceHealthState,
+            String quarantineReason,
+            String recoveryAdvice,
+            String circuitState,
+            String timestamp,
+            String durationBucket) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.trafficClass = trafficClass;
@@ -126,6 +173,9 @@ public final class ConsoleEventItem {
         this.blockReason = blockReason;
         this.cancellationReason = cancellationReason;
         this.retryStopReason = retryStopReason;
+        this.instanceHealthState = instanceHealthState;
+        this.quarantineReason = quarantineReason;
+        this.recoveryAdvice = recoveryAdvice;
         this.circuitState = circuitState;
         this.timestamp = timestamp;
         this.durationBucket = durationBucket;
@@ -184,6 +234,21 @@ public final class ConsoleEventItem {
     /** Returns the low-cardinality reason another retry should not be scheduled. */
     public String getRetryStopReason() {
         return retryStopReason;
+    }
+
+    /** Returns the low-cardinality instance health state after this event. */
+    public String getInstanceHealthState() {
+        return instanceHealthState;
+    }
+
+    /** Returns the low-cardinality instance quarantine reason, if any. */
+    public String getQuarantineReason() {
+        return quarantineReason;
+    }
+
+    /** Returns the bounded instance recovery advice, if any. */
+    public String getRecoveryAdvice() {
+        return recoveryAdvice;
     }
 
     /** Returns the circuit state visible after this event. */
