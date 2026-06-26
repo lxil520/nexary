@@ -13,6 +13,8 @@ import org.nexary.governance.runtime.InstanceHealthSettings;
 import org.nexary.governance.runtime.LocalGovernanceInstanceHealth;
 import org.nexary.governance.runtime.LocalGovernancePolicyRegistry;
 import org.nexary.governance.runtime.LocalGovernanceRuntime;
+import org.nexary.governance.runtime.LocalGovernanceTraceRecorder;
+import org.nexary.governance.runtime.GovernanceTraceRecorder;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -51,20 +53,38 @@ public class GovernanceRuntimeAutoConfiguration {
 			GovernancePolicyRegistry policyRegistry,
 			GovernanceRuntimeProperties properties,
 			java.util.Optional<NexaryObservationPublisher> observationPublisher,
-			java.util.Optional<GovernanceInstanceHealth> instanceHealth) {
+			java.util.Optional<GovernanceInstanceHealth> instanceHealth,
+			java.util.Optional<GovernanceTraceRecorder> traceRecorder) {
 		NexaryObservationPublisher publisher = observationPublisher.orElse(NexaryObservationPublisher.noop());
 		return new LocalGovernanceRuntime(
 				policyRegistry,
 				publisher,
 				instanceHealth.orElse(GovernanceInstanceHealth.noop()),
+				traceRecorder.orElse(GovernanceTraceRecorder.noop()),
 				256);
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = "nexary.governance.trace", name = "enabled", havingValue = "true")
+	public GovernanceTraceRecorder nexaryGovernanceTraceRecorder(GovernanceRuntimeProperties properties) {
+		GovernanceRuntimeProperties.Trace trace = properties.getTrace();
+		return new LocalGovernanceTraceRecorder(
+				trace.getMaxTraces(),
+				trace.getMaxEventsPerTrace(),
+				trace.getTtl());
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
 	@ConditionalOnProperty(prefix = "nexary.governance.instance-health", name = "enabled", havingValue = "true")
-	public GovernanceInstanceHealth nexaryGovernanceInstanceHealth(GovernanceRuntimeProperties properties) {
-		return new LocalGovernanceInstanceHealth(toInstanceHealthSettings(properties.getInstanceHealth()));
+	public GovernanceInstanceHealth nexaryGovernanceInstanceHealth(
+			GovernanceRuntimeProperties properties,
+			java.util.Optional<GovernanceTraceRecorder> traceRecorder) {
+		return new LocalGovernanceInstanceHealth(
+				toInstanceHealthSettings(properties.getInstanceHealth()),
+				256,
+				traceRecorder.orElse(GovernanceTraceRecorder.noop()));
 	}
 
     @Bean

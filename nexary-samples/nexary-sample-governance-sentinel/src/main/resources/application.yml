@@ -85,3 +85,18 @@ nexary:
             max-concurrency: 1
   console:
     enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: trace
+
+nexary:
+  governance:
+    trace:
+      enabled: true
+      max-traces: 128
+      max-events-per-trace: 32
+      ttl: 10m
+      expose-external-trace-id: false

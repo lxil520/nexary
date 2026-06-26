@@ -24,6 +24,8 @@ public final class GovernanceRuntimeSummary {
     private final long instanceSuspectCount;
     private final long quarantineCandidateCount;
     private final long recoveryProbeCount;
+    private final long faultTraceCount;
+    private final long stoppedTraceCount;
     private final Map<String, Long> trafficClassCounts;
     private final Map<String, Long> priorityCounts;
     private final long openCircuitCount;
@@ -50,6 +52,11 @@ public final class GovernanceRuntimeSummary {
                 successCount,
                 failureCount,
                 rejectedCount,
+                0L,
+                0L,
+                0L,
+                0L,
+                0L,
                 0L,
                 0L,
                 0L,
@@ -90,6 +97,11 @@ public final class GovernanceRuntimeSummary {
                 0L,
                 0L,
                 0L,
+                0L,
+                0L,
+                0L,
+                0L,
+                0L,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
                 openCircuitCount,
@@ -121,6 +133,11 @@ public final class GovernanceRuntimeSummary {
                 rejectedCount,
                 fallbackCount,
                 cancelledCount,
+                0L,
+                0L,
+                0L,
+                0L,
+                0L,
                 0L,
                 0L,
                 0L,
@@ -162,6 +179,11 @@ public final class GovernanceRuntimeSummary {
                 blockedCount,
                 0L,
                 sentinelResourceCount,
+                0L,
+                0L,
+                0L,
+                0L,
+                0L,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
                 openCircuitCount,
@@ -200,6 +222,11 @@ public final class GovernanceRuntimeSummary {
                 blockedCount,
                 0L,
                 sentinelResourceCount,
+                0L,
+                0L,
+                0L,
+                0L,
+                0L,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
                 openCircuitCount,
@@ -244,6 +271,8 @@ public final class GovernanceRuntimeSummary {
                 0L,
                 0L,
                 0L,
+                0L,
+                0L,
                 trafficClassCounts,
                 priorityCounts,
                 openCircuitCount,
@@ -269,6 +298,8 @@ public final class GovernanceRuntimeSummary {
             long instanceSuspectCount,
             long quarantineCandidateCount,
             long recoveryProbeCount,
+            long faultTraceCount,
+            long stoppedTraceCount,
             Map<String, Long> trafficClassCounts,
             Map<String, Long> priorityCounts,
             long openCircuitCount,
@@ -290,6 +321,8 @@ public final class GovernanceRuntimeSummary {
         this.instanceSuspectCount = Math.max(0L, instanceSuspectCount);
         this.quarantineCandidateCount = Math.max(0L, quarantineCandidateCount);
         this.recoveryProbeCount = Math.max(0L, recoveryProbeCount);
+        this.faultTraceCount = Math.max(0L, faultTraceCount);
+        this.stoppedTraceCount = Math.max(0L, stoppedTraceCount);
         this.trafficClassCounts = immutableCounts(trafficClassCounts);
         this.priorityCounts = immutableCounts(priorityCounts);
         this.openCircuitCount = Math.max(0L, openCircuitCount);
@@ -373,6 +406,16 @@ public final class GovernanceRuntimeSummary {
         return recoveryProbeCount;
     }
 
+    /** Returns retained local fault trace count. */
+    public long faultTraceCount() {
+        return faultTraceCount;
+    }
+
+    /** Returns retained local fault traces with a stop reason. */
+    public long stoppedTraceCount() {
+        return stoppedTraceCount;
+    }
+
     /** Returns retained recent-event counts by fixed traffic class. */
     public Map<String, Long> trafficClassCounts() {
         return trafficClassCounts;
@@ -427,6 +470,8 @@ public final class GovernanceRuntimeSummary {
                 && instanceSuspectCount == that.instanceSuspectCount
                 && quarantineCandidateCount == that.quarantineCandidateCount
                 && recoveryProbeCount == that.recoveryProbeCount
+                && faultTraceCount == that.faultTraceCount
+                && stoppedTraceCount == that.stoppedTraceCount
                 && trafficClassCounts.equals(that.trafficClassCounts)
                 && priorityCounts.equals(that.priorityCounts)
                 && openCircuitCount == that.openCircuitCount
@@ -453,6 +498,8 @@ public final class GovernanceRuntimeSummary {
                 instanceSuspectCount,
                 quarantineCandidateCount,
                 recoveryProbeCount,
+                faultTraceCount,
+                stoppedTraceCount,
                 trafficClassCounts,
                 priorityCounts,
                 openCircuitCount,

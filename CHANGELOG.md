@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0
+
+- Added local fault traces that connect recent governance events, retry stops, cancellation, priority isolation, Sentinel blocks, and instance-health state inside the current JVM.
+- Added bounded trace models: fault trace, trace step, trace stage, trace stop reason, trace recorder, and fault trace summary.
+- Added read-only diagnostics endpoints for `/nexary/governance/traces`, `/nexary/governance/traces/{traceKey}`, and `/nexary/governance/faults/summary`.
+- Extended runtime diagnostics and the read-only Console with fault trace counts, stopped trace counts, trace stop reasons, trace stage filters, resource last-trace state, and trace detail pages.
+- Extended `nexary-sample-governance` with a `trace` profile and added `scripts/governance-trace/smoke.sh`.
+- Kept traces local and low-cardinality; this release does not add a Jaeger, Zipkin, SkyWalking, OpenTelemetry exporter, external trace id exposure, or cross-instance trace storage.
+
 ## 0.15.0
 
 - Added local instance health detection for downstream resources with several instances behind the same resource key.

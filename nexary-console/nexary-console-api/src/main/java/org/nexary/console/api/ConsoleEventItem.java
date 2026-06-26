@@ -18,6 +18,8 @@ public final class ConsoleEventItem {
     private final String instanceHealthState;
     private final String quarantineReason;
     private final String recoveryAdvice;
+    private final String traceStage;
+    private final String tracePrimaryStopReason;
     private final String circuitState;
     private final String timestamp;
     private final String durationBucket;
@@ -162,6 +164,51 @@ public final class ConsoleEventItem {
             String circuitState,
             String timestamp,
             String durationBucket) {
+        this(
+                resourceKey,
+                engine,
+                trafficClass,
+                priority,
+                action,
+                outcome,
+                rejectionReason,
+                isolationReason,
+                blockReason,
+                cancellationReason,
+                retryStopReason,
+                instanceHealthState,
+                quarantineReason,
+                recoveryAdvice,
+                "GOVERNANCE",
+                "NONE",
+                circuitState,
+                timestamp,
+                durationBucket);
+    }
+
+    /**
+     * Creates an event item from low-cardinality event fields, including trace metadata.
+     */
+    public ConsoleEventItem(
+            String resourceKey,
+            String engine,
+            String trafficClass,
+            String priority,
+            String action,
+            String outcome,
+            String rejectionReason,
+            String isolationReason,
+            String blockReason,
+            String cancellationReason,
+            String retryStopReason,
+            String instanceHealthState,
+            String quarantineReason,
+            String recoveryAdvice,
+            String traceStage,
+            String tracePrimaryStopReason,
+            String circuitState,
+            String timestamp,
+            String durationBucket) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.trafficClass = trafficClass;
@@ -176,6 +223,8 @@ public final class ConsoleEventItem {
         this.instanceHealthState = instanceHealthState;
         this.quarantineReason = quarantineReason;
         this.recoveryAdvice = recoveryAdvice;
+        this.traceStage = traceStage;
+        this.tracePrimaryStopReason = tracePrimaryStopReason;
         this.circuitState = circuitState;
         this.timestamp = timestamp;
         this.durationBucket = durationBucket;
@@ -249,6 +298,16 @@ public final class ConsoleEventItem {
     /** Returns the bounded instance recovery advice, if any. */
     public String getRecoveryAdvice() {
         return recoveryAdvice;
+    }
+
+    /** Returns the local trace stage associated with this event. */
+    public String getTraceStage() {
+        return traceStage;
+    }
+
+    /** Returns the primary local trace stop reason associated with this event. */
+    public String getTracePrimaryStopReason() {
+        return tracePrimaryStopReason;
     }
 
     /** Returns the circuit state visible after this event. */

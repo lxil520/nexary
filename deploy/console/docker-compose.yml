@@ -3,7 +3,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/console/Dockerfile
-    image: nexary/governance-console-demo:${NEXARY_VERSION:-0.15.0}
+    image: nexary/governance-console-demo:${NEXARY_VERSION:-0.16.0}
     container_name: nexary-governance-console-demo
     ports:
       - "${NEXARY_CONSOLE_PORT:-18090}:8080"

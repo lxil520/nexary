@@ -4,24 +4,31 @@ import OverviewView from './views/OverviewView.vue';
 import ResourcesView from './views/ResourcesView.vue';
 import ResourceDetailView from './views/ResourceDetailView.vue';
 import EventsView from './views/EventsView.vue';
+import TracesView from './views/TracesView.vue';
+import TraceDetailView from './views/TraceDetailView.vue';
 import SettingsReadonlyView from './views/SettingsReadonlyView.vue';
 import { useConsoleData } from './composables/useConsoleData';
 import { useLocale } from './composables/useLocale';
 import logoUrl from './assets/nexary-logo.svg';
 
-type ViewId = 'overview' | 'resources' | 'resource-detail' | 'events' | 'settings';
+type ViewId = 'overview' | 'resources' | 'resource-detail' | 'events' | 'traces' | 'trace-detail' | 'settings';
 
 interface RouteState {
   view: ViewId;
   resourceKey: string | null;
+  traceKey: string | null;
 }
 
 const CONSOLE_BASE_PATH = '/nexary/console';
 
-const navigationItems: Array<{ id: ViewId; labelKey: 'nav.overview' | 'nav.resources' | 'nav.events' | 'nav.settings' }> = [
+const navigationItems: Array<{
+  id: ViewId;
+  labelKey: 'nav.overview' | 'nav.resources' | 'nav.events' | 'nav.traces' | 'nav.settings';
+}> = [
   { id: 'overview', labelKey: 'nav.overview' },
   { id: 'resources', labelKey: 'nav.resources' },
   { id: 'events', labelKey: 'nav.events' },
+  { id: 'traces', labelKey: 'nav.traces' },
   { id: 'settings', labelKey: 'nav.settings' },
 ];
 
@@ -33,6 +40,9 @@ const title = computed(() => {
   if (route.value.view === 'resource-detail') {
     return t('title.resourceDetail');
   }
+  if (route.value.view === 'trace-detail') {
+    return t('title.traceDetail');
+  }
   const item = navigationItems.find((entry) => entry.id === route.value.view);
   return item ? t(item.labelKey) : t('nav.overview');
 });
@@ -42,16 +52,23 @@ const refreshLabel = computed(() =>
 );
 
 function navigate(view: ViewId): void {
-  pushRoute({ view, resourceKey: null });
+  pushRoute({ view, resourceKey: null, traceKey: null });
 }
 
 function openResource(resourceKey: string): void {
-  pushRoute({ view: 'resource-detail', resourceKey });
+  pushRoute({ view: 'resource-detail', resourceKey, traceKey: null });
+}
+
+function openTrace(traceKey: string): void {
+  pushRoute({ view: 'trace-detail', resourceKey: null, traceKey });
 }
 
 function isNavigationItemActive(view: ViewId): boolean {
   if (view === 'resources') {
     return route.value.view === 'resources' || route.value.view === 'resource-detail';
+  }
+  if (view === 'traces') {
+    return route.value.view === 'traces' || route.value.view === 'trace-detail';
   }
   return route.value.view === view;
 }
@@ -70,6 +87,12 @@ function pathFromRoute(nextRoute: RouteState): string {
   }
   if (nextRoute.view === 'events') {
     return `${CONSOLE_BASE_PATH}/events`;
+  }
+  if (nextRoute.view === 'traces') {
+    return `${CONSOLE_BASE_PATH}/traces`;
+  }
+  if (nextRoute.view === 'trace-detail' && nextRoute.traceKey) {
+    return `${CONSOLE_BASE_PATH}/traces/${encodeURIComponent(nextRoute.traceKey)}`;
   }
   if (nextRoute.view === 'settings') {
     return `${CONSOLE_BASE_PATH}/settings`;
@@ -98,43 +121,59 @@ function routeFromHash(): RouteState | null {
     return null;
   }
   if (rawHash === 'overview') {
-    return { view: 'overview', resourceKey: null };
+    return { view: 'overview', resourceKey: null, traceKey: null };
   }
   const [view, encodedKey] = rawHash.split('/');
-  if (view === 'resources' || view === 'events' || view === 'settings') {
-    return { view, resourceKey: null };
+  if (view === 'resources' || view === 'events' || view === 'traces' || view === 'settings') {
+    return { view, resourceKey: null, traceKey: null };
   }
   if (view === 'resource-detail' && encodedKey) {
     const resourceKey = decodePathSegment(encodedKey);
-    return resourceKey ? { view, resourceKey } : { view: 'overview', resourceKey: null };
+    return resourceKey
+      ? { view, resourceKey, traceKey: null }
+      : { view: 'overview', resourceKey: null, traceKey: null };
   }
-  return { view: 'overview', resourceKey: null };
+  if (view === 'trace-detail' && encodedKey) {
+    const traceKey = decodePathSegment(encodedKey);
+    return traceKey ? { view, resourceKey: null, traceKey } : { view: 'overview', resourceKey: null, traceKey: null };
+  }
+  return { view: 'overview', resourceKey: null, traceKey: null };
 }
 
 function routeFromPath(pathname: string): RouteState {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   if (normalizedPath === CONSOLE_BASE_PATH || normalizedPath === `${CONSOLE_BASE_PATH}/overview`) {
-    return { view: 'overview', resourceKey: null };
+    return { view: 'overview', resourceKey: null, traceKey: null };
   }
   if (!normalizedPath.startsWith(`${CONSOLE_BASE_PATH}/`)) {
-    return { view: 'overview', resourceKey: null };
+    return { view: 'overview', resourceKey: null, traceKey: null };
   }
   const relativePath = normalizedPath.slice(CONSOLE_BASE_PATH.length + 1);
   if (relativePath === 'resources') {
-    return { view: 'resources', resourceKey: null };
+    return { view: 'resources', resourceKey: null, traceKey: null };
   }
   if (relativePath === 'events') {
-    return { view: 'events', resourceKey: null };
+    return { view: 'events', resourceKey: null, traceKey: null };
+  }
+  if (relativePath === 'traces') {
+    return { view: 'traces', resourceKey: null, traceKey: null };
   }
   if (relativePath === 'settings') {
-    return { view: 'settings', resourceKey: null };
+    return { view: 'settings', resourceKey: null, traceKey: null };
   }
   if (relativePath.startsWith('resources/')) {
     const encodedKey = relativePath.slice('resources/'.length);
     const resourceKey = decodePathSegment(encodedKey);
-    return resourceKey ? { view: 'resource-detail', resourceKey } : { view: 'resources', resourceKey: null };
+    return resourceKey
+      ? { view: 'resource-detail', resourceKey, traceKey: null }
+      : { view: 'resources', resourceKey: null, traceKey: null };
   }
-  return { view: 'overview', resourceKey: null };
+  if (relativePath.startsWith('traces/')) {
+    const encodedKey = relativePath.slice('traces/'.length);
+    const traceKey = decodePathSegment(encodedKey);
+    return traceKey ? { view: 'trace-detail', resourceKey: null, traceKey } : { view: 'traces', resourceKey: null, traceKey: null };
+  }
+  return { view: 'overview', resourceKey: null, traceKey: null };
 }
 
 function decodePathSegment(value: string): string | null {
@@ -206,6 +245,12 @@ onBeforeUnmount(() => {
         :resource-key="route.resourceKey"
       />
       <EventsView v-else-if="route.view === 'events'" />
+      <TracesView v-else-if="route.view === 'traces'" @select-trace="openTrace" @select-resource="openResource" />
+      <TraceDetailView
+        v-else-if="route.view === 'trace-detail' && route.traceKey"
+        :trace-key="route.traceKey"
+        @select-resource="openResource"
+      />
       <SettingsReadonlyView v-else-if="route.view === 'settings'" />
     </main>
   </div>

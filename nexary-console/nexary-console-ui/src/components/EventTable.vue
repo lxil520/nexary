@@ -23,6 +23,8 @@ const { formatTimestamp, t } = useLocale();
           <th scope="col">{{ t('table.action') }}</th>
           <th scope="col">{{ t('table.outcome') }}</th>
           <th scope="col">{{ t('table.reason') }}</th>
+          <th scope="col">{{ t('table.traceStage') }}</th>
+          <th scope="col">{{ t('table.stopReason') }}</th>
           <th scope="col">{{ t('table.instanceState') }}</th>
           <th scope="col">{{ t('table.cancelReason') }}</th>
           <th scope="col">{{ t('table.retryStopReason') }}</th>
@@ -40,6 +42,8 @@ const { formatTimestamp, t } = useLocale();
           <td><StatusBadge :label="event.action" :state="event.action" /></td>
           <td><StatusBadge :label="event.outcome" :state="event.outcome" /></td>
           <td><StatusBadge :label="event.quarantineReason && event.quarantineReason !== 'NONE' ? event.quarantineReason : event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" :state="event.quarantineReason && event.quarantineReason !== 'NONE' ? event.quarantineReason : event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.blockReason ?? event.rejectionReason" /></td>
+          <td><StatusBadge :label="event.traceStage ?? 'GOVERNANCE'" :state="event.traceStage ?? 'GOVERNANCE'" /></td>
+          <td><StatusBadge :label="event.tracePrimaryStopReason ?? 'NONE'" :state="event.tracePrimaryStopReason ?? 'NONE'" /></td>
           <td><StatusBadge :label="event.instanceHealthState ?? 'HEALTHY'" :state="event.instanceHealthState ?? 'HEALTHY'" /></td>
           <td><StatusBadge :label="event.cancellationReason" :state="event.cancellationReason" /></td>
           <td><StatusBadge :label="event.retryStopReason ?? 'NONE'" :state="event.retryStopReason ?? 'NONE'" /></td>

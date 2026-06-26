@@ -45,6 +45,7 @@ function rejectionLabel(resource: ConsoleResource): string {
           <th scope="col">{{ t('table.calls') }}</th>
           <th scope="col">{{ t('table.rejected') }}</th>
           <th scope="col">{{ t('table.lastReason') }}</th>
+          <th v-if="!compact" scope="col">{{ t('table.stopReason') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -64,6 +65,7 @@ function rejectionLabel(resource: ConsoleResource): string {
           <td>{{ callsLabel(resource) }}</td>
           <td>{{ resource.runtimeSnapshot?.totalRejections ?? 0 }}</td>
           <td><StatusBadge :label="rejectionLabel(resource)" :state="rejectionLabel(resource)" /></td>
+          <td v-if="!compact"><StatusBadge :label="resource.lastTraceStopReason ?? 'NONE'" :state="resource.lastTraceStopReason ?? 'NONE'" /></td>
         </tr>
       </tbody>
     </table>

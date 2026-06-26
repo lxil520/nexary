@@ -8,18 +8,25 @@ import java.util.List;
 import java.util.Optional;
 import org.nexary.console.api.ConsoleEventItem;
 import org.nexary.console.api.ConsoleEventsResponse;
+import org.nexary.console.api.ConsoleFaultTrace;
+import org.nexary.console.api.ConsoleFaultTraceSummary;
+import org.nexary.console.api.ConsoleFaultTracesResponse;
 import org.nexary.console.api.ConsoleInstanceHealthSnapshot;
 import org.nexary.console.api.ConsolePolicySnapshot;
 import org.nexary.console.api.ConsoleResourceItem;
 import org.nexary.console.api.ConsoleResourcesResponse;
 import org.nexary.console.api.ConsoleRuntimeSnapshot;
 import org.nexary.console.api.ConsoleSummaryResponse;
+import org.nexary.console.api.ConsoleTraceStep;
 import org.nexary.governance.runtime.GovernanceDiagnostics;
+import org.nexary.governance.runtime.GovernanceFaultTrace;
+import org.nexary.governance.runtime.GovernanceFaultTraceSummary;
 import org.nexary.governance.runtime.GovernancePolicySnapshot;
 import org.nexary.governance.runtime.GovernanceResourceDescriptor;
 import org.nexary.governance.runtime.GovernanceRuntimeEvent;
 import org.nexary.governance.runtime.GovernanceRuntimeSnapshot;
 import org.nexary.governance.runtime.GovernanceRuntimeSummary;
+import org.nexary.governance.runtime.GovernanceTraceStep;
 import org.nexary.governance.runtime.InstanceHealthSnapshot;
 
 /** Maps local governance diagnostics into the read-only console API model. */
@@ -55,6 +62,8 @@ public final class ConsoleDiagnosticsService {
 	                summary.instanceSuspectCount(),
 	                summary.quarantineCandidateCount(),
 	                summary.recoveryProbeCount(),
+	                summary.faultTraceCount(),
+	                summary.stoppedTraceCount(),
 	                summary.trafficClassCounts(),
                 summary.priorityCounts(),
                 summary.openCircuitCount(),
@@ -116,7 +125,9 @@ public final class ConsoleDiagnosticsService {
 	                descriptor.priority(),
 	                policy(descriptor.policySnapshot()),
 	                runtime(descriptor.runtimeSnapshot()),
-	                instanceSnapshots(descriptor.instanceHealthSnapshots()));
+	                instanceSnapshots(descriptor.instanceHealthSnapshots()),
+	                descriptor.lastTraceOutcome().name(),
+	                descriptor.lastTraceStopReason().name());
     }
 
     private static ConsolePolicySnapshot policy(GovernancePolicySnapshot snapshot) {
@@ -196,10 +207,79 @@ public final class ConsoleDiagnosticsService {
 	                event.instanceHealthState().name(),
 	                event.quarantineReason().name(),
 	                event.recoveryAdvice().name(),
+	                event.traceStage().name(),
+	                event.tracePrimaryStopReason().name(),
 	                event.circuitState().name(),
 	                instant(event.timestamp()),
 	                event.durationBucket().name());
 	}
+
+    /** Returns retained local console fault traces. */
+    public ConsoleFaultTracesResponse traces() {
+        List<ConsoleFaultTrace> items = new ArrayList<>();
+        if (diagnostics != null) {
+            for (GovernanceFaultTrace trace : diagnostics.traces()) {
+                items.add(trace(trace));
+            }
+        }
+        return new ConsoleFaultTracesResponse(items);
+    }
+
+    /** Returns one retained local console fault trace by trace key. */
+    public Optional<ConsoleFaultTrace> trace(String traceKey) {
+        if (diagnostics == null || traceKey == null) {
+            return Optional.empty();
+        }
+        return diagnostics.trace(traceKey).map(ConsoleDiagnosticsService::trace);
+    }
+
+    /** Returns aggregate local console fault trace counters. */
+    public ConsoleFaultTraceSummary faultTraceSummary() {
+        GovernanceFaultTraceSummary summary = diagnostics == null
+                ? GovernanceFaultTraceSummary.empty()
+                : diagnostics.faultTraceSummary();
+        return new ConsoleFaultTraceSummary(
+                summary.traceCount(),
+                summary.stoppedCount(),
+                summary.blockedCount(),
+                summary.cancelledCount(),
+                summary.retryStoppedCount(),
+                summary.instanceRelatedCount(),
+                summary.topStopReasons());
+    }
+
+    private static ConsoleFaultTrace trace(GovernanceFaultTrace trace) {
+        List<ConsoleTraceStep> steps = new ArrayList<>();
+        for (GovernanceTraceStep step : trace.steps()) {
+            steps.add(traceStep(step));
+        }
+        return new ConsoleFaultTrace(
+                trace.traceKey(),
+                trace.rootResourceKey(),
+                instant(trace.startedAt()),
+                instant(trace.lastEventAt()),
+                trace.terminalOutcome().name(),
+                trace.primaryStopReason().name(),
+                trace.suggestedResourceKey(),
+                steps);
+    }
+
+    private static ConsoleTraceStep traceStep(GovernanceTraceStep step) {
+        return new ConsoleTraceStep(
+                step.stage().name(),
+                step.resourceKey(),
+                step.action().name(),
+                step.outcome().name(),
+                step.durationBucket().name(),
+                instant(step.timestamp()),
+                step.rejectionReason().name(),
+                step.blockReason().name(),
+                step.cancellationReason().name(),
+                step.retryStopReason().name(),
+                step.isolationReason().name(),
+                step.instanceHealthState().name(),
+                step.quarantineReason().name());
+    }
 
 	private static List<ConsoleInstanceHealthSnapshot> instanceSnapshots(List<InstanceHealthSnapshot> snapshots) {
 	    if (snapshots == null || snapshots.isEmpty()) {

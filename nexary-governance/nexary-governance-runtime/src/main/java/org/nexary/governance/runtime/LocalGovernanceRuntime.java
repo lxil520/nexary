@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -30,6 +31,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
     private final GovernancePolicyRegistry policyRegistry;
     private final NexaryObservationPublisher observationPublisher;
     private final GovernanceInstanceHealth instanceHealth;
+    private final GovernanceTraceRecorder traceRecorder;
     private final Map<String, State> states = new ConcurrentHashMap<>();
     private final Map<String, GovernanceTrafficClass> firstTrafficClassByResource = new ConcurrentHashMap<>();
     private final Map<String, Boolean> mixedTrafficReported = new ConcurrentHashMap<>();
@@ -55,6 +57,16 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             NexaryObservationPublisher observationPublisher,
             GovernanceInstanceHealth instanceHealth,
             int recentEventCapacity) {
+        this(policyRegistry, observationPublisher, instanceHealth, GovernanceTraceRecorder.noop(), recentEventCapacity);
+    }
+
+    /** Creates a runtime with instance health, trace diagnostics, and an explicit event capacity. */
+    public LocalGovernanceRuntime(
+            GovernancePolicyRegistry policyRegistry,
+            NexaryObservationPublisher observationPublisher,
+            GovernanceInstanceHealth instanceHealth,
+            GovernanceTraceRecorder traceRecorder,
+            int recentEventCapacity) {
         this.policyRegistry = policyRegistry == null
                 ? LocalGovernancePolicyRegistry.builder().build()
                 : policyRegistry;
@@ -62,6 +74,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 ? NexaryObservationPublisher.noop()
                 : observationPublisher;
         this.instanceHealth = instanceHealth == null ? GovernanceInstanceHealth.noop() : instanceHealth;
+        this.traceRecorder = traceRecorder == null ? GovernanceTraceRecorder.noop() : traceRecorder;
         this.recentEventCapacity = Math.max(1, recentEventCapacity);
     }
 
@@ -123,6 +136,21 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
     }
 
     @Override
+    public List<GovernanceFaultTrace> traces() {
+        return traceRecorder.traces();
+    }
+
+    @Override
+    public Optional<GovernanceFaultTrace> trace(String traceKey) {
+        return traceRecorder.trace(traceKey);
+    }
+
+    @Override
+    public GovernanceFaultTraceSummary faultTraceSummary() {
+        return traceRecorder.summary();
+    }
+
+    @Override
     public GovernanceRuntimeSummary summary() {
         List<GovernanceRuntimeSnapshot> currentSnapshots = snapshots();
         List<GovernanceRuntimeEvent> currentEvents = recentEvents();
@@ -134,6 +162,7 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         long retryStopped = 0L;
         long isolated = 0L;
         InstanceHealthSummary instanceSummary = instanceHealth.summary();
+        GovernanceFaultTraceSummary traceSummary = traceRecorder.summary();
         Map<String, Long> trafficClassCounts = new LinkedHashMap<>();
         Map<String, Long> priorityCounts = new LinkedHashMap<>();
         Instant lastEventAt = null;
@@ -188,6 +217,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 instanceSummary.suspectCount(),
                 instanceSummary.quarantineCandidateCount(),
                 instanceSummary.recoveryProbeCount(),
+                traceSummary.traceCount(),
+                traceSummary.stoppedCount(),
                 trafficClassCounts,
                 priorityCounts,
                 openCircuits,
@@ -212,7 +243,9 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 descriptor.engine(),
                 descriptor.policySnapshot(),
                 descriptor.runtimeSnapshot(),
-                snapshots);
+                snapshots,
+                descriptor.lastTraceOutcome(),
+                descriptor.lastTraceStopReason());
     }
 
     @Override
@@ -555,6 +588,17 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                 recentEvents.removeFirst();
             }
         }
+        recordTrace(state, event);
+    }
+
+    private void recordTrace(State state, GovernanceRuntimeEvent event) {
+        if (state == null || event == null) {
+            return;
+        }
+        String traceKey = traceRecorder.start(state.resourceKey);
+        traceRecorder.record(traceKey, GovernanceTraceStep.fromEvent(event.traceStage(), event));
+        traceRecorder.finish(traceKey, event.outcome());
+        state.recordTrace(event.outcome(), event.tracePrimaryStopReason());
     }
 
     private static RetryStopReason retryStopReason(GovernanceDecision decision) {
@@ -620,6 +664,8 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
         private Instant lastStateTransitionAt = Instant.now();
         private GovernanceCallOutcome lastOutcome = GovernanceCallOutcome.NONE;
         private Instant lastOutcomeAt;
+        private GovernanceCallOutcome lastTraceOutcome = GovernanceCallOutcome.NONE;
+        private GovernanceTraceStopReason lastTraceStopReason = GovernanceTraceStopReason.NONE;
         private int lastMaxRequestsPerWindow = Integer.MAX_VALUE;
         private Duration lastRateLimitWindow = Duration.ofSeconds(1);
         private boolean lastDegraded;
@@ -808,6 +854,13 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
             }
         }
 
+        private synchronized void recordTrace(
+                GovernanceCallOutcome outcome,
+                GovernanceTraceStopReason stopReason) {
+            lastTraceOutcome = outcome == null ? GovernanceCallOutcome.NONE : outcome;
+            lastTraceStopReason = stopReason == null ? GovernanceTraceStopReason.NONE : stopReason;
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -819,7 +872,10 @@ public final class LocalGovernanceRuntime implements GovernanceRuntime {
                     priority.diagnosticName(),
                     GovernanceEngine.LOCAL,
                     lastPolicySnapshot,
-                    snapshot());
+                    snapshot(),
+                    java.util.Collections.emptyList(),
+                    lastTraceOutcome,
+                    lastTraceStopReason);
         }
 
         private synchronized GovernanceRuntimeSnapshot snapshot() {

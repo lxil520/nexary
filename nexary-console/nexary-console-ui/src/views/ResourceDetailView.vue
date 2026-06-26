@@ -65,6 +65,7 @@ watch(
         <StatusBadge :label="resource.trafficClass ?? 'online'" :state="resource.trafficClass ?? 'online'" />
         <StatusBadge :label="resource.priority" :state="resource.priority" />
         <StatusBadge :label="resource.engine ?? 'LOCAL'" :state="resource.engine ?? 'LOCAL'" />
+        <StatusBadge :label="resource.lastTraceStopReason ?? 'NONE'" :state="resource.lastTraceStopReason ?? 'NONE'" />
         <StatusBadge
           :label="resource.runtimeSnapshot?.circuitState ?? 'NO_STATE'"
           :state="resource.runtimeSnapshot?.circuitState ?? 'NO_STATE'"
@@ -75,6 +76,23 @@ watch(
     <section class="split-grid split-grid--balanced">
       <RuntimeWindowStats :runtime="resource.runtimeSnapshot" />
       <PolicySummary :policy="resource.policySnapshot" />
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2>{{ t('detail.traceState') }}</h2>
+        <span>{{ t('detail.traceStateNote') }}</span>
+      </div>
+      <dl class="definition-grid">
+        <div>
+          <dt>{{ t('table.outcome') }}</dt>
+          <dd><StatusBadge :label="resource.lastTraceOutcome ?? 'NONE'" :state="resource.lastTraceOutcome ?? 'NONE'" /></dd>
+        </div>
+        <div>
+          <dt>{{ t('table.stopReason') }}</dt>
+          <dd><StatusBadge :label="resource.lastTraceStopReason ?? 'NONE'" :state="resource.lastTraceStopReason ?? 'NONE'" /></dd>
+        </div>
+      </dl>
     </section>
 
     <section class="panel">

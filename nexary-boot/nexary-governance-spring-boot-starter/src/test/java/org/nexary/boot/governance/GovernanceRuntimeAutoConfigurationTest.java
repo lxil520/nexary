@@ -2,6 +2,7 @@ package org.nexary.boot.governance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.nexary.core.context.CancellationContext;
 import org.nexary.core.context.CancellationReason;
@@ -20,6 +21,7 @@ import org.nexary.governance.runtime.InstanceStatusCodeClass;
 import org.nexary.governance.runtime.GovernanceCallOutcome;
 import org.nexary.governance.runtime.GovernanceDurationBucket;
 import org.nexary.governance.runtime.GovernanceInstanceRef;
+import org.nexary.governance.runtime.GovernanceTraceRecorder;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -253,6 +255,72 @@ class GovernanceRuntimeAutoConfigurationTest {
                                         "windowCalls");
                                 assertThat(body.toString()).doesNotContain("10.24.8.9", "8080");
                             });
+                });
+    }
+
+    @Test
+    void traceRecorderIsDisabledByDefault() {
+        contextRunner.run(context -> assertThat(context).doesNotHaveBean(GovernanceTraceRecorder.class));
+    }
+
+    @Test
+    void traceRecorderBindsTypedConfigurationWhenEnabled() {
+        contextRunner
+                .withPropertyValues(
+                        "nexary.governance.trace.enabled=true",
+                        "nexary.governance.trace.max-traces=3",
+                        "nexary.governance.trace.max-events-per-trace=4",
+                        "nexary.governance.trace.ttl=30s",
+                        "nexary.governance.trace.expose-external-trace-id=false")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GovernanceTraceRecorder.class);
+                    GovernanceRuntimeProperties.Trace properties =
+                            context.getBean(GovernanceRuntimeProperties.class).getTrace();
+                    assertThat(properties.isEnabled()).isTrue();
+                    assertThat(properties.getMaxTraces()).isEqualTo(3);
+                    assertThat(properties.getMaxEventsPerTrace()).isEqualTo(4);
+                    assertThat(properties.getTtl()).hasSeconds(30);
+                    assertThat(properties.isExposeExternalTraceId()).isFalse();
+                });
+    }
+
+    @Test
+    void traceDiagnosticsReturnsStableJsonShapeWhenEnabled() {
+        webContextRunner
+                .withPropertyValues(
+                        "nexary.governance.diagnostics.enabled=true",
+                        "nexary.governance.trace.enabled=true")
+                .run(context -> {
+                    GovernanceRuntime runtime = context.getBean(GovernanceRuntime.class);
+                    GovernanceResource resource = GovernanceResource.http("trace-api", "deadline");
+                    String result = runtime.execute(
+                            GovernanceContext.builder()
+                                    .resource(resource)
+                                    .deadline(Instant.now().minusMillis(1))
+                                    .build(),
+                            () -> "primary",
+                            () -> "fallback");
+                    assertThat(result).isEqualTo("fallback");
+
+                    GovernanceDiagnosticsAutoConfiguration.GovernanceDiagnosticsEndpoint endpoint =
+                            context.getBean(GovernanceDiagnosticsAutoConfiguration.GovernanceDiagnosticsEndpoint.class);
+
+                    assertThat(endpoint.traces())
+                            .singleElement()
+                            .satisfies(body -> {
+                                assertThat(body).containsKeys(
+                                        "traceKey",
+                                        "rootResourceKey",
+                                        "terminalOutcome",
+                                        "primaryStopReason",
+                                        "steps");
+                                assertThat(body.get("rootResourceKey")).isEqualTo(resource.key());
+                                assertThat(body.get("primaryStopReason")).isEqualTo("DEADLINE_EXPIRED");
+                                assertThat(body.toString()).doesNotContain("payload", "stackTrace", "exception");
+                            });
+                    assertThat(endpoint.faultSummary())
+                            .containsEntry("traceCount", 1L)
+                            .containsEntry("stoppedCount", 1L);
                 });
     }
 

@@ -1,6 +1,9 @@
 package org.nexary.console.server;
 
 import org.nexary.console.api.ConsoleEventsResponse;
+import org.nexary.console.api.ConsoleFaultTrace;
+import org.nexary.console.api.ConsoleFaultTraceSummary;
+import org.nexary.console.api.ConsoleFaultTracesResponse;
 import org.nexary.console.api.ConsoleResourceItem;
 import org.nexary.console.api.ConsoleResourcesResponse;
 import org.nexary.console.api.ConsoleSummaryResponse;
@@ -45,5 +48,25 @@ public final class ConsoleApiController {
     @GetMapping("/events")
     public ConsoleEventsResponse events() {
         return diagnosticsService.events();
+    }
+
+    /** Returns retained local fault traces. */
+    @GetMapping("/traces")
+    public ConsoleFaultTracesResponse traces() {
+        return diagnosticsService.traces();
+    }
+
+    /** Returns one retained local fault trace by local trace key. */
+    @GetMapping("/traces/{traceKey}")
+    public ResponseEntity<ConsoleFaultTrace> trace(@PathVariable("traceKey") String traceKey) {
+        return diagnosticsService.trace(traceKey)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns aggregate local fault trace counters. */
+    @GetMapping("/faults/summary")
+    public ConsoleFaultTraceSummary faultTraceSummary() {
+        return diagnosticsService.faultTraceSummary();
     }
 }

@@ -33,6 +33,7 @@ const hasAttention = computed(
     (summary.value?.retryStoppedCount ?? 0) > 0 ||
     (summary.value?.blockedCount ?? 0) > 0 ||
     (summary.value?.isolatedCount ?? 0) > 0 ||
+    (summary.value?.stoppedTraceCount ?? 0) > 0 ||
     (summary.value?.instanceSuspectCount ?? 0) > 0 ||
     (summary.value?.quarantineCandidateCount ?? 0) > 0 ||
     (summary.value?.failureCount ?? 0) > 0 ||
@@ -93,6 +94,8 @@ onMounted(() => {
       <MetricCard :label="t('overview.rejected')" :value="summary?.rejectedCount ?? 0" :detail="t('overview.rejectedDetail')" tone="warning" />
       <MetricCard :label="t('overview.blocked')" :value="summary?.blockedCount ?? 0" :detail="t('overview.blockedDetail')" tone="warning" />
       <MetricCard :label="t('overview.isolated')" :value="summary?.isolatedCount ?? 0" :detail="t('overview.isolatedDetail')" tone="warning" />
+      <MetricCard :label="t('overview.faultTraces')" :value="summary?.faultTraceCount ?? 0" :detail="t('overview.faultTracesDetail')" tone="info" />
+      <MetricCard :label="t('overview.stoppedTraces')" :value="summary?.stoppedTraceCount ?? 0" :detail="t('overview.stoppedTracesDetail')" tone="warning" />
       <MetricCard :label="t('overview.instanceSuspect')" :value="summary?.instanceSuspectCount ?? 0" :detail="t('overview.instanceSuspectDetail')" tone="warning" />
       <MetricCard :label="t('overview.quarantineCandidate')" :value="summary?.quarantineCandidateCount ?? 0" :detail="t('overview.quarantineCandidateDetail')" tone="danger" />
       <MetricCard :label="t('overview.recoveryProbe')" :value="summary?.recoveryProbeCount ?? 0" :detail="t('overview.recoveryProbeDetail')" tone="info" />

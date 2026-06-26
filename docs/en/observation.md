@@ -63,6 +63,7 @@ Never use these values as metric tags:
 - message ids, raw topics, raw consumer groups
 - execution ids, job parameters
 - governance resource names, tenants, biz keys, user ids, order ids
+- trace keys, external trace ids
 - lock tokens, owner tokens, fencing tokens
 - exception messages, stack traces
 - arbitrary unsanitized user input
@@ -98,9 +99,23 @@ curl -s http://localhost:8082/app-error-logs
 
 Inspect `result.status`, `published[].publishStatus`, `published[].providerMessageId`, `published[].detail`, and `consumed[]`. Metric tags must not include `messageId`, payload, raw topic, exception text, or stack traces.
 
+## v0.16 Fault Traces and Metrics
+
+`/nexary/governance/traces` and the Console Trace detail page are local diagnostics views. They are not Micrometer metrics and they are not external trace exporters. A `traceKey` is used only to look up one local trace and is not added to `nexary.observation.events.total` or `nexary.observation.events.duration` tags.
+
+To verify the trace view, run:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=trace'
+NEXARY_GOVERNANCE_TRACE_BASE_URL=http://localhost:8080 ./scripts/governance-trace/smoke.sh
+```
+
+Metrics answer how many events happened, how long they took, and how they split across fixed tags. Traces answer why one local call stopped and which resource should be inspected first. They use different outputs.
+
 ## Non-Goals
 
-- No tracing, audit log, or security audit implementation.
+- No Jaeger, Zipkin, SkyWalking, or OpenTelemetry exporter.
+- No audit log or security audit implementation.
 - No exactly-once event claim.
 - No Micrometer types in core/cache/messaging/job public APIs.
 - Observation events are not consistency mechanisms.

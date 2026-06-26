@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.nexary.core.retry.RetryStopReason;
 import org.nexary.core.context.TrafficTag;
 import org.nexary.core.governance.GovernanceContext;
 import org.nexary.governance.runtime.GovernanceRuntime;
@@ -15,6 +16,7 @@ import org.nexary.governance.runtime.GovernanceCallOutcome;
 import org.nexary.governance.runtime.GovernanceDurationBucket;
 import org.nexary.governance.runtime.GovernanceInstanceHealth;
 import org.nexary.governance.runtime.GovernanceInstanceRef;
+import org.nexary.governance.runtime.GovernanceRejectedException;
 import org.nexary.governance.runtime.InstanceHealthSignal;
 import org.nexary.governance.runtime.InstanceHealthSignalType;
 import org.nexary.governance.runtime.InstanceHealthSnapshot;
@@ -190,6 +192,88 @@ public class GovernanceSampleController {
                 GovernanceDurationBucket.GE_500_MS,
                 Instant.now());
         return instanceHealthBody("read_timeout");
+    }
+
+    @GetMapping("/trace/success/{userId}")
+    public ProfileResult traceSuccess(@PathVariable String userId) throws Exception {
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(GovernanceSampleConfiguration.PROFILE_RESOURCE)
+                .trafficTag(TrafficTag.defaults())
+                .deadline(Instant.now().plusMillis(300))
+                .build();
+        return governanceRuntime.execute(
+                context,
+                () -> profileQueryService.loadProfile(userId),
+                () -> profileQueryService.fallbackProfile(userId));
+    }
+
+    @GetMapping("/trace/deadline/{userId}")
+    public ProfileResult traceDeadline(@PathVariable String userId) throws Exception {
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(GovernanceSampleConfiguration.CANCELLATION_RESOURCE)
+                .trafficTag(TrafficTag.defaults())
+                .deadline(Instant.now().minusMillis(1))
+                .build();
+        return governanceRuntime.execute(
+                context,
+                () -> profileQueryService.loadProfile(userId),
+                () -> profileQueryService.fallbackProfile(userId));
+    }
+
+    @GetMapping("/trace/retry-stop")
+    public Map<String, Object> traceRetryStop(@RequestParam(defaultValue = "4") int maxAttempts) throws Exception {
+        int boundedAttempts = Math.max(1, Math.min(maxAttempts, 8));
+        for (int attempt = 1; attempt <= boundedAttempts; attempt++) {
+            int currentAttempt = attempt;
+            try {
+                governanceRuntime.execute(
+                        GovernanceContext.builder()
+                                .resource(GovernanceSampleConfiguration.PROFILE_RESOURCE)
+                                .trafficTag(TrafficTag.defaults())
+                                .deadline(Instant.now().plusMillis(300))
+                                .build(),
+                        () -> profileQueryService.loadProfile("retry-" + currentAttempt));
+            } catch (GovernanceRejectedException ex) {
+                RetryStopReason reason = ex.decision() == null || ex.decision().retrySignal() == null
+                        ? RetryStopReason.UNKNOWN
+                        : ex.decision().retrySignal().stopReason();
+                return Map.of(
+                        "scenario", "retry_stop",
+                        "status", "stopped",
+                        "attempt", attempt,
+                        "retryStopReason", reason.name(),
+                        "resourceKey", GovernanceSampleConfiguration.PROFILE_RESOURCE.key());
+            }
+        }
+        return Map.of(
+                "scenario", "retry_stop",
+                "status", "completed",
+                "attempt", boundedAttempts,
+                "retryStopReason", RetryStopReason.NONE.name(),
+                "resourceKey", GovernanceSampleConfiguration.PROFILE_RESOURCE.key());
+    }
+
+    @GetMapping("/trace/priority")
+    public ProfileResult tracePriority(@RequestParam(defaultValue = "low") String priority) throws Exception {
+        boolean low = "low".equalsIgnoreCase(priority);
+        TrafficTag trafficTag = TrafficTag.builder()
+                .channel(low ? TrafficTag.Channel.BATCH : TrafficTag.Channel.ONLINE)
+                .priority(low ? TrafficTag.Priority.LOW : TrafficTag.Priority.HIGH)
+                .build();
+        GovernanceContext context = GovernanceContext.builder()
+                .resource(GovernanceSampleConfiguration.TRACE_PRIORITY_RESOURCE)
+                .trafficTag(trafficTag)
+                .deadline(Instant.now().plusMillis(300))
+                .build();
+        return governanceRuntime.execute(
+                context,
+                () -> profileQueryService.loadProfile(low ? "batch-low" : "online-high"),
+                () -> profileQueryService.fallbackProfile(low ? "batch-low" : "online-high"));
+    }
+
+    @PostMapping("/trace/instance-health")
+    public Map<String, Object> traceInstanceHealth() {
+        return instanceHealthScenario();
     }
 
     private void recordInstanceSignal(

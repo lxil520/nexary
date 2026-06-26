@@ -5,6 +5,7 @@ import org.nexary.boot.governance.GovernanceRuntimeProperties;
 import org.nexary.core.observation.NexaryObservationPublisher;
 import org.nexary.governance.runtime.GovernancePolicyRegistry;
 import org.nexary.governance.runtime.GovernanceRuntime;
+import org.nexary.governance.runtime.GovernanceTraceRecorder;
 import org.nexary.governance.sentinel.SentinelGovernanceRuntime;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -25,11 +26,15 @@ public class GovernanceSentinelAutoConfiguration {
     public GovernanceRuntime nexarySentinelGovernanceRuntime(
             GovernancePolicyRegistry policyRegistry,
             java.util.Optional<NexaryObservationPublisher> observationPublisher,
+            java.util.Optional<GovernanceTraceRecorder> traceRecorder,
             GovernanceRuntimeProperties properties) {
         configureTransport(properties.getSentinel());
         return new SentinelGovernanceRuntime(
                 policyRegistry,
-                observationPublisher.orElse(NexaryObservationPublisher.noop()));
+                observationPublisher.orElse(NexaryObservationPublisher.noop()),
+                new org.nexary.governance.sentinel.SentinelRuleMapper(),
+                traceRecorder.orElse(GovernanceTraceRecorder.noop()),
+                256);
     }
 
     private static void configureTransport(GovernanceRuntimeProperties.Sentinel sentinel) {

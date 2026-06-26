@@ -31,7 +31,7 @@ export function useFilteredEvents(events: Ref<readonly ConsoleEvent[]>, filters:
       const matchesKeyword =
         keyword.length === 0 ||
         normalize(
-          `${event.resourceKey} ${event.engine ?? ''} ${event.trafficClass ?? ''} ${event.priority ?? ''} ${event.action} ${event.outcome} ${event.rejectionReason} ${event.isolationReason ?? ''} ${event.blockReason ?? ''} ${event.circuitState} ${event.durationBucket}`,
+          `${event.resourceKey} ${event.engine ?? ''} ${event.trafficClass ?? ''} ${event.priority ?? ''} ${event.action} ${event.outcome} ${event.rejectionReason} ${event.isolationReason ?? ''} ${event.blockReason ?? ''} ${event.traceStage ?? ''} ${event.tracePrimaryStopReason ?? ''} ${event.circuitState} ${event.durationBucket}`,
         ).includes(keyword);
       const matchesOutcome = filters.value.outcome === 'ALL' || event.outcome === filters.value.outcome;
       const matchesReason =
@@ -40,9 +40,22 @@ export function useFilteredEvents(events: Ref<readonly ConsoleEvent[]>, filters:
         filters.value.isolationReason === 'ALL' || event.isolationReason === filters.value.isolationReason;
       const matchesTraffic = filters.value.trafficClass === 'ALL' || event.trafficClass === filters.value.trafficClass;
       const matchesPriority = filters.value.priority === 'ALL' || event.priority === filters.value.priority;
+      const matchesTraceStage = filters.value.traceStage === 'ALL' || event.traceStage === filters.value.traceStage;
+      const matchesTraceStop =
+        filters.value.traceStopReason === 'ALL' || event.tracePrimaryStopReason === filters.value.traceStopReason;
       const matchesCircuit =
         filters.value.circuitState === 'ALL' || event.circuitState === filters.value.circuitState;
-      return matchesKeyword && matchesOutcome && matchesReason && matchesIsolation && matchesTraffic && matchesPriority && matchesCircuit;
+      return (
+        matchesKeyword &&
+        matchesOutcome &&
+        matchesReason &&
+        matchesIsolation &&
+        matchesTraffic &&
+        matchesPriority &&
+        matchesTraceStage &&
+        matchesTraceStop &&
+        matchesCircuit
+      );
     });
   });
 }

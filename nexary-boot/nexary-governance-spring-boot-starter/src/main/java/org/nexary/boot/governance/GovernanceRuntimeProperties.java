@@ -17,6 +17,7 @@ public class GovernanceRuntimeProperties {
     private Diagnostics diagnostics = new Diagnostics();
     private Cancellation cancellation = new Cancellation();
     private InstanceHealth instanceHealth = new InstanceHealth();
+    private Trace trace = new Trace();
     private Policy defaultPolicy = new Policy();
     private Map<String, ResourcePolicy> resources = new LinkedHashMap<>();
 
@@ -139,6 +140,16 @@ public class GovernanceRuntimeProperties {
     /** Sets local instance health detection settings. */
     public void setInstanceHealth(InstanceHealth instanceHealth) {
         this.instanceHealth = instanceHealth == null ? new InstanceHealth() : instanceHealth;
+    }
+
+    /** Returns local fault trace settings. */
+    public Trace getTrace() {
+        return trace;
+    }
+
+    /** Sets local fault trace settings. */
+    public void setTrace(Trace trace) {
+        this.trace = trace == null ? new Trace() : trace;
     }
 
     /** Returns the default policy used when no resource policy matches. */
@@ -430,6 +441,65 @@ public class GovernanceRuntimeProperties {
         /** Sets whether raw instance keys may be exposed. */
         public void setExposeRawInstanceKey(boolean exposeRawInstanceKey) {
             this.exposeRawInstanceKey = exposeRawInstanceKey;
+        }
+    }
+
+    /** Local fault trace diagnostics settings. */
+    public static class Trace {
+        private boolean enabled;
+        private int maxTraces = 128;
+        private int maxEventsPerTrace = 32;
+        private Duration ttl = Duration.ofMinutes(10);
+        private boolean exposeExternalTraceId;
+
+        /** Returns whether local fault trace recording is enabled. */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** Sets whether local fault trace recording is enabled. */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** Returns the maximum retained trace count. */
+        public int getMaxTraces() {
+            return maxTraces;
+        }
+
+        /** Sets the maximum retained trace count. */
+        public void setMaxTraces(int maxTraces) {
+            this.maxTraces = maxTraces;
+        }
+
+        /** Returns the maximum retained steps per trace. */
+        public int getMaxEventsPerTrace() {
+            return maxEventsPerTrace;
+        }
+
+        /** Sets the maximum retained steps per trace. */
+        public void setMaxEventsPerTrace(int maxEventsPerTrace) {
+            this.maxEventsPerTrace = maxEventsPerTrace;
+        }
+
+        /** Returns how long completed traces are retained locally. */
+        public Duration getTtl() {
+            return ttl;
+        }
+
+        /** Sets how long completed traces are retained locally. */
+        public void setTtl(Duration ttl) {
+            this.ttl = ttl;
+        }
+
+        /** Returns whether external trace ids may be exposed. Defaults to false. */
+        public boolean isExposeExternalTraceId() {
+            return exposeExternalTraceId;
+        }
+
+        /** Sets whether external trace ids may be exposed. */
+        public void setExposeExternalTraceId(boolean exposeExternalTraceId) {
+            this.exposeExternalTraceId = exposeExternalTraceId;
         }
     }
 

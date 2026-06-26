@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
 
-The `0.15.0` line does not replace Sentinel Dashboard, cluster flow control, remote rule platforms, or automatic traffic-drain platforms. It fixes four boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops; when online requests share a resource with batch, offline, or background repair work, fixed `ONLINE/OFFLINE/BATCH/BACKGROUND` and `HIGH/NORMAL/LOW` policies can rate-limit, isolate, or fallback the lower-priority work first; when several instances behind one downstream resource behave differently, Nexary marks abnormal instance candidates inside the current JVM and exposes a suggested action. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures.
+The `0.16.0` line does not replace Sentinel Dashboard, cluster flow control, remote rule platforms, automatic traffic-drain platforms, or a distributed trace backend. It fixes five boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops; when online requests share a resource with batch, offline, or background repair work, fixed `ONLINE/OFFLINE/BATCH/BACKGROUND` and `HIGH/NORMAL/LOW` policies can rate-limit, isolate, or fallback the lower-priority work first; when several instances behind one downstream resource behave differently, Nexary marks abnormal instance candidates inside the current JVM and exposes a suggested action; when a call is canceled, rate-limited, retry-stopped, priority-isolated, or tied to an abnormal instance candidate, the local fault trace shows which resource to inspect first. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters.
 
 ## Add Dependencies
 
@@ -133,6 +133,55 @@ Important fields:
 - `priority`: `HIGH`, `NORMAL`, or `LOW`.
 - `isolationReason`: `PRIORITY_RATE_LIMITED`, `PRIORITY_BULKHEAD_FULL`, `PRIORITY_DEGRADED`, `PRIORITY_CIRCUIT_OPEN`, or `MIXED_TRAFFIC`.
 - `isolatedCount`: priority isolation events in the current JVM.
+
+## v0.16 Local Fault Traces
+
+Trace diagnostics are disabled by default. After they are enabled, Nexary keeps recent traces only inside the current JVM to answer why a call stopped and which resource should be inspected first:
+
+```yaml
+nexary:
+  governance:
+    diagnostics:
+      enabled: true
+    trace:
+      enabled: true
+      max-traces: 128
+      max-events-per-trace: 32
+      ttl: 10m
+      expose-external-trace-id: false
+```
+
+This is not Jaeger, Zipkin, SkyWalking, or an OpenTelemetry exporter. A `traceKey` is a local diagnostics / Console lookup key and is not used as a metric tag. HTTP JSON and the Console do not expose payloads, URL queries, user ids, tenants, message ids, cache keys, exception text, or stack traces.
+
+Run the sample:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=trace'
+```
+
+From another terminal, trigger success, deadline, retry-stop, priority isolation, and instance-health scenarios:
+
+```bash
+curl -s http://localhost:8080/governance/trace/priority?priority=high
+curl -s http://localhost:8080/governance/trace/deadline/trace-deadline
+curl -s http://localhost:8080/governance/trace/retry-stop
+curl -s http://localhost:8080/governance/trace/priority?priority=low
+curl -s http://localhost:8080/governance/trace/priority?priority=low
+curl -s -X POST http://localhost:8080/governance/trace/instance-health
+curl -s http://localhost:8080/nexary/governance/traces
+curl -s http://localhost:8080/nexary/governance/faults/summary
+NEXARY_GOVERNANCE_TRACE_BASE_URL=http://localhost:8080 ./scripts/governance-trace/smoke.sh
+```
+
+Important fields:
+
+- `terminalOutcome`: final trace result, such as `SUCCESS`, `REJECTED`, or `CANCELLED`.
+- `primaryStopReason`: `DEADLINE_EXPIRED`, `CANCELLED`, `RETRY_STOPPED`, `BLOCKED`, `REJECTED`, `ISOLATED`, `INSTANCE_QUARANTINE_CANDIDATE`, or `FAILURE`.
+- `suggestedResourceKey`: resource that the trace suggests inspecting first.
+- `steps[].stage`: `REQUEST`, `GOVERNANCE`, `DOWNSTREAM`, `CACHE`, `MESSAGING`, `JOB`, `INSTANCE_HEALTH`, or `RETRY`.
+- `faultTraceCount` / `stoppedTraceCount`: retained trace count and stopped trace count in the current JVM.
+
+The Console Overview shows fault trace counts. Resources show the latest trace result. Events can be filtered by trace stage / stop reason. Trace detail shows a read-only step timeline. The Console still has no policy editor, quarantine button, or remote config push.
 
 ## v0.15 Abnormal Instance Detection and Local Quarantine Model
 

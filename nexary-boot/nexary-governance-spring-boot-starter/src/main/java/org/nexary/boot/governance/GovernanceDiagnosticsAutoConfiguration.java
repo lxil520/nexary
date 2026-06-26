@@ -8,12 +8,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.nexary.governance.runtime.GovernanceDiagnostics;
+import org.nexary.governance.runtime.GovernanceFaultTrace;
+import org.nexary.governance.runtime.GovernanceFaultTraceSummary;
 import org.nexary.governance.runtime.GovernanceInstanceHealth;
 import org.nexary.governance.runtime.GovernancePolicySnapshot;
 import org.nexary.governance.runtime.GovernanceResourceDescriptor;
 import org.nexary.governance.runtime.GovernanceRuntimeEvent;
 import org.nexary.governance.runtime.GovernanceRuntimeSnapshot;
 import org.nexary.governance.runtime.GovernanceRuntimeSummary;
+import org.nexary.governance.runtime.GovernanceTraceStep;
 import org.nexary.governance.runtime.InstanceHealthSnapshot;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -84,6 +87,31 @@ public class GovernanceDiagnosticsAutoConfiguration {
             return summary(diagnostics.summary());
         }
 
+        /** Returns retained local fault traces. */
+        @GetMapping("/traces")
+        public List<Map<String, Object>> traces() {
+            List<Map<String, Object>> traces = new ArrayList<>();
+            for (GovernanceFaultTrace trace : diagnostics.traces()) {
+                traces.add(trace(trace));
+            }
+            return traces;
+        }
+
+        /** Returns one retained local fault trace by trace key. */
+        @GetMapping("/traces/{traceKey}")
+        public ResponseEntity<Map<String, Object>> trace(@PathVariable String traceKey) {
+            return diagnostics.trace(traceKey)
+                    .map(GovernanceDiagnosticsEndpoint::trace)
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        }
+
+        /** Returns aggregate local fault trace counters. */
+        @GetMapping("/faults/summary")
+        public Map<String, Object> faultSummary() {
+            return faultSummary(diagnostics.faultTraceSummary());
+        }
+
         private static Map<String, Object> resource(GovernanceResourceDescriptor descriptor) {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("resourceKey", descriptor.resourceKey());
@@ -97,6 +125,8 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("policySnapshot", policy(descriptor.policySnapshot()));
             body.put("runtimeSnapshot", snapshot(descriptor.runtimeSnapshot()));
             body.put("instanceHealthSnapshots", instanceSnapshots(descriptor.instanceHealthSnapshots()));
+            body.put("lastTraceOutcome", descriptor.lastTraceOutcome().name());
+            body.put("lastTraceStopReason", descriptor.lastTraceStopReason().name());
             return body;
         }
 
@@ -175,6 +205,8 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("instanceHealthState", event.instanceHealthState().name());
             body.put("quarantineReason", event.quarantineReason().name());
             body.put("recoveryAdvice", event.recoveryAdvice().name());
+            body.put("traceStage", event.traceStage().name());
+            body.put("tracePrimaryStopReason", event.tracePrimaryStopReason().name());
             body.put("circuitState", event.circuitState().name());
             body.put("timestamp", instant(event.timestamp()));
             body.put("durationBucket", event.durationBucket().name());
@@ -196,6 +228,8 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("instanceSuspectCount", summary.instanceSuspectCount());
             body.put("quarantineCandidateCount", summary.quarantineCandidateCount());
             body.put("recoveryProbeCount", summary.recoveryProbeCount());
+            body.put("faultTraceCount", summary.faultTraceCount());
+            body.put("stoppedTraceCount", summary.stoppedTraceCount());
             body.put("trafficClassCounts", summary.trafficClassCounts());
             body.put("priorityCounts", summary.priorityCounts());
             body.put("fallbackCount", summary.fallbackCount());
@@ -204,6 +238,53 @@ public class GovernanceDiagnosticsAutoConfiguration {
             body.put("degradedResourceCount", summary.degradedResourceCount());
             body.put("sentinelResourceCount", summary.sentinelResourceCount());
             body.put("lastEventAt", optionalInstant(summary.lastEventAt()));
+            return body;
+        }
+
+        private static Map<String, Object> trace(GovernanceFaultTrace trace) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("traceKey", trace.traceKey());
+            body.put("rootResourceKey", trace.rootResourceKey());
+            body.put("startedAt", instant(trace.startedAt()));
+            body.put("lastEventAt", instant(trace.lastEventAt()));
+            body.put("terminalOutcome", trace.terminalOutcome().name());
+            body.put("primaryStopReason", trace.primaryStopReason().name());
+            body.put("suggestedResourceKey", trace.suggestedResourceKey());
+            List<Map<String, Object>> steps = new ArrayList<>();
+            for (GovernanceTraceStep step : trace.steps()) {
+                steps.add(traceStep(step));
+            }
+            body.put("steps", steps);
+            return body;
+        }
+
+        private static Map<String, Object> traceStep(GovernanceTraceStep step) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("stage", step.stage().name());
+            body.put("resourceKey", step.resourceKey());
+            body.put("action", step.action().name());
+            body.put("outcome", step.outcome().name());
+            body.put("durationBucket", step.durationBucket().name());
+            body.put("timestamp", instant(step.timestamp()));
+            body.put("rejectionReason", step.rejectionReason().name());
+            body.put("blockReason", step.blockReason().name());
+            body.put("cancellationReason", step.cancellationReason().name());
+            body.put("retryStopReason", step.retryStopReason().name());
+            body.put("isolationReason", step.isolationReason().name());
+            body.put("instanceHealthState", step.instanceHealthState().name());
+            body.put("quarantineReason", step.quarantineReason().name());
+            return body;
+        }
+
+        private static Map<String, Object> faultSummary(GovernanceFaultTraceSummary summary) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("traceCount", summary.traceCount());
+            body.put("stoppedCount", summary.stoppedCount());
+            body.put("blockedCount", summary.blockedCount());
+            body.put("cancelledCount", summary.cancelledCount());
+            body.put("retryStoppedCount", summary.retryStoppedCount());
+            body.put("instanceRelatedCount", summary.instanceRelatedCount());
+            body.put("topStopReasons", summary.topStopReasons());
             return body;
         }
 

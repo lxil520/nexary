@@ -93,6 +93,29 @@ export type InstanceRecoveryAdvice =
 
 export type DurationBucket = 'NOT_RUN' | 'LT_10_MS' | 'LT_100_MS' | 'LT_500_MS' | 'GE_500_MS' | string;
 
+export type TraceStage =
+  | 'REQUEST'
+  | 'GOVERNANCE'
+  | 'DOWNSTREAM'
+  | 'CACHE'
+  | 'MESSAGING'
+  | 'JOB'
+  | 'INSTANCE_HEALTH'
+  | 'RETRY'
+  | string;
+
+export type TraceStopReason =
+  | 'NONE'
+  | 'DEADLINE_EXPIRED'
+  | 'CANCELLED'
+  | 'RETRY_STOPPED'
+  | 'BLOCKED'
+  | 'REJECTED'
+  | 'ISOLATED'
+  | 'INSTANCE_QUARANTINE_CANDIDATE'
+  | 'FAILURE'
+  | string;
+
 export interface ConsoleSummary {
   resourceCount: number;
   snapshotCount: number;
@@ -109,6 +132,8 @@ export interface ConsoleSummary {
   instanceSuspectCount?: number;
   quarantineCandidateCount?: number;
   recoveryProbeCount?: number;
+  faultTraceCount?: number;
+  stoppedTraceCount?: number;
   trafficClassCounts?: Record<string, number>;
   priorityCounts?: Record<string, number>;
   openCircuitCount: number;
@@ -203,6 +228,8 @@ export interface ConsoleResource {
   policySnapshot: ConsolePolicySnapshot;
   runtimeSnapshot: ConsoleRuntimeSnapshot | null;
   instanceHealthSnapshots?: readonly ConsoleInstanceHealthSnapshot[];
+  lastTraceOutcome?: CallOutcome | null;
+  lastTraceStopReason?: TraceStopReason | null;
 }
 
 export interface ConsoleEvent {
@@ -220,9 +247,48 @@ export interface ConsoleEvent {
   instanceHealthState?: InstanceHealthState | null;
   quarantineReason?: InstanceQuarantineReason | null;
   recoveryAdvice?: InstanceRecoveryAdvice | null;
+  traceStage?: TraceStage | null;
+  tracePrimaryStopReason?: TraceStopReason | null;
   circuitState: CircuitState;
   timestamp: string | null;
   durationBucket: DurationBucket;
+}
+
+export interface ConsoleTraceStep {
+  stage: TraceStage;
+  resourceKey: string;
+  action: RuntimeAction;
+  outcome: CallOutcome;
+  durationBucket: DurationBucket;
+  timestamp: string | null;
+  rejectionReason?: RejectionReason | null;
+  blockReason?: BlockReason | null;
+  cancellationReason?: CancellationReason | null;
+  retryStopReason?: RetryStopReason | null;
+  isolationReason?: IsolationReason | null;
+  instanceHealthState?: InstanceHealthState | null;
+  quarantineReason?: InstanceQuarantineReason | null;
+}
+
+export interface ConsoleFaultTrace {
+  traceKey: string;
+  rootResourceKey: string;
+  startedAt: string | null;
+  lastEventAt: string | null;
+  terminalOutcome: CallOutcome;
+  primaryStopReason: TraceStopReason;
+  suggestedResourceKey: string | null;
+  steps: ConsoleTraceStep[];
+}
+
+export interface ConsoleFaultTraceSummary {
+  traceCount: number;
+  stoppedCount: number;
+  blockedCount: number;
+  cancelledCount: number;
+  retryStoppedCount: number;
+  instanceRelatedCount: number;
+  topStopReasons: Record<string, number>;
 }
 
 export interface ConsoleSettings {
@@ -235,6 +301,9 @@ export interface ConsoleSettings {
     resources: string;
     resourceDetail: string;
     events: string;
+    traces: string;
+    traceDetail: string;
+    faultSummary: string;
   };
 }
 
@@ -242,6 +311,8 @@ export interface ConsoleDataSet {
   summary: ConsoleSummary;
   resources: ConsoleResource[];
   events: ConsoleEvent[];
+  traces: ConsoleFaultTrace[];
+  faultTraceSummary: ConsoleFaultTraceSummary;
   settings: ConsoleSettings;
 }
 
@@ -262,5 +333,7 @@ export interface EventFilters {
   isolationReason: string;
   trafficClass: string;
   priority: string;
+  traceStage: string;
+  traceStopReason: string;
   circuitState: string;
 }

@@ -4,7 +4,7 @@
 
 它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
 
-`0.15.0` 不替代 Sentinel Dashboard、集群限流、远程规则平台或自动摘流平台。它解决四件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop；当在线请求和批处理、离线任务、后台修复任务共用同一个资源时，可以用固定的 `ONLINE/OFFLINE/BATCH/BACKGROUND` 和 `HIGH/NORMAL/LOW` 策略让低优先级流量先被限流、隔离或走 fallback；当同一个 downstream resource 背后多个实例表现不一致时，Nexary 在当前 JVM 内标记异常实例候选并给出建议动作。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障。
+`0.16.0` 不替代 Sentinel Dashboard、集群限流、远程规则平台、自动摘流平台或分布式 trace 后端。它解决五件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop；当在线请求和批处理、离线任务、后台修复任务共用同一个资源时，可以用固定的 `ONLINE/OFFLINE/BATCH/BACKGROUND` 和 `HIGH/NORMAL/LOW` 策略让低优先级流量先被限流、隔离或走 fallback；当同一个 downstream resource 背后多个实例表现不一致时，Nexary 在当前 JVM 内标记异常实例候选并给出建议动作；当一次调用被取消、被限流、停止重试、优先级隔离或命中异常实例候选时，本地 fault trace 能告诉你先排查哪个 resource。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数。
 
 ## 引入依赖
 
@@ -133,6 +133,55 @@ NEXARY_GOVERNANCE_PRIORITY_BASE_URL=http://localhost:8080 ./scripts/governance-p
 - `priority`: `HIGH`、`NORMAL` 或 `LOW`。
 - `isolationReason`: `PRIORITY_RATE_LIMITED`、`PRIORITY_BULKHEAD_FULL`、`PRIORITY_DEGRADED`、`PRIORITY_CIRCUIT_OPEN` 或 `MIXED_TRAFFIC`。
 - `isolatedCount`: 当前 JVM 内优先级隔离事件数量。
+
+## v0.16 本地故障定位 trace
+
+Trace diagnostics 默认关闭。开启后，Nexary 只在当前 JVM 内保留最近 trace，用于回答“这次调用为什么停止、哪个 resource 先值得看”：
+
+```yaml
+nexary:
+  governance:
+    diagnostics:
+      enabled: true
+    trace:
+      enabled: true
+      max-traces: 128
+      max-events-per-trace: 32
+      ttl: 10m
+      expose-external-trace-id: false
+```
+
+它不是 Jaeger、Zipkin、SkyWalking 或 OpenTelemetry exporter。`traceKey` 是本地 diagnostics / Console 查询 key，不进入指标 tag；HTTP JSON 和 Console 不输出 payload、URL query、userId、tenant、messageId、cache key、异常全文或 stack trace。
+
+运行样例：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance:run --args='--spring.profiles.active=trace'
+```
+
+另开终端触发正常调用、deadline、停止重试、优先级隔离和异常实例场景：
+
+```bash
+curl -s http://localhost:8080/governance/trace/priority?priority=high
+curl -s http://localhost:8080/governance/trace/deadline/trace-deadline
+curl -s http://localhost:8080/governance/trace/retry-stop
+curl -s http://localhost:8080/governance/trace/priority?priority=low
+curl -s http://localhost:8080/governance/trace/priority?priority=low
+curl -s -X POST http://localhost:8080/governance/trace/instance-health
+curl -s http://localhost:8080/nexary/governance/traces
+curl -s http://localhost:8080/nexary/governance/faults/summary
+NEXARY_GOVERNANCE_TRACE_BASE_URL=http://localhost:8080 ./scripts/governance-trace/smoke.sh
+```
+
+重点字段：
+
+- `terminalOutcome`: trace 的最终结果，例如 `SUCCESS`、`REJECTED`、`CANCELLED`。
+- `primaryStopReason`: `DEADLINE_EXPIRED`、`CANCELLED`、`RETRY_STOPPED`、`BLOCKED`、`REJECTED`、`ISOLATED`、`INSTANCE_QUARANTINE_CANDIDATE` 或 `FAILURE`。
+- `suggestedResourceKey`: 当前 trace 建议优先排查的 resource。
+- `steps[].stage`: `REQUEST`、`GOVERNANCE`、`DOWNSTREAM`、`CACHE`、`MESSAGING`、`JOB`、`INSTANCE_HEALTH` 或 `RETRY`。
+- `faultTraceCount` / `stoppedTraceCount`: 当前 JVM 内保留的 trace 数量和停止 trace 数量。
+
+Console 的 Overview 会显示 fault trace 数量，Resources 会显示最近 trace 结果，Events 可以按 trace stage / stop reason 过滤，Trace detail 只读展示 step 时间线。Console 不做策略编辑、封禁按钮或远程下发。
 
 ## v0.15 实例异常发现与本地封禁模型
 

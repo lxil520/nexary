@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -42,6 +43,8 @@ import org.nexary.governance.runtime.GovernanceCircuitState;
 import org.nexary.governance.runtime.GovernanceDecision;
 import org.nexary.governance.runtime.GovernanceDurationBucket;
 import org.nexary.governance.runtime.GovernanceEngine;
+import org.nexary.governance.runtime.GovernanceFaultTrace;
+import org.nexary.governance.runtime.GovernanceFaultTraceSummary;
 import org.nexary.governance.runtime.GovernancePolicy;
 import org.nexary.governance.runtime.GovernancePolicyRegistry;
 import org.nexary.governance.runtime.GovernancePolicySnapshot;
@@ -53,6 +56,9 @@ import org.nexary.governance.runtime.GovernanceRuntimeAction;
 import org.nexary.governance.runtime.GovernanceRuntimeEvent;
 import org.nexary.governance.runtime.GovernanceRuntimeSnapshot;
 import org.nexary.governance.runtime.GovernanceRuntimeSummary;
+import org.nexary.governance.runtime.GovernanceTraceRecorder;
+import org.nexary.governance.runtime.GovernanceTraceStep;
+import org.nexary.governance.runtime.GovernanceTraceStopReason;
 import org.nexary.governance.runtime.LocalGovernancePolicyRegistry;
 
 /** Sentinel-backed governance runtime for Nexary resources. */
@@ -60,6 +66,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
     private final GovernancePolicyRegistry policyRegistry;
     private final NexaryObservationPublisher observationPublisher;
     private final SentinelRuleMapper ruleMapper;
+    private final GovernanceTraceRecorder traceRecorder;
     private final Map<String, State> states = new ConcurrentHashMap<>();
     private final Map<String, GovernanceTrafficClass> firstTrafficClassByResource = new ConcurrentHashMap<>();
     private final Map<String, Boolean> mixedTrafficReported = new ConcurrentHashMap<>();
@@ -82,6 +89,16 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             NexaryObservationPublisher observationPublisher,
             SentinelRuleMapper ruleMapper,
             int recentEventCapacity) {
+        this(policyRegistry, observationPublisher, ruleMapper, GovernanceTraceRecorder.noop(), recentEventCapacity);
+    }
+
+    /** Creates a Sentinel runtime with explicit mapper, trace recorder, and diagnostics event capacity. */
+    public SentinelGovernanceRuntime(
+            GovernancePolicyRegistry policyRegistry,
+            NexaryObservationPublisher observationPublisher,
+            SentinelRuleMapper ruleMapper,
+            GovernanceTraceRecorder traceRecorder,
+            int recentEventCapacity) {
         this.policyRegistry = policyRegistry == null
                 ? LocalGovernancePolicyRegistry.builder().build()
                 : policyRegistry;
@@ -89,6 +106,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 ? NexaryObservationPublisher.noop()
                 : observationPublisher;
         this.ruleMapper = ruleMapper == null ? new SentinelRuleMapper() : ruleMapper;
+        this.traceRecorder = traceRecorder == null ? GovernanceTraceRecorder.noop() : traceRecorder;
         this.recentEventCapacity = Math.max(1, recentEventCapacity);
         loadConfiguredRules();
     }
@@ -147,6 +165,7 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         long retryStopped = 0L;
         long blocked = 0L;
         long isolated = 0L;
+        GovernanceFaultTraceSummary traceSummary = traceRecorder.summary();
         Map<String, Long> trafficClassCounts = new LinkedHashMap<>();
         Map<String, Long> priorityCounts = new LinkedHashMap<>();
         Instant lastEventAt = null;
@@ -204,12 +223,32 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 blocked,
                 isolated,
                 sentinelResources,
+                0L,
+                0L,
+                0L,
+                traceSummary.traceCount(),
+                traceSummary.stoppedCount(),
                 trafficClassCounts,
                 priorityCounts,
                 openCircuits,
                 halfOpenCircuits,
                 degradedResources,
                 lastEventAt);
+    }
+
+    @Override
+    public List<GovernanceFaultTrace> traces() {
+        return traceRecorder.traces();
+    }
+
+    @Override
+    public Optional<GovernanceFaultTrace> trace(String traceKey) {
+        return traceRecorder.trace(traceKey);
+    }
+
+    @Override
+    public GovernanceFaultTraceSummary faultTraceSummary() {
+        return traceRecorder.summary();
     }
 
     @Override
@@ -675,6 +714,17 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 recentEvents.removeFirst();
             }
         }
+        recordTrace(state, event);
+    }
+
+    private void recordTrace(State state, GovernanceRuntimeEvent event) {
+        if (state == null || event == null) {
+            return;
+        }
+        String traceKey = traceRecorder.start(state.resourceKey);
+        traceRecorder.record(traceKey, GovernanceTraceStep.fromEvent(event.traceStage(), event));
+        traceRecorder.finish(traceKey, event.outcome());
+        state.recordTrace(event.outcome(), event.tracePrimaryStopReason());
     }
 
     private static RetryStopReason retryStopReason(GovernanceDecision decision) {
@@ -728,7 +778,10 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                 descriptor.priority(),
                 GovernanceEngine.SENTINEL,
                 descriptor.policySnapshot(),
-                descriptor.runtimeSnapshot());
+                descriptor.runtimeSnapshot(),
+                descriptor.instanceHealthSnapshots(),
+                descriptor.lastTraceOutcome(),
+                descriptor.lastTraceStopReason());
     }
 
     private static GovernancePolicy policyFromSnapshot(GovernancePolicySnapshot snapshot) {
@@ -778,6 +831,8 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
         private Instant lastStateTransitionAt = Instant.now();
         private GovernanceCallOutcome lastOutcome = GovernanceCallOutcome.NONE;
         private Instant lastOutcomeAt;
+        private GovernanceCallOutcome lastTraceOutcome = GovernanceCallOutcome.NONE;
+        private GovernanceTraceStopReason lastTraceStopReason = GovernanceTraceStopReason.NONE;
         private GovernancePolicySnapshot lastPolicySnapshot;
 
         private State(
@@ -893,6 +948,13 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
             }
         }
 
+        private synchronized void recordTrace(
+                GovernanceCallOutcome outcome,
+                GovernanceTraceStopReason stopReason) {
+            lastTraceOutcome = outcome == null ? GovernanceCallOutcome.NONE : outcome;
+            lastTraceStopReason = stopReason == null ? GovernanceTraceStopReason.NONE : stopReason;
+        }
+
         private synchronized GovernanceResourceDescriptor descriptor() {
             return new GovernanceResourceDescriptor(
                     resourceKey,
@@ -904,7 +966,10 @@ public final class SentinelGovernanceRuntime implements GovernanceRuntime {
                     priority.diagnosticName(),
                     GovernanceEngine.SENTINEL,
                     lastPolicySnapshot,
-                    snapshot());
+                    snapshot(),
+                    java.util.Collections.emptyList(),
+                    lastTraceOutcome,
+                    lastTraceStopReason);
         }
 
         private synchronized GovernanceRuntimeSnapshot snapshot() {

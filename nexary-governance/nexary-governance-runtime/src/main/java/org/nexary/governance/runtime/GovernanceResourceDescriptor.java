@@ -19,6 +19,8 @@ public final class GovernanceResourceDescriptor {
     private final GovernancePolicySnapshot policySnapshot;
     private final GovernanceRuntimeSnapshot runtimeSnapshot;
     private final List<InstanceHealthSnapshot> instanceHealthSnapshots;
+    private final GovernanceCallOutcome lastTraceOutcome;
+    private final GovernanceTraceStopReason lastTraceStopReason;
 
     /** Creates a descriptor for a resource priority bucket. */
     public GovernanceResourceDescriptor(
@@ -96,6 +98,37 @@ public final class GovernanceResourceDescriptor {
             GovernancePolicySnapshot policySnapshot,
             GovernanceRuntimeSnapshot runtimeSnapshot,
             List<InstanceHealthSnapshot> instanceHealthSnapshots) {
+        this(
+                resourceKey,
+                kind,
+                name,
+                provider,
+                operation,
+                trafficClass,
+                priority,
+                engine,
+                policySnapshot,
+                runtimeSnapshot,
+                instanceHealthSnapshots,
+                GovernanceCallOutcome.NONE,
+                GovernanceTraceStopReason.NONE);
+    }
+
+    /** Creates a descriptor with instance health snapshots and last local trace metadata. */
+    public GovernanceResourceDescriptor(
+            String resourceKey,
+            GovernanceResource.ResourceKind kind,
+            String name,
+            String provider,
+            String operation,
+            String trafficClass,
+            String priority,
+            GovernanceEngine engine,
+            GovernancePolicySnapshot policySnapshot,
+            GovernanceRuntimeSnapshot runtimeSnapshot,
+            List<InstanceHealthSnapshot> instanceHealthSnapshots,
+            GovernanceCallOutcome lastTraceOutcome,
+            GovernanceTraceStopReason lastTraceStopReason) {
         this.resourceKey = resourceKey == null ? "custom:unknown:unknown:default" : resourceKey;
         this.kind = kind == null ? GovernanceResource.ResourceKind.CUSTOM : kind;
         this.name = name == null ? "unknown" : name;
@@ -109,6 +142,8 @@ public final class GovernanceResourceDescriptor {
                 : policySnapshot;
         this.runtimeSnapshot = runtimeSnapshot;
         this.instanceHealthSnapshots = immutableSnapshots(instanceHealthSnapshots);
+        this.lastTraceOutcome = lastTraceOutcome == null ? GovernanceCallOutcome.NONE : lastTraceOutcome;
+        this.lastTraceStopReason = lastTraceStopReason == null ? GovernanceTraceStopReason.NONE : lastTraceStopReason;
     }
 
     /** Returns the stable governed resource key. */
@@ -166,6 +201,16 @@ public final class GovernanceResourceDescriptor {
         return instanceHealthSnapshots;
     }
 
+    /** Returns the latest terminal trace outcome associated with this resource. */
+    public GovernanceCallOutcome lastTraceOutcome() {
+        return lastTraceOutcome;
+    }
+
+    /** Returns the latest primary stop reason associated with this resource. */
+    public GovernanceTraceStopReason lastTraceStopReason() {
+        return lastTraceStopReason;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -185,7 +230,9 @@ public final class GovernanceResourceDescriptor {
                 && engine == that.engine
                 && policySnapshot.equals(that.policySnapshot)
                 && Objects.equals(runtimeSnapshot, that.runtimeSnapshot)
-                && instanceHealthSnapshots.equals(that.instanceHealthSnapshots);
+                && instanceHealthSnapshots.equals(that.instanceHealthSnapshots)
+                && lastTraceOutcome == that.lastTraceOutcome
+                && lastTraceStopReason == that.lastTraceStopReason;
     }
 
     @Override
@@ -201,7 +248,9 @@ public final class GovernanceResourceDescriptor {
                 engine,
                 policySnapshot,
                 runtimeSnapshot,
-                instanceHealthSnapshots);
+                instanceHealthSnapshots,
+                lastTraceOutcome,
+                lastTraceStopReason);
     }
 
     private static List<InstanceHealthSnapshot> immutableSnapshots(List<InstanceHealthSnapshot> snapshots) {

@@ -12,4 +12,6 @@ public class GovernanceSampleConfiguration {
     public static final GovernanceResource CIRCUIT_RESOURCE = GovernanceResource.downstream("profile-service", "load-profile");
     public static final GovernanceResource INSTANCE_HEALTH_RESOURCE =
             GovernanceResource.downstream("profile-service", "instance-health");
+    public static final GovernanceResource TRACE_PRIORITY_RESOURCE =
+            GovernanceResource.downstream("priority-shared-service", "trace");
 }

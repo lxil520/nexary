@@ -90,3 +90,49 @@ nexary:
         name: profile-service
         provider: nexary
         operation: instance-health
+
+---
+spring:
+  config:
+    activate:
+      on-profile: trace
+
+nexary:
+  governance:
+    trace:
+      enabled: true
+      max-traces: 128
+      max-events-per-trace: 32
+      ttl: 10m
+      expose-external-trace-id: false
+    instance-health:
+      enabled: true
+      window: 30s
+      minimum-calls: 4
+      suspect-windows: 1
+      recovery-windows: 2
+      slow-call-threshold: 500ms
+      slow-ratio-threshold: 0.50
+      failure-ratio-threshold: 0.50
+      timeout-ratio-threshold: 0.30
+      skew-factor-threshold: 3.0
+      expose-raw-instance-key: false
+    resources:
+      profile-service-instance-health:
+        kind: downstream
+        name: profile-service
+        provider: nexary
+        operation: instance-health
+      trace-priority:
+        kind: downstream
+        name: priority-shared-service
+        provider: nexary
+        operation: trace
+        max-requests-per-window: 20
+        rate-limit-window: 1s
+        max-concurrency: 8
+        priorities:
+          low:
+            max-requests-per-window: 1
+            rate-limit-window: 1m
+            max-concurrency: 1

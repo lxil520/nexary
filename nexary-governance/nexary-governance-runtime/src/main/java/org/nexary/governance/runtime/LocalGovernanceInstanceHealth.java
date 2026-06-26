@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** In-memory detector for local instance health diagnostics. */
 public final class LocalGovernanceInstanceHealth implements GovernanceInstanceHealth {
     private final InstanceHealthSettings settings;
+    private final GovernanceTraceRecorder traceRecorder;
     private final Map<Key, State> states = new ConcurrentHashMap<>();
     private final ArrayDeque<GovernanceRuntimeEvent> recentEvents = new ArrayDeque<>();
     private final int recentEventCapacity;
@@ -29,7 +30,16 @@ public final class LocalGovernanceInstanceHealth implements GovernanceInstanceHe
 
     /** Creates a detector with explicit settings and event capacity. */
     public LocalGovernanceInstanceHealth(InstanceHealthSettings settings, int recentEventCapacity) {
+        this(settings, recentEventCapacity, GovernanceTraceRecorder.noop());
+    }
+
+    /** Creates a detector with explicit settings, event capacity, and trace recorder. */
+    public LocalGovernanceInstanceHealth(
+            InstanceHealthSettings settings,
+            int recentEventCapacity,
+            GovernanceTraceRecorder traceRecorder) {
         this.settings = settings == null ? new InstanceHealthSettings() : settings;
+        this.traceRecorder = traceRecorder == null ? GovernanceTraceRecorder.noop() : traceRecorder;
         this.recentEventCapacity = Math.max(1, recentEventCapacity);
     }
 
@@ -147,6 +157,9 @@ public final class LocalGovernanceInstanceHealth implements GovernanceInstanceHe
             }
             recentEvents.addLast(event);
         }
+        String traceKey = traceRecorder.start(state.instanceRef.resourceKey());
+        traceRecorder.record(traceKey, GovernanceTraceStep.fromEvent(event.traceStage(), event));
+        traceRecorder.finish(traceKey, event.outcome());
     }
 
     private static double ratio(int count, int total) {

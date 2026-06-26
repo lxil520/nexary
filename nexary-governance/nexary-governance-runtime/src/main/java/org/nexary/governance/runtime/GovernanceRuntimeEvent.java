@@ -27,6 +27,8 @@ public final class GovernanceRuntimeEvent {
     private final InstanceHealthState instanceHealthState;
     private final InstanceQuarantineReason quarantineReason;
     private final InstanceRecoveryAdvice recoveryAdvice;
+    private final GovernanceTraceStage traceStage;
+    private final GovernanceTraceStopReason tracePrimaryStopReason;
 
     /** Creates a low-cardinality runtime event. */
     public GovernanceRuntimeEvent(
@@ -230,6 +232,8 @@ public final class GovernanceRuntimeEvent {
         this.instanceHealthState = instanceHealthState == null ? InstanceHealthState.HEALTHY : instanceHealthState;
         this.quarantineReason = quarantineReason == null ? InstanceQuarantineReason.NONE : quarantineReason;
         this.recoveryAdvice = recoveryAdvice == null ? InstanceRecoveryAdvice.NONE : recoveryAdvice;
+        this.traceStage = defaultTraceStage(this.action);
+        this.tracePrimaryStopReason = GovernanceTraceStopReason.fromEvent(this);
     }
 
     /** Returns the stable governed resource key. */
@@ -317,6 +321,16 @@ public final class GovernanceRuntimeEvent {
         return recoveryAdvice;
     }
 
+    /** Returns the low-cardinality trace stage associated with this event. */
+    public GovernanceTraceStage traceStage() {
+        return traceStage;
+    }
+
+    /** Returns the primary local trace stop reason associated with this event. */
+    public GovernanceTraceStopReason tracePrimaryStopReason() {
+        return tracePrimaryStopReason;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -342,7 +356,9 @@ public final class GovernanceRuntimeEvent {
                 && durationBucket == that.durationBucket
                 && instanceHealthState == that.instanceHealthState
                 && quarantineReason == that.quarantineReason
-                && recoveryAdvice == that.recoveryAdvice;
+                && recoveryAdvice == that.recoveryAdvice
+                && traceStage == that.traceStage
+                && tracePrimaryStopReason == that.tracePrimaryStopReason;
     }
 
     @Override
@@ -364,6 +380,21 @@ public final class GovernanceRuntimeEvent {
                 durationBucket,
                 instanceHealthState,
                 quarantineReason,
-                recoveryAdvice);
+                recoveryAdvice,
+                traceStage,
+                tracePrimaryStopReason);
+    }
+
+    private static GovernanceTraceStage defaultTraceStage(GovernanceRuntimeAction action) {
+        if (action == GovernanceRuntimeAction.INSTANCE_SUSPECT
+                || action == GovernanceRuntimeAction.QUARANTINE_CANDIDATE
+                || action == GovernanceRuntimeAction.RECOVERY_PROBE
+                || action == GovernanceRuntimeAction.INSTANCE_RECOVERED) {
+            return GovernanceTraceStage.INSTANCE_HEALTH;
+        }
+        if (action == GovernanceRuntimeAction.CANCEL) {
+            return GovernanceTraceStage.REQUEST;
+        }
+        return GovernanceTraceStage.GOVERNANCE;
     }
 }

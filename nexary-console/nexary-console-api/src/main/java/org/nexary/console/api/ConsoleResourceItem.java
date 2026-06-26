@@ -18,6 +18,8 @@ public final class ConsoleResourceItem {
     private final ConsolePolicySnapshot policySnapshot;
     private final ConsoleRuntimeSnapshot runtimeSnapshot;
     private final List<ConsoleInstanceHealthSnapshot> instanceHealthSnapshots;
+    private final String lastTraceOutcome;
+    private final String lastTraceStopReason;
 
     /**
      * Creates a resource item from bounded resource, policy, and runtime fields.
@@ -93,6 +95,39 @@ public final class ConsoleResourceItem {
             ConsolePolicySnapshot policySnapshot,
             ConsoleRuntimeSnapshot runtimeSnapshot,
             List<ConsoleInstanceHealthSnapshot> instanceHealthSnapshots) {
+        this(
+                resourceKey,
+                engine,
+                kind,
+                name,
+                provider,
+                operation,
+                trafficClass,
+                priority,
+                policySnapshot,
+                runtimeSnapshot,
+                instanceHealthSnapshots,
+                "NONE",
+                "NONE");
+    }
+
+    /**
+     * Creates a resource item with instance fields and last local trace metadata.
+     */
+    public ConsoleResourceItem(
+            String resourceKey,
+            String engine,
+            String kind,
+            String name,
+            String provider,
+            String operation,
+            String trafficClass,
+            String priority,
+            ConsolePolicySnapshot policySnapshot,
+            ConsoleRuntimeSnapshot runtimeSnapshot,
+            List<ConsoleInstanceHealthSnapshot> instanceHealthSnapshots,
+            String lastTraceOutcome,
+            String lastTraceStopReason) {
         this.resourceKey = resourceKey;
         this.engine = engine;
         this.kind = kind;
@@ -106,6 +141,8 @@ public final class ConsoleResourceItem {
         this.instanceHealthSnapshots = instanceHealthSnapshots == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(instanceHealthSnapshots);
+        this.lastTraceOutcome = lastTraceOutcome;
+        this.lastTraceStopReason = lastTraceStopReason;
     }
 
     /** Returns the stable governed resource key. */
@@ -161,5 +198,15 @@ public final class ConsoleResourceItem {
     /** Returns current local instance health snapshots for this resource. */
     public List<ConsoleInstanceHealthSnapshot> getInstanceHealthSnapshots() {
         return instanceHealthSnapshots;
+    }
+
+    /** Returns the latest terminal trace outcome associated with this resource. */
+    public String getLastTraceOutcome() {
+        return lastTraceOutcome;
+    }
+
+    /** Returns the latest primary trace stop reason associated with this resource. */
+    public String getLastTraceStopReason() {
+        return lastTraceStopReason;
     }
 }

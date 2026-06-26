@@ -23,6 +23,8 @@ public final class ConsoleSummaryResponse {
     private final long instanceSuspectCount;
     private final long quarantineCandidateCount;
     private final long recoveryProbeCount;
+    private final long faultTraceCount;
+    private final long stoppedTraceCount;
     private final Map<String, Long> trafficClassCounts;
     private final Map<String, Long> priorityCounts;
     private final long openCircuitCount;
@@ -217,6 +219,59 @@ public final class ConsoleSummaryResponse {
             long halfOpenCircuitCount,
             long degradedResourceCount,
             String lastEventAt) {
+        this(
+                resourceCount,
+                snapshotCount,
+                eventCount,
+                successCount,
+                failureCount,
+                rejectedCount,
+                cancelledCount,
+                fallbackCount,
+                retryStoppedCount,
+                blockedCount,
+                isolatedCount,
+                sentinelResourceCount,
+                instanceSuspectCount,
+                quarantineCandidateCount,
+                recoveryProbeCount,
+                0L,
+                0L,
+                trafficClassCounts,
+                priorityCounts,
+                openCircuitCount,
+                halfOpenCircuitCount,
+                degradedResourceCount,
+                lastEventAt);
+    }
+
+    /**
+     * Creates a summary response from bounded aggregate counters, including local fault trace counters.
+     */
+    public ConsoleSummaryResponse(
+            int resourceCount,
+            int snapshotCount,
+            int eventCount,
+            long successCount,
+            long failureCount,
+            long rejectedCount,
+            long cancelledCount,
+            long fallbackCount,
+            long retryStoppedCount,
+            long blockedCount,
+            long isolatedCount,
+            long sentinelResourceCount,
+            long instanceSuspectCount,
+            long quarantineCandidateCount,
+            long recoveryProbeCount,
+            long faultTraceCount,
+            long stoppedTraceCount,
+            Map<String, Long> trafficClassCounts,
+            Map<String, Long> priorityCounts,
+            long openCircuitCount,
+            long halfOpenCircuitCount,
+            long degradedResourceCount,
+            String lastEventAt) {
         this.resourceCount = resourceCount;
         this.snapshotCount = snapshotCount;
         this.eventCount = eventCount;
@@ -232,6 +287,8 @@ public final class ConsoleSummaryResponse {
         this.instanceSuspectCount = instanceSuspectCount;
         this.quarantineCandidateCount = quarantineCandidateCount;
         this.recoveryProbeCount = recoveryProbeCount;
+        this.faultTraceCount = faultTraceCount;
+        this.stoppedTraceCount = stoppedTraceCount;
         this.trafficClassCounts = immutableCounts(trafficClassCounts);
         this.priorityCounts = immutableCounts(priorityCounts);
         this.openCircuitCount = openCircuitCount;
@@ -313,6 +370,16 @@ public final class ConsoleSummaryResponse {
     /** Returns instances currently advised for recovery probing. */
     public long getRecoveryProbeCount() {
         return recoveryProbeCount;
+    }
+
+    /** Returns retained local fault trace count. */
+    public long getFaultTraceCount() {
+        return faultTraceCount;
+    }
+
+    /** Returns retained local fault traces with a stop reason. */
+    public long getStoppedTraceCount() {
+        return stoppedTraceCount;
     }
 
     /** Returns retained recent-event counts by fixed traffic class. */

@@ -60,6 +60,18 @@ const { t } = useLocale();
           <dt><span>GET</span>{{ t('settings.events') }}</dt>
           <dd class="table-monospace">{{ settings.apiBase }}{{ settings.endpointPaths.events }}</dd>
         </div>
+        <div>
+          <dt><span>GET</span>{{ t('settings.traces') }}</dt>
+          <dd class="table-monospace">{{ settings.apiBase }}{{ settings.endpointPaths.traces }}</dd>
+        </div>
+        <div>
+          <dt><span>GET</span>{{ t('settings.traceDetail') }}</dt>
+          <dd class="table-monospace">{{ settings.apiBase }}{{ settings.endpointPaths.traceDetail }}</dd>
+        </div>
+        <div>
+          <dt><span>GET</span>{{ t('settings.faultSummary') }}</dt>
+          <dd class="table-monospace">{{ settings.apiBase }}{{ settings.endpointPaths.faultSummary }}</dd>
+        </div>
       </dl>
     </section>
   </div>

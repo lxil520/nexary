@@ -470,15 +470,22 @@ Included scope:
 
 ## `0.16.x` Trace and Fault Location
 
-The next step connects governance events, request cancellation, retry-stop, priority isolation, and abnormal instance candidates into a trace-oriented view. Users should be able to see why a call stopped, which governance rule blocked it, whether an abnormal instance candidate was involved, and which resource should be checked first.
+`0.16.0` connects governance events, request cancellation, retry-stop, priority isolation, and abnormal instance candidates into fault traces inside the current JVM. Users can see why a call stopped, which governance rule blocked it, whether an abnormal instance candidate was involved, and which resource should be checked first.
 
-Planned scope:
+Included scope:
 
-- Add low-cardinality trace / span summaries to governance events.
-- Show request, downstream call, governance event, and instance health event relationships in samples.
-- Document how to inspect problems together with Micrometer Observation / OpenTelemetry.
+- API: add `GovernanceFaultTrace`, `GovernanceTraceStep`, `GovernanceTraceStage`, `GovernanceTraceStopReason`, `GovernanceFaultTraceSummary`, and `GovernanceTraceRecorder`.
+- Runtime: keep a local ring buffer with 128 traces by default and at most 32 steps per trace, dropping the oldest data first.
+- Diagnostics: add `/nexary/governance/traces`, `/nexary/governance/traces/{traceKey}`, and `/nexary/governance/faults/summary`.
+- Console: Overview shows fault trace counts, Resources show recent trace state, Events add trace filters, and Trace detail shows a read-only step timeline.
+- Samples: `nexary-sample-governance` adds the `trace` profile and `scripts/governance-trace/smoke.sh`.
+- Safety: `traceKey` is only for local lookup and is not a metric tag; traces do not expose payloads, URL queries, user ids, tenants, message ids, cache keys, exception text, or stack traces.
 
-This does not add a distributed tracing backend, a log collection platform, or request-body storage.
+`0.16.x` does not include:
+
+- Jaeger, Zipkin, SkyWalking, or an OpenTelemetry exporter.
+- cross-instance trace backend, remote sampling platform, or log collection platform.
+- policy editing, quarantine buttons, remote config push, or audit backend.
 
 ## `0.17+` Capacity, Fault Injection, and Automatic Stop-Loss Evaluation
 

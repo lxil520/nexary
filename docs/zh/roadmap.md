@@ -470,15 +470,22 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 
 ## `0.16.x` Trace 与故障定位
 
-下一步把治理事件、请求取消、停止重试、优先级隔离和实例异常候选串到 trace 视角。目标是让用户看到一次调用为什么停止、被哪个治理规则拦住、是否命中异常实例候选，以及应先排查哪个 resource。
+`0.16.0` 已把治理事件、请求取消、停止重试、优先级隔离和实例异常候选串到当前 JVM 内的 fault trace 视角。用户可以看到一次调用为什么停止、被哪个治理规则拦住、是否命中异常实例候选，以及应先排查哪个 resource。
 
-计划范围：
+已纳入范围：
 
-- 为治理事件补 trace / span 关联字段的低基数摘要。
-- 在样例中展示请求、下游调用、治理事件和实例健康事件的关联。
-- 文档说明如何和 Micrometer Observation / OpenTelemetry 一起看问题。
+- API：新增 `GovernanceFaultTrace`、`GovernanceTraceStep`、`GovernanceTraceStage`、`GovernanceTraceStopReason`、`GovernanceFaultTraceSummary` 和 `GovernanceTraceRecorder`。
+- Runtime：本地 ring buffer 默认保留最近 128 条 trace，每条最多 32 个 step，超出后丢弃最旧数据。
+- Diagnostics：新增 `/nexary/governance/traces`、`/nexary/governance/traces/{traceKey}` 和 `/nexary/governance/faults/summary`。
+- Console：Overview 显示 fault trace 数，Resources 显示最近 trace 状态，Events 增加 trace 过滤，Trace detail 展示只读 step 时间线。
+- Samples：`nexary-sample-governance` 增加 `trace` profile 和 `scripts/governance-trace/smoke.sh`。
+- Safety：`traceKey` 只用于本地查询，不进入指标 tag；trace 不输出 payload、URL query、userId、tenant、messageId、cache key、异常全文或 stack trace。
 
-不做分布式追踪后端，不内置日志采集平台，不保存业务请求体。
+`0.16.x` 不包含：
+
+- Jaeger、Zipkin、SkyWalking 或 OpenTelemetry exporter。
+- 跨实例 trace 后端、远程采样平台或日志采集平台。
+- 策略编辑、封禁按钮、远程下发或审计后台。
 
 ## `0.17+` 容量、混沌与自动止损评估
 

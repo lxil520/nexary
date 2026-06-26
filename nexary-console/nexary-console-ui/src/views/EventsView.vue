@@ -18,6 +18,8 @@ const filters = ref<EventFilters>({
   isolationReason: 'ALL',
   trafficClass: 'ALL',
   priority: 'ALL',
+  traceStage: 'ALL',
+  traceStopReason: 'ALL',
   circuitState: 'ALL',
 });
 
@@ -27,6 +29,8 @@ const reasonOptions = computed(() => uniqueSorted(events.value.map((event) => ev
 const isolationOptions = computed(() => uniqueSorted(events.value.map((event) => event.isolationReason ?? 'NONE')));
 const trafficOptions = computed(() => uniqueSorted(events.value.map((event) => event.trafficClass ?? 'ONLINE')));
 const priorityOptions = computed(() => uniqueSorted(events.value.map((event) => event.priority ?? 'NORMAL')));
+const traceStageOptions = computed(() => uniqueSorted(events.value.map((event) => event.traceStage ?? 'GOVERNANCE')));
+const traceStopOptions = computed(() => uniqueSorted(events.value.map((event) => event.tracePrimaryStopReason ?? 'NONE')));
 const circuitOptions = computed(() => uniqueSorted(events.value.map((event) => event.circuitState)));
 
 onMounted(() => {
@@ -78,6 +82,20 @@ onMounted(() => {
         <select v-model="filters.priority">
           <option value="ALL">{{ t('filters.all') }}</option>
           <option v-for="priority in priorityOptions" :key="priority" :value="priority">{{ enumLabel(priority) }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('filters.traceStage') }}</span>
+        <select v-model="filters.traceStage">
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="stage in traceStageOptions" :key="stage" :value="stage">{{ enumLabel(stage) }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('filters.stopReason') }}</span>
+        <select v-model="filters.traceStopReason">
+          <option value="ALL">{{ t('filters.all') }}</option>
+          <option v-for="reason in traceStopOptions" :key="reason" :value="reason">{{ enumLabel(reason) }}</option>
         </select>
       </label>
       <label class="field">

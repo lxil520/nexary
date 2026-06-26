@@ -12,10 +12,26 @@ const tone = computed(() => {
   if (value === 'SUCCESS' || value === 'CLOSED') {
     return 'success';
   }
-  if (value === 'OPEN' || value === 'FAILURE' || value === 'REJECTED' || value.includes('LIMITED')) {
+  if (
+    value === 'OPEN' ||
+    value === 'FAILURE' ||
+    value === 'REJECTED' ||
+    value === 'BLOCKED' ||
+    value === 'INSTANCE_QUARANTINE_CANDIDATE' ||
+    value === 'QUARANTINE_CANDIDATE' ||
+    value.includes('LIMITED')
+  ) {
     return 'danger';
   }
-  if (value === 'HALF_OPEN' || value === 'DEGRADED' || value === 'ISOLATED' || value === 'WARN' || value.includes('SLOW')) {
+  if (
+    value === 'HALF_OPEN' ||
+    value === 'DEGRADED' ||
+    value === 'ISOLATED' ||
+    value === 'CANCELLED' ||
+    value === 'RETRY_STOPPED' ||
+    value === 'WARN' ||
+    value.includes('SLOW')
+  ) {
     return 'warning';
   }
   if (value === 'EXECUTE' || value === 'FALLBACK') {
