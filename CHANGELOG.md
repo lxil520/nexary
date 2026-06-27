@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.0
+
+- Added incident evidence chains on top of the read-only governance platform model.
+- Extended `IncidentCandidate` with start time, primary resource, evidence count, and impacted resource count.
+- Extended `EvidenceItem` with service, cluster, zone, duration bucket, message, reference type, and reference key.
+- Added `GET /api/platform/incidents/{incidentKey}` for a single incident candidate.
+- Added warning and critical counts to dependency edges so Console can show which dependency has evidence.
+- Updated Console Platform Mode to show primary resources, impacted resources, evidence timelines, and suggested checks.
+- Updated the governance platform sample and smoke script with open-api and room-resource incident evidence.
+- Kept evidence references as low-cardinality reference type/key values; real Prometheus, SkyWalking, Sentinel Dashboard, and Gateway read-only connectors remain outside this release.
+- Kept external connectors, production alerts, policy writes, and external tool configuration changes out of this release.
+
 ## 0.17.0
 
 - Added the read-only governance platform foundation with asset, dependency, connector, signal, topology, service, and incident candidate models.

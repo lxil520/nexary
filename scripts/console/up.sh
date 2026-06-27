@@ -12,7 +12,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 cd "$ROOT_DIR"
-./gradlew :nexary-samples:nexary-sample-governance:installDist -PnexaryVersion="${NEXARY_VERSION:-0.17.0}"
+./gradlew :nexary-samples:nexary-sample-governance:installDist -PnexaryVersion="${NEXARY_VERSION:-0.18.0}"
 rm -rf "$APP_BUILD_DIR"
 mkdir -p "$(dirname "$APP_BUILD_DIR")"
 cp -R "$APP_INSTALL_DIR" "$APP_BUILD_DIR"

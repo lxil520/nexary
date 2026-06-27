@@ -40,9 +40,12 @@ public final class GovernancePlatformDemoData implements ApplicationRunner {
         platformService.recordResources(new GovernancePlatformResourceReport(assets(), dependencies(), connectors()));
         Instant now = Instant.now();
         platformService.recordSignal(signal("open-api", "open-api-cluster", "cn-east", "http:open-api:profile", GovernanceSignalType.ERROR_RATE, GovernanceSignalSeverity.WARNING, "ERROR", "100_250MS", now.minusSeconds(90)));
+        platformService.recordSignal(signal("open-api", "open-api-cluster", "cn-east", "downstream:open-api:profile", GovernanceSignalType.LATENCY, GovernanceSignalSeverity.WARNING, "SLOW", "GT_2S", now.minusSeconds(82), "promql-open-api-p95"));
+        platformService.recordSignal(signal("open-api", "open-api-cluster", "cn-east", "sentinel:open-api:profile", GovernanceSignalType.SENTINEL_BLOCK, GovernanceSignalSeverity.CRITICAL, "BLOCKED", "LT_50MS", now.minusSeconds(78), "sentinel-open-api-profile"));
         platformService.recordSignal(signal("sdk-api", "sdk-api-cluster", "cn-east", "gateway:sdk-api:disconnect", GovernanceSignalType.GATEWAY_DISCONNECT, GovernanceSignalSeverity.WARNING, "DISCONNECTED", "LT_50MS", now.minusSeconds(70)));
         platformService.recordSignal(signal("consumer", "consumer-cluster", "cn-east", "mq:consumer:retry-stop", GovernanceSignalType.RETRY_STOPPED, GovernanceSignalSeverity.WARNING, "STOPPED", "NOT_RUN", now.minusSeconds(60)));
-        platformService.recordSignal(signal("room-resource", "room-resource-cluster", "room-a", "downstream:room-resource:allocate", GovernanceSignalType.QUARANTINE_CANDIDATE, GovernanceSignalSeverity.CRITICAL, "SUSPECT", "GT_2S", now.minusSeconds(30)));
+        platformService.recordSignal(signal("room-resource", "room-resource-cluster", "room-a", "downstream:room-resource:allocate", GovernanceSignalType.INSTANCE_SUSPECT, GovernanceSignalSeverity.WARNING, "SUSPECT", "GT_2S", now.minusSeconds(42), "instance-health-room-resource"));
+        platformService.recordSignal(signal("room-resource", "room-resource-cluster", "room-a", "downstream:room-resource:allocate", GovernanceSignalType.QUARANTINE_CANDIDATE, GovernanceSignalSeverity.CRITICAL, "SUSPECT", "GT_2S", now.minusSeconds(30), "instance-health-room-resource"));
     }
 
     private List<GovernanceAsset> assets() {
@@ -67,6 +70,7 @@ public final class GovernancePlatformDemoData implements ApplicationRunner {
     private List<GovernanceDependency> dependencies() {
         return List.of(
                 dependency("open-api", "sdk-api", GovernanceDependencyKind.HTTP, "http:open-api:sdk-api"),
+                dependency("open-api", "user-platform", GovernanceDependencyKind.HTTP, "downstream:open-api:profile"),
                 dependency("open-api", "redis-main", GovernanceDependencyKind.CACHE, "cache:open-api:profile"),
                 dependency("open-api", "pg-primary", GovernanceDependencyKind.DATABASE, "jdbc:open-api:account"),
                 dependency("sdk-api", "signaling", GovernanceDependencyKind.SIGNALING, "signal:sdk-api:connect"),
@@ -130,5 +134,31 @@ public final class GovernancePlatformDemoData implements ApplicationRunner {
                 durationBucket,
                 timestamp,
                 Map.of("source", "demo"));
+    }
+
+    private GovernanceSignal signal(
+            String service,
+            String cluster,
+            String zone,
+            String resourceKey,
+            GovernanceSignalType type,
+            GovernanceSignalSeverity severity,
+            String outcome,
+            String durationBucket,
+            Instant timestamp,
+            String reference) {
+        return new GovernanceSignal(
+                "cloud-phone",
+                "prod-demo",
+                service,
+                cluster,
+                zone,
+                resourceKey,
+                type,
+                severity,
+                outcome,
+                durationBucket,
+                timestamp,
+                Map.of("source", "demo", "reference", reference));
     }
 }

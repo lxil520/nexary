@@ -55,4 +55,21 @@ class GovernancePlatformModelTest {
                 "Open API",
                 Map.of()));
     }
+
+    @Test
+    void evidenceRejectsHighCardinalityReferenceKey() {
+        assertThrows(IllegalArgumentException.class, () -> new EvidenceItem(
+                GovernanceSignalType.LATENCY,
+                GovernanceSignalSeverity.WARNING,
+                "open-api",
+                "open-api-cluster",
+                "cn-east",
+                "http:open-api:profile",
+                "SLOW",
+                "GT_2S",
+                "Latency evidence",
+                "TRACE",
+                "trace id with spaces",
+                Instant.EPOCH));
+    }
 }

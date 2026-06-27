@@ -5,7 +5,7 @@
 运行：
 
 ```bash
-./gradlew :nexary-samples:nexary-sample-governance-platform:run
+./gradlew :nexary-samples:nexary-sample-governance-platform:bootRun
 ```
 
 查看平台 API：

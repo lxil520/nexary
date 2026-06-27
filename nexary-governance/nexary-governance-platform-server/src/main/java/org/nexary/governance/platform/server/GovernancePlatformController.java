@@ -13,6 +13,7 @@ import org.nexary.governance.platform.GovernanceSignalSeverity;
 import org.nexary.governance.platform.GovernanceSignalType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -65,6 +66,15 @@ public final class GovernancePlatformController {
     @GetMapping("/incidents")
     public Map<String, Object> incidents() {
         return Map.of("items", service.incidents().stream().map(PlatformJson::incident).toList());
+    }
+
+    /** Returns one incident candidate by stable key. */
+    @GetMapping("/incidents/{incidentKey}")
+    public ResponseEntity<Map<String, Object>> incident(@PathVariable("incidentKey") String incidentKey) {
+        return service.incident(incidentKey)
+                .map(PlatformJson::incident)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /** Returns connector statuses. */

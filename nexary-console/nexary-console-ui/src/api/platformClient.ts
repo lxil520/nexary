@@ -114,7 +114,11 @@ function toIncident(data: unknown): PlatformIncidentCandidate {
     impactScope: toImpact(record.impactScope),
     evidence: readItems(record.evidence).map(toEvidence),
     suggestedCheck: record.suggestedCheck ? toSuggestedCheck(record.suggestedCheck) : null,
+    startedAt: readNullableString(record, 'startedAt'),
     lastSeenAt: readNullableString(record, 'lastSeenAt'),
+    primaryResourceKey: readString(record, 'primaryResourceKey', 'unknown'),
+    evidenceCount: readNumber(record, 'evidenceCount'),
+    impactedResourceCount: readNumber(record, 'impactedResourceCount'),
   };
 }
 
@@ -132,8 +136,15 @@ function toEvidence(data: unknown): PlatformEvidenceItem {
   return {
     signalType: readString(record, 'signalType', 'RESOURCE_EVENT'),
     severity: readString(record, 'severity', 'INFO') as PlatformSeverity,
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    clusterKey: readString(record, 'clusterKey', 'unknown'),
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
     resourceKey: readString(record, 'resourceKey', 'unknown'),
     outcome: readString(record, 'outcome', 'NONE'),
+    durationBucket: readString(record, 'durationBucket', 'NOT_RUN'),
+    message: readString(record, 'message', ''),
+    referenceType: readString(record, 'referenceType', 'NONE'),
+    referenceKey: readString(record, 'referenceKey', 'NONE'),
     timestamp: readNullableString(record, 'timestamp'),
   };
 }
@@ -183,9 +194,26 @@ function mockPlatformSnapshot(): PlatformSnapshot {
       title: 'QUARANTINE_CANDIDATE on room-resource',
       severity: 'CRITICAL',
       impactScope: { serviceKey: 'room-resource', clusterKey: 'room-resource-cluster', zoneKey: 'room-a' },
-      evidence: [{ signalType: 'QUARANTINE_CANDIDATE', severity: 'CRITICAL', resourceKey: 'downstream:room-resource:allocate', outcome: 'SUSPECT', timestamp: null }],
+      evidence: [{
+        signalType: 'QUARANTINE_CANDIDATE',
+        severity: 'CRITICAL',
+        serviceKey: 'room-resource',
+        clusterKey: 'room-resource-cluster',
+        zoneKey: 'room-a',
+        resourceKey: 'downstream:room-resource:allocate',
+        outcome: 'SUSPECT',
+        durationBucket: 'GT_2S',
+        message: 'QUARANTINE_CANDIDATE / SUSPECT / GT_2S',
+        referenceType: 'INSTANCE_HEALTH',
+        referenceKey: 'downstream:room-resource:allocate',
+        timestamp: null,
+      }],
       suggestedCheck: { resourceKey: 'downstream:room-resource:allocate', message: 'Check resource evidence before changing policy' },
+      startedAt: null,
       lastSeenAt: null,
+      primaryResourceKey: 'downstream:room-resource:allocate',
+      evidenceCount: 1,
+      impactedResourceCount: 1,
     },
   ];
   return {

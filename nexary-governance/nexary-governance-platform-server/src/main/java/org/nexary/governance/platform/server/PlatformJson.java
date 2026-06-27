@@ -70,7 +70,11 @@ final class PlatformJson {
         json.put("impactScope", impact(incident.impactScope()));
         json.put("evidence", incident.evidence().stream().map(PlatformJson::evidence).toList());
         json.put("suggestedCheck", suggestedCheck(incident.suggestedCheck()));
+        json.put("startedAt", incident.startedAt());
         json.put("lastSeenAt", incident.lastSeenAt());
+        json.put("primaryResourceKey", incident.primaryResourceKey());
+        json.put("evidenceCount", incident.evidenceCount());
+        json.put("impactedResourceCount", incident.impactedResourceCount());
         return json;
     }
 
@@ -95,8 +99,15 @@ final class PlatformJson {
         Map<String, Object> json = new LinkedHashMap<>();
         json.put("signalType", evidence.signalType().name());
         json.put("severity", evidence.severity().name());
+        json.put("serviceKey", evidence.serviceKey());
+        json.put("clusterKey", evidence.clusterKey());
+        json.put("zoneKey", evidence.zoneKey());
         json.put("resourceKey", evidence.resourceKey());
         json.put("outcome", evidence.outcome());
+        json.put("durationBucket", evidence.durationBucket());
+        json.put("message", evidence.message());
+        json.put("referenceType", evidence.referenceType());
+        json.put("referenceKey", evidence.referenceKey());
         json.put("timestamp", evidence.timestamp());
         return json;
     }

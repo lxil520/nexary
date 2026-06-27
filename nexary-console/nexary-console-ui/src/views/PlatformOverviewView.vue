@@ -31,6 +31,12 @@ const copy = computed(() =>
         integrations: '接入状态',
         evidence: '证据',
         suggested: '建议检查',
+        primaryResource: '首要资源',
+        evidenceCount: '证据',
+        impactedResources: '影响资源',
+        timeline: '证据时间线',
+        reference: '引用',
+        window: '窗口',
         noIncidents: '当前没有事故候选',
         noConnectors: '没有连接器状态',
         warnings: '警告',
@@ -57,6 +63,12 @@ const copy = computed(() =>
         integrations: 'Integrations',
         evidence: 'Evidence',
         suggested: 'Suggested check',
+        primaryResource: 'Primary resource',
+        evidenceCount: 'Evidence',
+        impactedResources: 'Impacted resources',
+        timeline: 'Evidence timeline',
+        reference: 'Reference',
+        window: 'Window',
         noIncidents: 'No incident candidates',
         noConnectors: 'No connector status',
         warnings: 'Warnings',
@@ -143,15 +155,34 @@ onMounted(() => {
             <strong>{{ incident.title }}</strong>
             <span>{{ incident.impactScope.serviceKey }} · {{ incident.impactScope.clusterKey }} · {{ incident.impactScope.zoneKey }}</span>
           </div>
+          <dl class="incident-row__meta">
+            <div>
+              <dt>{{ copy.primaryResource }}</dt>
+              <dd>{{ incident.primaryResourceKey }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.evidenceCount }}</dt>
+              <dd>{{ incident.evidenceCount }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.impactedResources }}</dt>
+              <dd>{{ incident.impactedResourceCount }}</dd>
+            </div>
+          </dl>
           <div class="incident-row__evidence">
-            <p>{{ copy.evidence }}</p>
-            <span v-for="item in incident.evidence.slice(0, 3)" :key="`${incident.incidentKey}-${item.resourceKey}-${item.signalType}`">
-              {{ item.signalType }} / {{ item.resourceKey }}
+            <p>{{ copy.timeline }}</p>
+            <span
+              v-for="item in incident.evidence.slice(0, 3)"
+              :key="`${incident.incidentKey}-${item.resourceKey}-${item.signalType}-${item.timestamp}`"
+            >
+              {{ item.signalType }} / {{ item.resourceKey }} / {{ item.durationBucket }}
+              <small>{{ copy.reference }} {{ item.referenceType }}:{{ item.referenceKey }}</small>
             </span>
           </div>
           <div v-if="incident.suggestedCheck" class="incident-row__suggested">
             <p>{{ copy.suggested }}</p>
             <span>{{ incident.suggestedCheck.resourceKey }}</span>
+            <small>{{ incident.suggestedCheck.message }}</small>
           </div>
         </article>
       </section>
@@ -167,7 +198,7 @@ onMounted(() => {
         <div class="topology-list">
           <div v-for="edge in snapshot.topology.dependencies.slice(0, 9)" :key="`${edge.sourceKey}-${edge.targetKey}-${edge.resourceKey}`">
             <strong>{{ edge.sourceKey }}</strong>
-            <span>{{ edge.kind }}</span>
+            <span>{{ edge.kind }} · {{ edge.warningCount }} / {{ edge.criticalCount }}</span>
             <strong>{{ edge.targetKey }}</strong>
           </div>
         </div>
@@ -201,6 +232,25 @@ onMounted(() => {
             <span>{{ service.warningCount }}</span>
             <span>{{ service.criticalCount }}</span>
           </div>
+        </div>
+      </section>
+
+      <section class="platform-panel platform-panel--wide">
+        <header>
+          <div>
+            <p class="eyebrow">{{ copy.evidence }}</p>
+            <h3>{{ copy.timeline }}</h3>
+          </div>
+          <span>{{ snapshot.signals.length }}</span>
+        </header>
+        <div class="evidence-timeline">
+          <article v-for="signal in snapshot.signals.slice(0, 8)" :key="`${signal.resourceKey}-${signal.signalType}-${signal.timestamp}`">
+            <div>
+              <strong>{{ signal.signalType }}</strong>
+              <span>{{ signal.serviceKey }} · {{ signal.clusterKey }} · {{ signal.zoneKey }}</span>
+            </div>
+            <p>{{ signal.resourceKey }} / {{ signal.outcome }} / {{ signal.durationBucket }}</p>
+          </article>
         </div>
       </section>
 

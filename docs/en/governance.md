@@ -2,9 +2,9 @@
 
 Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. The verified path now has two execution engines. The default local engine handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM. The Boot3 Sentinel provider can execute flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking through Sentinel. Both paths reuse Nexary resources, policy snapshots, low-cardinality diagnostics, and the read-only Console.
 
-The boundary is deliberate: the local governance runtime does not provide a sidecar, agent, remote config push, or cross-instance state sync. The `0.17.0` governance platform only aggregates resources, signals, topology, and incident candidates in read-only form. It does not modify Sentinel, Gateway, APM, registry, or notification-channel configuration.
+The boundary is deliberate: the local governance runtime does not provide a sidecar, agent, remote config push, or cross-instance state sync. The governance platform only aggregates resources, signals, topology, and incident candidates in read-only form. It does not modify Sentinel, Gateway, APM, registry, or notification-channel configuration.
 
-The `0.17.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, and low-cardinality signals reported by JVMs or connectors into read-only topology, service lists, and incident candidates. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. v0.17 platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
+The `0.18.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, and low-cardinality signals reported by JVMs or connectors into read-only topology, service lists, and incident candidates. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals from the same service, cluster, and zone into one incident candidate with a primary resource, impacted resource count, evidence timeline, and suggested check. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
 
 ## Add Dependencies
 
@@ -38,7 +38,7 @@ Run the sample:
 To inspect the read-only governance platform view:
 
 ```bash
-./gradlew :nexary-samples:nexary-sample-governance-platform:run
+./gradlew :nexary-samples:nexary-sample-governance-platform:bootRun
 curl -s http://localhost:18092/api/platform/topology
 curl -s http://localhost:18092/api/platform/incidents
 open http://localhost:18092/nexary/console/platform
@@ -46,13 +46,25 @@ open http://localhost:18092/nexary/console/platform
 
 ## v0.17 Read-Only Governance Platform Foundation
 
-`0.17.0` adds three platform modules:
+The platform foundation contains three modules:
 
 - `nexary-governance-platform-api`: assets, dependencies, connectors, signals, topology, and incident candidate models.
 - `nexary-governance-platform-server`: `POST /api/platform/resources`, `POST /api/platform/signals`, `GET /api/platform/topology`, `GET /api/platform/services`, and `GET /api/platform/incidents`.
 - `nexary-governance-platform-storage-postgres`: an explicit Postgres repository. The demo still uses in-memory storage by default.
 
 The first Platform Mode is read-only. It shows services, dependencies, incident candidates, and connector status. It does not edit policies, write Sentinel rules, change Gateway routes, or send production alerts.
+
+## v0.18 Incident Evidence Chain
+
+`0.18.0` builds the incident evidence chain on top of the v0.17 platform foundation:
+
+- `IncidentCandidate` now carries `startedAt`, `primaryResourceKey`, `evidenceCount`, and `impactedResourceCount`.
+- `EvidenceItem` now carries service, cluster, zone, duration bucket, reference type, and reference key.
+- `/api/platform/incidents/{incidentKey}` returns one incident candidate.
+- Dependency edges expose warning and critical counts so Console can show which dependency has evidence.
+- `nexary-sample-governance-platform` now seeds open-api and room-resource incident candidates for local verification.
+
+`referenceType` and `referenceKey` are low-cardinality references only. They explain whether the evidence came from a metric query, Sentinel resource, Gateway route, instance health, or fault trace. v0.18 does not connect to a real SkyWalking, Prometheus, Sentinel Dashboard, or Gateway management API; those read-only connectors remain in the v0.20 roadmap slot.
 
 ## v0.12 Sentinel Provider
 

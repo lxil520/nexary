@@ -41,8 +41,15 @@ export interface PlatformImpactScope {
 export interface PlatformEvidenceItem {
   signalType: string;
   severity: PlatformSeverity;
+  serviceKey: string;
+  clusterKey: string;
+  zoneKey: string;
   resourceKey: string;
   outcome: string;
+  durationBucket: string;
+  message: string;
+  referenceType: string;
+  referenceKey: string;
   timestamp: string | null;
 }
 
@@ -58,7 +65,11 @@ export interface PlatformIncidentCandidate {
   impactScope: PlatformImpactScope;
   evidence: PlatformEvidenceItem[];
   suggestedCheck: PlatformSuggestedCheck | null;
+  startedAt: string | null;
   lastSeenAt: string | null;
+  primaryResourceKey: string;
+  evidenceCount: number;
+  impactedResourceCount: number;
 }
 
 export interface PlatformSignal {

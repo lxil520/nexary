@@ -512,7 +512,7 @@ Later releases should first make the existing governance work usable as a platfo
 
 Planned direction:
 
-- `0.18.x`: signal ingestion and incident evidence chains, grouping slow calls, rate limits, retry-stop, and abnormal instances into readable incident candidates.
+- `0.18.x`: signal ingestion and incident evidence chains, grouping slow calls, rate limits, retry-stop, and abnormal instances into readable incident candidates. `0.18.0` adds primary resource, impacted resource count, evidence timeline, suggested check, single-incident query endpoint, and dependency-edge alert counts.
 - `0.19.x`: Console product redesign for daily operations instead of local count cards.
 - `0.20.x`: read-only connectors for Sentinel, Gateway, Prometheus / Alertmanager, and OTel / SkyWalking.
 - `0.21.x`: alert routing and Feishu / DingTalk dry-run.

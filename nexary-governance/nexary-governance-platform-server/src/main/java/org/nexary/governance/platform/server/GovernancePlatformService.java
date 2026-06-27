@@ -11,6 +11,7 @@ import org.nexary.governance.platform.GovernancePlatformResourceReport;
 import org.nexary.governance.platform.GovernanceServiceNode;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSignalSeverity;
+import org.nexary.governance.platform.GovernanceSignalType;
 import org.nexary.governance.platform.GovernanceTopology;
 import org.nexary.governance.platform.ImpactScope;
 import org.nexary.governance.platform.IncidentCandidate;
@@ -24,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Read-only platform service for asset ingestion, topology projection, and incident candidates. */
@@ -66,7 +68,7 @@ public final class GovernancePlatformService {
         Map<String, List<GovernanceSignal>> grouped = repository.signals().stream()
                 .filter(signal -> signal.severity() == GovernanceSignalSeverity.WARNING
                         || signal.severity() == GovernanceSignalSeverity.CRITICAL)
-                .collect(Collectors.groupingBy(signal -> signal.serviceKey() + ":" + signal.resourceKey()));
+                .collect(Collectors.groupingBy(this::incidentGroupKey));
         List<IncidentCandidate> candidates = new ArrayList<>();
         for (Map.Entry<String, List<GovernanceSignal>> entry : grouped.entrySet()) {
             List<GovernanceSignal> signals = entry.getValue();
@@ -81,20 +83,42 @@ public final class GovernancePlatformService {
                     ? GovernanceSignalSeverity.CRITICAL : GovernanceSignalSeverity.WARNING;
             List<EvidenceItem> evidence = signals.stream()
                     .sorted(Comparator.comparing(GovernanceSignal::timestamp).reversed())
-                    .limit(6)
+                    .limit(8)
                     .map(this::evidence)
                     .toList();
+            GovernanceSignal primary = signals.stream()
+                    .max(this::comparePrimarySignal)
+                    .orElse(latest);
+            Instant startedAt = signals.stream()
+                    .map(GovernanceSignal::timestamp)
+                    .min(Comparator.naturalOrder())
+                    .orElse(latest.timestamp());
+            int resourceCount = (int) signals.stream().map(GovernanceSignal::resourceKey).distinct().count();
             candidates.add(new IncidentCandidate(
-                    "incident-" + latest.serviceKey() + "-" + latest.resourceKey(),
-                    latest.signalType().name() + " on " + latest.serviceKey(),
+                    "incident-" + latest.environmentKey() + "-" + latest.serviceKey() + "-" + latest.clusterKey() + "-" + latest.zoneKey(),
+                    incidentTitle(severity, latest),
                     severity,
                     new ImpactScope(latest.serviceKey(), latest.clusterKey(), latest.zoneKey()),
                     evidence,
-                    new SuggestedCheck(latest.resourceKey(), "Check resource evidence before changing policy"),
-                    latest.timestamp()));
+                    suggestedCheck(primary),
+                    startedAt,
+                    latest.timestamp(),
+                    primary.resourceKey(),
+                    signals.size(),
+                    resourceCount));
         }
         candidates.sort(Comparator.comparing(IncidentCandidate::lastSeenAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
         return candidates;
+    }
+
+    /** Returns one incident candidate by stable key. */
+    public Optional<IncidentCandidate> incident(String incidentKey) {
+        if (incidentKey == null || incidentKey.isBlank()) {
+            return Optional.empty();
+        }
+        return incidents().stream()
+                .filter(candidate -> candidate.incidentKey().equals(incidentKey))
+                .findFirst();
     }
 
     /** Returns connector statuses sorted by connector key. */
@@ -162,14 +186,15 @@ public final class GovernancePlatformService {
                 merged.put(dependency.sourceKey() + "->" + dependency.targetKey() + ":" + dependency.resourceKey(), dependency);
             }
         }
+        Map<String, long[]> countsByResource = signalCountsByResource(repository.signals());
         return merged.values().stream()
                 .map(dependency -> new GovernanceDependencyEdge(
                         dependency.sourceKey(),
                         dependency.targetKey(),
                         dependency.kind(),
                         dependency.resourceKey(),
-                        0,
-                        0,
+                        countsByResource.getOrDefault(dependency.resourceKey(), new long[2])[0],
+                        countsByResource.getOrDefault(dependency.resourceKey(), new long[2])[1],
                         dependency.attributes()))
                 .sorted(Comparator.comparing(GovernanceDependencyEdge::sourceKey).thenComparing(GovernanceDependencyEdge::targetKey))
                 .toList();
@@ -198,8 +223,112 @@ public final class GovernancePlatformService {
         return new EvidenceItem(
                 signal.signalType(),
                 signal.severity(),
+                signal.serviceKey(),
+                signal.clusterKey(),
+                signal.zoneKey(),
                 signal.resourceKey(),
                 signal.outcome(),
+                signal.durationBucket(),
+                evidenceMessage(signal),
+                referenceType(signal),
+                referenceKey(signal),
                 signal.timestamp());
+    }
+
+    private String incidentGroupKey(GovernanceSignal signal) {
+        return signal.environmentKey() + ":" + signal.serviceKey() + ":" + signal.clusterKey() + ":" + signal.zoneKey();
+    }
+
+    private String incidentTitle(GovernanceSignalSeverity severity, GovernanceSignal signal) {
+        return severity.name() + " signals on " + signal.serviceKey();
+    }
+
+    private SuggestedCheck suggestedCheck(GovernanceSignal signal) {
+        return new SuggestedCheck(signal.resourceKey(), suggestedMessage(signal.signalType()));
+    }
+
+    private String suggestedMessage(GovernanceSignalType signalType) {
+        return switch (signalType) {
+            case QUARANTINE_CANDIDATE, INSTANCE_SUSPECT -> "Check abnormal instance evidence before changing traffic";
+            case GATEWAY_DISCONNECT -> "Check gateway disconnect and upstream timeout evidence";
+            case SENTINEL_BLOCK -> "Check Sentinel block count and mapped resource policy";
+            case RETRY_STOPPED -> "Check retry-stop evidence and downstream recovery";
+            case CANCELLATION -> "Check client disconnect or expired deadline evidence";
+            case LATENCY -> "Check latency evidence and downstream dependency";
+            case ERROR_RATE -> "Check error-rate evidence and impacted dependency";
+            case ACTIVE_REQUESTS -> "Check active request pressure and bulkhead state";
+            case REQUEST_RATE -> "Check traffic spike and resource limits";
+            case RESOURCE_EVENT -> "Check retained resource event evidence";
+        };
+    }
+
+    private String evidenceMessage(GovernanceSignal signal) {
+        return signal.signalType().name() + " / " + signal.outcome() + " / " + signal.durationBucket();
+    }
+
+    private String referenceType(GovernanceSignal signal) {
+        return switch (signal.signalType()) {
+            case SENTINEL_BLOCK -> "SENTINEL_RESOURCE";
+            case GATEWAY_DISCONNECT -> "GATEWAY_ROUTE";
+            case LATENCY, ERROR_RATE, ACTIVE_REQUESTS, REQUEST_RATE -> "METRIC_QUERY";
+            case QUARANTINE_CANDIDATE, INSTANCE_SUSPECT -> "INSTANCE_HEALTH";
+            case RETRY_STOPPED -> "FAULT_TRACE";
+            case CANCELLATION -> "CANCELLATION_EVENT";
+            case RESOURCE_EVENT -> "RESOURCE";
+        };
+    }
+
+    private String referenceKey(GovernanceSignal signal) {
+        return signal.attributes().getOrDefault("reference", signal.resourceKey());
+    }
+
+    private int comparePrimarySignal(GovernanceSignal left, GovernanceSignal right) {
+        int severity = Integer.compare(severityWeight(left.severity()), severityWeight(right.severity()));
+        if (severity != 0) {
+            return severity;
+        }
+        int type = Integer.compare(signalPriority(left.signalType()), signalPriority(right.signalType()));
+        if (type != 0) {
+            return type;
+        }
+        return left.timestamp().compareTo(right.timestamp());
+    }
+
+    private int severityWeight(GovernanceSignalSeverity severity) {
+        return switch (severity) {
+            case CRITICAL -> 3;
+            case WARNING -> 2;
+            case INFO -> 1;
+        };
+    }
+
+    private int signalPriority(GovernanceSignalType signalType) {
+        return switch (signalType) {
+            case QUARANTINE_CANDIDATE -> 100;
+            case INSTANCE_SUSPECT -> 90;
+            case GATEWAY_DISCONNECT -> 80;
+            case SENTINEL_BLOCK -> 75;
+            case RETRY_STOPPED -> 70;
+            case CANCELLATION -> 65;
+            case ERROR_RATE -> 60;
+            case LATENCY -> 55;
+            case ACTIVE_REQUESTS -> 50;
+            case REQUEST_RATE -> 40;
+            case RESOURCE_EVENT -> 10;
+        };
+    }
+
+    private Map<String, long[]> signalCountsByResource(List<GovernanceSignal> signals) {
+        Map<String, long[]> counts = new HashMap<>();
+        for (GovernanceSignal signal : signals) {
+            long[] resourceCounts = counts.computeIfAbsent(signal.resourceKey(), ignored -> new long[2]);
+            if (signal.severity() == GovernanceSignalSeverity.WARNING) {
+                resourceCounts[0]++;
+            }
+            if (signal.severity() == GovernanceSignalSeverity.CRITICAL) {
+                resourceCounts[1]++;
+            }
+        }
+        return counts;
     }
 }

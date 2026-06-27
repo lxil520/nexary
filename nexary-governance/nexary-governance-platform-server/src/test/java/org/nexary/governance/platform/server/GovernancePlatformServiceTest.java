@@ -43,5 +43,45 @@ class GovernancePlatformServiceTest {
         assertEquals(1, service.topology().dependencies().size());
         assertEquals(1, service.incidents().size());
         assertEquals("open-api", service.incidents().get(0).impactScope().serviceKey());
+        assertEquals("cache:open-api:profile", service.incidents().get(0).primaryResourceKey());
+        assertEquals(1, service.topology().dependencies().get(0).warningCount());
+    }
+
+    @Test
+    void groupsIncidentEvidenceByServiceClusterAndZone() {
+        GovernancePlatformService service = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+        service.recordSignal(signal("open-api", "http:open-api:profile", GovernanceSignalType.ERROR_RATE, GovernanceSignalSeverity.WARNING, "ERROR", Instant.EPOCH));
+        service.recordSignal(signal("open-api", "gateway:open-api:disconnect", GovernanceSignalType.GATEWAY_DISCONNECT, GovernanceSignalSeverity.WARNING, "DISCONNECTED", Instant.EPOCH.plusSeconds(1)));
+        service.recordSignal(signal("open-api", "downstream:open-api:profile", GovernanceSignalType.QUARANTINE_CANDIDATE, GovernanceSignalSeverity.CRITICAL, "SUSPECT", Instant.EPOCH.plusSeconds(2)));
+
+        assertEquals(1, service.incidents().size());
+        assertEquals(3, service.incidents().get(0).evidenceCount());
+        assertEquals(3, service.incidents().get(0).impactedResourceCount());
+        assertEquals("downstream:open-api:profile", service.incidents().get(0).primaryResourceKey());
+        assertEquals("INSTANCE_HEALTH", service.incidents().get(0).evidence().get(0).referenceType());
+        assertEquals("open-api", service.incidents().get(0).evidence().get(0).serviceKey());
+        assertEquals(1, service.incident(service.incidents().get(0).incidentKey()).stream().count());
+    }
+
+    private GovernanceSignal signal(
+            String serviceKey,
+            String resourceKey,
+            GovernanceSignalType signalType,
+            GovernanceSignalSeverity severity,
+            String outcome,
+            Instant timestamp) {
+        return new GovernanceSignal(
+                "workspace",
+                "prod",
+                serviceKey,
+                serviceKey + "-cluster",
+                "cn-east",
+                resourceKey,
+                signalType,
+                severity,
+                outcome,
+                "100_250MS",
+                timestamp,
+                Map.of("source", "test"));
     }
 }
