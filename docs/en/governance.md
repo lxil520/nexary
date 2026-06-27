@@ -2,9 +2,9 @@
 
 Governance adds local protection around Java calls: do not start work after the deadline, reject traffic that is too dense, send excess concurrent calls to fallback, and temporarily degrade a downstream path without rewriting business code. The verified path now has two execution engines. The default local engine handles deadline, rate limit, bulkhead, explicit degradation, and circuit decisions inside the current JVM. The Boot3 Sentinel provider can execute flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking through Sentinel. Both paths reuse Nexary resources, policy snapshots, low-cardinality diagnostics, and the read-only Console.
 
-The boundary is deliberate: this is local SDK-level governance with a local read-only page, not a remote console, sidecar, agent, remote config push, or global service-governance platform. Circuit windows, rate-limit windows, rejection counters, and diagnostic snapshots belong to the current process only; there is no cross-instance state sync.
+The boundary is deliberate: the local governance runtime does not provide a sidecar, agent, remote config push, or cross-instance state sync. The `0.17.0` governance platform only aggregates resources, signals, topology, and incident candidates in read-only form. It does not modify Sentinel, Gateway, APM, registry, or notification-channel configuration.
 
-The `0.16.0` line does not replace Sentinel Dashboard, cluster flow control, remote rule platforms, automatic traffic-drain platforms, or a distributed trace backend. It fixes five boundaries: business code keeps calling Nexary APIs while Sentinel executes QPS flow control, thread-count isolation, slow-call circuit breaking, and exception circuit breaking for the same governance resources; when governance rejects a call, a deadline expires, a request is canceled, or execution times out, Nexary carries a bounded retry-stop reason into messaging and job retry loops; when online requests share a resource with batch, offline, or background repair work, fixed `ONLINE/OFFLINE/BATCH/BACKGROUND` and `HIGH/NORMAL/LOW` policies can rate-limit, isolate, or fallback the lower-priority work first; when several instances behind one downstream resource behave differently, Nexary marks abnormal instance candidates inside the current JVM and exposes a suggested action; when a call is canceled, rate-limited, retry-stopped, priority-isolated, or tied to an abnormal instance candidate, the local fault trace shows which resource to inspect first. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters.
+The `0.17.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, and low-cardinality signals reported by JVMs or connectors into read-only topology, service lists, and incident candidates. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. v0.17 platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
 
 ## Add Dependencies
 
@@ -34,6 +34,25 @@ Run the sample:
 ```bash
 ./gradlew :nexary-samples:nexary-sample-governance:run
 ```
+
+To inspect the read-only governance platform view:
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance-platform:run
+curl -s http://localhost:18092/api/platform/topology
+curl -s http://localhost:18092/api/platform/incidents
+open http://localhost:18092/nexary/console/platform
+```
+
+## v0.17 Read-Only Governance Platform Foundation
+
+`0.17.0` adds three platform modules:
+
+- `nexary-governance-platform-api`: assets, dependencies, connectors, signals, topology, and incident candidate models.
+- `nexary-governance-platform-server`: `POST /api/platform/resources`, `POST /api/platform/signals`, `GET /api/platform/topology`, `GET /api/platform/services`, and `GET /api/platform/incidents`.
+- `nexary-governance-platform-storage-postgres`: an explicit Postgres repository. The demo still uses in-memory storage by default.
+
+The first Platform Mode is read-only. It shows services, dependencies, incident candidates, and connector status. It does not edit policies, write Sentinel rules, change Gateway routes, or send production alerts.
 
 ## v0.12 Sentinel Provider
 

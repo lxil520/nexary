@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0
+
+- Added the read-only governance platform foundation with asset, dependency, connector, signal, topology, service, and incident candidate models.
+- Added `nexary-governance-platform-api`, `nexary-governance-platform-server`, and `nexary-governance-platform-storage-postgres`.
+- Added platform ingestion and query endpoints for `/api/platform/resources`, `/api/platform/signals`, `/api/platform/topology`, `/api/platform/services`, `/api/platform/incidents`, `/api/platform/connectors`, and `/api/platform/signals`.
+- Added Console Platform Mode so users can switch from single-JVM local diagnostics to an aggregated services, dependencies, incidents, and connector-status view.
+- Added `nexary-sample-governance-platform` with an abstract cloud-phone topology demo and platform API data.
+- Rejected high-cardinality or sensitive platform signal attributes such as user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
+- Kept policy writes, Sentinel / Gateway / APM rule changes, production IM alerts, automatic traffic drain, automatic scaling, capacity, and chaos work out of this release.
+
 ## 0.16.0
 
 - Added local fault traces that connect recent governance events, retry stops, cancellation, priority isolation, Sentinel blocks, and instance-health state inside the current JVM.

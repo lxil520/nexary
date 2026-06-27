@@ -15,9 +15,12 @@ public final class ConsolePageController {
     /** Forwards console SPA paths to the packaged static UI entry point. */
     @GetMapping({
         "/nexary/console/",
+        "/nexary/console/platform",
         "/nexary/console/resources",
         "/nexary/console/resources/{resourceKey}",
         "/nexary/console/events",
+        "/nexary/console/traces",
+        "/nexary/console/traces/{traceKey}",
         "/nexary/console/settings"
     })
     public String index() {

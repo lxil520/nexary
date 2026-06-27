@@ -1,0 +1,12 @@
+plugins {
+    id 'org.springframework.boot' version "${springBootVersion}"
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+dependencies {
+    implementation project(':nexary-boot:nexary-governance-spring-boot-starter')
+    implementation project(':nexary-boot:nexary-console-spring-boot-starter')
+    implementation project(':nexary-governance:nexary-governance-platform-server')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

@@ -7,11 +7,13 @@ import EventsView from './views/EventsView.vue';
 import TracesView from './views/TracesView.vue';
 import TraceDetailView from './views/TraceDetailView.vue';
 import SettingsReadonlyView from './views/SettingsReadonlyView.vue';
+import PlatformOverviewView from './views/PlatformOverviewView.vue';
 import { useConsoleData } from './composables/useConsoleData';
 import { useLocale } from './composables/useLocale';
+import { usePlatformData } from './composables/usePlatformData';
 import logoUrl from './assets/nexary-logo.svg';
 
-type ViewId = 'overview' | 'resources' | 'resource-detail' | 'events' | 'traces' | 'trace-detail' | 'settings';
+type ViewId = 'overview' | 'platform' | 'resources' | 'resource-detail' | 'events' | 'traces' | 'trace-detail' | 'settings';
 
 interface RouteState {
   view: ViewId;
@@ -23,9 +25,10 @@ const CONSOLE_BASE_PATH = '/nexary/console';
 
 const navigationItems: Array<{
   id: ViewId;
-  labelKey: 'nav.overview' | 'nav.resources' | 'nav.events' | 'nav.traces' | 'nav.settings';
+  labelKey: 'nav.overview' | 'nav.platform' | 'nav.resources' | 'nav.events' | 'nav.traces' | 'nav.settings';
 }> = [
   { id: 'overview', labelKey: 'nav.overview' },
+  { id: 'platform', labelKey: 'nav.platform' },
   { id: 'resources', labelKey: 'nav.resources' },
   { id: 'events', labelKey: 'nav.events' },
   { id: 'traces', labelKey: 'nav.traces' },
@@ -33,8 +36,13 @@ const navigationItems: Array<{
 ];
 
 const route = ref<RouteState>(routeFromLocation());
-const { isLoading, lastRefreshAt, refreshAll } = useConsoleData();
+const { isLoading: localLoading, lastRefreshAt: localLastRefreshAt, refreshAll } = useConsoleData();
+const { isLoading: platformLoading, lastRefreshAt: platformLastRefreshAt, refreshPlatform } = usePlatformData();
 const { locale, setLocale, t } = useLocale();
+
+const isPlatformView = computed(() => route.value.view === 'platform');
+const isLoading = computed(() => (isPlatformView.value ? platformLoading.value : localLoading.value));
+const lastRefreshAt = computed(() => (isPlatformView.value ? platformLastRefreshAt.value : localLastRefreshAt.value));
 
 const title = computed(() => {
   if (route.value.view === 'resource-detail') {
@@ -51,8 +59,19 @@ const refreshLabel = computed(() =>
   lastRefreshAt.value ? `${t('app.updated')} ${lastRefreshAt.value}` : t('app.notRefreshed'),
 );
 
+const scopeLabel = computed(() => (isPlatformView.value ? t('app.platformScope') : t('app.scope')));
+const scopeNote = computed(() => (isPlatformView.value ? t('app.platformNote') : t('app.jvmNote')));
+
 function navigate(view: ViewId): void {
   pushRoute({ view, resourceKey: null, traceKey: null });
+}
+
+function refreshCurrent(): void {
+  if (isPlatformView.value) {
+    void refreshPlatform();
+    return;
+  }
+  void refreshAll();
 }
 
 function openResource(resourceKey: string): void {
@@ -84,6 +103,9 @@ function pushRoute(nextRoute: RouteState): void {
 function pathFromRoute(nextRoute: RouteState): string {
   if (nextRoute.view === 'resources') {
     return `${CONSOLE_BASE_PATH}/resources`;
+  }
+  if (nextRoute.view === 'platform') {
+    return `${CONSOLE_BASE_PATH}/platform`;
   }
   if (nextRoute.view === 'events') {
     return `${CONSOLE_BASE_PATH}/events`;
@@ -124,7 +146,7 @@ function routeFromHash(): RouteState | null {
     return { view: 'overview', resourceKey: null, traceKey: null };
   }
   const [view, encodedKey] = rawHash.split('/');
-  if (view === 'resources' || view === 'events' || view === 'traces' || view === 'settings') {
+  if (view === 'platform' || view === 'resources' || view === 'events' || view === 'traces' || view === 'settings') {
     return { view, resourceKey: null, traceKey: null };
   }
   if (view === 'resource-detail' && encodedKey) {
@@ -151,6 +173,9 @@ function routeFromPath(pathname: string): RouteState {
   const relativePath = normalizedPath.slice(CONSOLE_BASE_PATH.length + 1);
   if (relativePath === 'resources') {
     return { view: 'resources', resourceKey: null, traceKey: null };
+  }
+  if (relativePath === 'platform') {
+    return { view: 'platform', resourceKey: null, traceKey: null };
   }
   if (relativePath === 'events') {
     return { view: 'events', resourceKey: null, traceKey: null };
@@ -222,9 +247,9 @@ onBeforeUnmount(() => {
     <main class="main-area">
       <header class="topbar">
         <div>
-          <p class="eyebrow">{{ t('app.scope') }}</p>
+          <p class="eyebrow">{{ scopeLabel }}</p>
           <h1>{{ title }}</h1>
-          <p class="topbar__note">{{ t('app.jvmNote') }}</p>
+          <p class="topbar__note">{{ scopeNote }}</p>
         </div>
         <div class="topbar__actions">
           <div class="locale-segment" :aria-label="t('app.language')">
@@ -232,13 +257,14 @@ onBeforeUnmount(() => {
             <button type="button" :class="{ 'is-active': locale === 'en' }" @click="setLocale('en')">EN</button>
           </div>
           <span class="refresh-state">{{ refreshLabel }}</span>
-          <button class="button button--primary" type="button" :disabled="isLoading" @click="refreshAll">
+          <button class="button button--primary" type="button" :disabled="isLoading" @click="refreshCurrent">
             {{ isLoading ? t('app.refreshing') : t('app.refresh') }}
           </button>
         </div>
       </header>
 
       <OverviewView v-if="route.view === 'overview'" @select-resource="openResource" />
+      <PlatformOverviewView v-else-if="route.view === 'platform'" />
       <ResourcesView v-else-if="route.view === 'resources'" @select-resource="openResource" />
       <ResourceDetailView
         v-else-if="route.view === 'resource-detail' && route.resourceKey"

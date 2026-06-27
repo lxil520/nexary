@@ -487,15 +487,37 @@ Included scope:
 - cross-instance trace backend, remote sampling platform, or log collection platform.
 - policy editing, quarantine buttons, remote config push, or audit backend.
 
-## `0.17+` Capacity, Fault Injection, and Automatic Stop-Loss Evaluation
+## `0.17.x` Governance Platform Model and Read-Only Asset Foundation
 
-Later releases can evaluate capacity protection, local fault injection, and automatic stop-loss. The prerequisite is that v0.15 abnormal instance candidates and v0.16 trace location are stable enough for users to understand why a suggested action appears.
+`0.17.0` moves current-JVM diagnostics toward an aggregatable platform model. It does not add another standalone governance action. Instead, JVMs or connectors can report services, clusters, zones, middleware dependencies, and low-cardinality signals, and Console Platform Mode can show services, dependencies, connector status, and incident candidates in read-only form.
 
-Possible directions:
+Included scope:
 
-- Capacity watermarks and lower-priority traffic backoff.
-- Local fault-injection samples to validate fallback, retry-stop, and abnormal instance detection.
-- Design discussion for automatic traffic-drain adapters, while keeping the default behavior read-only and local.
+- API: add `GovernanceAsset`, `GovernanceServiceNode`, `GovernanceDependencyEdge`, `GovernanceConnectorStatus`, `GovernanceSignalEnvelope`, `IncidentCandidate`, `EvidenceItem`, `ImpactScope`, and `SuggestedCheck`.
+- Server: add `POST /api/platform/resources`, `POST /api/platform/signals`, `GET /api/platform/topology`, `GET /api/platform/services`, and `GET /api/platform/incidents`.
+- Storage: add a Postgres repository boundary; the demo uses in-memory storage by default.
+- Console: add Platform Mode for services, dependencies, incident candidates, and connector status. Local Console remains for single-JVM debugging.
+- Sample: add `nexary-sample-governance-platform` with an abstract cloud-phone demo covering open-api, sdk-api, scheduler, consumer, admin, user-platform, redis, pg, oss, room-resource, and signaling relationships.
+- Safety: platform signals reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
+
+`0.17.x` does not include:
+
+- policy writes, remote config push, or changing Sentinel / Gateway / APM external configuration.
+- production Feishu / DingTalk alert delivery.
+- automatic traffic drain, automatic scaling, or automatic rule changes.
+
+## `0.18+` Platform Polish, Evidence Chains, and Read-Only External Integrations
+
+Later releases should first make the existing governance work usable as a platform before moving into capacity, chaos, and automatic stop-loss.
+
+Planned direction:
+
+- `0.18.x`: signal ingestion and incident evidence chains, grouping slow calls, rate limits, retry-stop, and abnormal instances into readable incident candidates.
+- `0.19.x`: Console product redesign for daily operations instead of local count cards.
+- `0.20.x`: read-only connectors for Sentinel, Gateway, Prometheus / Alertmanager, and OTel / SkyWalking.
+- `0.21.x`: alert routing and Feishu / DingTalk dry-run.
+- `0.22.x`: low-risk configuration entry evaluation, limited to service grouping, alert rules, and notification routes, with dry-run, diff, audit, and rollback.
+- `0.23+`: evaluate capacity, chaos, automatic stop-loss, automatic traffic drain, and automatic scaling.
 
 ## `1.0.0` Stability Target
 

@@ -2,9 +2,9 @@
 
 治理用来给本地 Java 调用加保护：deadline 到了就别再启动新动作，请求太密就拒绝，同一个资源并发过高就让后面的调用走 fallback，需要临时停用某个下游时也不改业务代码。当前已验证路径提供两种执行引擎：默认本地引擎在当前 JVM 内完成 deadline、限流、并发隔离、显式降级和熔断判断；Boot3 Sentinel provider 可以把限流、线程数隔离、慢调用熔断和异常熔断交给 Sentinel 执行。两种路径都复用 Nexary 的资源目录、策略快照、低基数诊断和只读 Console。
 
-它的边界很明确：这是 SDK 级本地治理和本地只读页面，不是远程控制台、sidecar、agent、远程下发配置或全局服务治理平台。熔断窗口、限流窗口、拒绝计数和诊断快照都只属于当前进程，不做跨实例状态同步。
+它的边界很明确：本地治理运行时不做 sidecar、agent、远程下发配置或跨实例状态同步。`0.17.0` 新增的治理平台也只做资源、信号、拓扑和事故候选的只读汇聚，不修改 Sentinel、Gateway、APM、注册中心或通知渠道配置。
 
-`0.16.0` 不替代 Sentinel Dashboard、集群限流、远程规则平台、自动摘流平台或分布式 trace 后端。它解决五件事：业务代码继续调用 Nexary API，配置 `nexary.governance.provider=sentinel` 后，由 Sentinel 对同一批治理资源执行 QPS 限流、线程数隔离、慢调用熔断和异常熔断；当治理拒绝、deadline 过期、请求取消或执行超时时，Nexary 会把低基数停止重试原因继续传给消息消费和任务执行的 retry loop；当在线请求和批处理、离线任务、后台修复任务共用同一个资源时，可以用固定的 `ONLINE/OFFLINE/BATCH/BACKGROUND` 和 `HIGH/NORMAL/LOW` 策略让低优先级流量先被限流、隔离或走 fallback；当同一个 downstream resource 背后多个实例表现不一致时，Nexary 在当前 JVM 内标记异常实例候选并给出建议动作；当一次调用被取消、被限流、停止重试、优先级隔离或命中异常实例候选时，本地 fault trace 能告诉你先排查哪个 resource。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数。
+`0.17.0` 不替代 Sentinel Dashboard、Spring Cloud Gateway、SkyWalking、Prometheus、企业 IM、自动摘流平台或分布式 trace 后端。它解决两层问题：本地治理运行时继续处理请求取消、Sentinel provider、停止重试、优先级隔离、异常实例候选和本地 fault trace；治理平台把多个 JVM 或 connector 上报的服务、集群、机房、中间件依赖和低基数信号汇总成只读拓扑、服务列表和事故候选。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数；v0.17 平台信号也拒绝 userId、tenant、payload、cache key、message id、异常全文、stack trace、token 和密码。
 
 ## 引入依赖
 
@@ -34,6 +34,25 @@ implementation "com.aweimao:nexary-governance-gateway-spring-boot-starter"
 ```bash
 ./gradlew :nexary-samples:nexary-sample-governance:run
 ```
+
+如果要看治理平台只读视图，运行：
+
+```bash
+./gradlew :nexary-samples:nexary-sample-governance-platform:run
+curl -s http://localhost:18092/api/platform/topology
+curl -s http://localhost:18092/api/platform/incidents
+open http://localhost:18092/nexary/console/platform
+```
+
+## v0.17 治理平台只读地基
+
+`0.17.0` 新增三个平台模块：
+
+- `nexary-governance-platform-api`：资产、依赖、连接器、信号、拓扑和事故候选模型。
+- `nexary-governance-platform-server`：`POST /api/platform/resources`、`POST /api/platform/signals`、`GET /api/platform/topology`、`GET /api/platform/services`、`GET /api/platform/incidents`。
+- `nexary-governance-platform-storage-postgres`：显式接入的 Postgres repository，demo 默认仍使用内存存储。
+
+Platform Mode 的第一版只读查看服务、依赖、事故候选和连接器状态。它不提供策略编辑，不写 Sentinel 规则，不改 Gateway route，不发送生产告警。
 
 ## v0.12 Sentinel provider
 

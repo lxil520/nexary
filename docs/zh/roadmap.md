@@ -487,15 +487,37 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 - 跨实例 trace 后端、远程采样平台或日志采集平台。
 - 策略编辑、封禁按钮、远程下发或审计后台。
 
-## `0.17+` 容量、混沌与自动止损评估
+## `0.17.x` 治理平台模型与只读资产地基
 
-更后面的版本再评估容量保护、故障注入和自动止损。前提是 v0.15 的实例异常候选、v0.16 的 trace 定位都已经稳定，且用户能看清建议动作的依据。
+`0.17.0` 把当前 JVM 诊断推进到可汇聚的平台模型。它不继续增加单点治理能力，而是先让多个 JVM 或 connector 上报服务、集群、机房、中间件依赖和低基数信号，然后在 Console Platform Mode 中只读查看服务、依赖、连接器状态和事故候选。
 
-可能方向：
+已纳入范围：
 
-- 容量水位和低优先级流量退让。
-- 本地故障注入样例，用来验证 fallback、停止重试和异常实例检测。
-- 自动摘流 adapter 的设计讨论，但默认仍不改注册中心或网关。
+- API：新增 `GovernanceAsset`、`GovernanceServiceNode`、`GovernanceDependencyEdge`、`GovernanceConnectorStatus`、`GovernanceSignalEnvelope`、`IncidentCandidate`、`EvidenceItem`、`ImpactScope` 和 `SuggestedCheck`。
+- Server：新增 `POST /api/platform/resources`、`POST /api/platform/signals`、`GET /api/platform/topology`、`GET /api/platform/services`、`GET /api/platform/incidents`。
+- Storage：新增 Postgres repository 边界；demo 默认使用内存存储。
+- Console：新增 Platform Mode，展示服务组、依赖、事故候选和连接器状态；Local Console 仍用于单 JVM 调试。
+- Sample：新增 `nexary-sample-governance-platform`，用抽象云手机 demo 展示 open-api、sdk-api、scheduler、consumer、admin、user-platform、redis、pg、oss、room-resource 和 signaling 的关系。
+- Safety：平台信号拒绝 userId、tenant、payload、cache key、message id、异常全文、stack trace、token 和密码。
+
+`0.17.x` 不包含：
+
+- 写策略、远程下发、修改 Sentinel/Gateway/APM 外部配置。
+- Feishu / DingTalk 生产告警发送。
+- 自动摘流、自动扩容、自动改规则。
+
+## `0.18+` 平台打磨、证据链和外部只读接入
+
+后续优先把已有治理能力做成更好用的平台，不急着进入容量、混沌和自动止损。
+
+计划方向：
+
+- `0.18.x`：信号接入和事故证据链，把慢调用、限流、retry-stop、实例异常聚合为可读事故候选。
+- `0.19.x`：Console 产品重设计，改成日常运维页面，而不是本地计数卡片。
+- `0.20.x`：Sentinel、Gateway、Prometheus / Alertmanager、OTel / SkyWalking 的只读 connector。
+- `0.21.x`：告警路由和 Feishu / DingTalk dry-run。
+- `0.22.x`：低风险配置入口评估版，只允许服务分组、告警规则和通知路由，必须 dry-run、diff、审计和回滚。
+- `0.23+`：再评估容量、混沌、自动止损、自动摘流和自动扩容。
 
 ## `1.0.0` 稳定版目标
 

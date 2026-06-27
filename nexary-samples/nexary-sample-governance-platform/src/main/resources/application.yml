@@ -1,0 +1,21 @@
+server:
+  port: 18092
+
+spring:
+  application:
+    name: nexary-sample-governance-platform
+
+nexary:
+  governance:
+    runtime:
+      enabled: true
+    diagnostics:
+      enabled: true
+    resources:
+      platform-demo:
+        kind: downstream
+        name: platform-demo
+        provider: nexary
+        operation: seed
+  console:
+    enabled: true

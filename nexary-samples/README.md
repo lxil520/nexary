@@ -16,12 +16,14 @@
 - `nexary-sample-job-spi-scheduler`：任务 SPI local scheduler provider 参考工程
 - `nexary-sample-job-spi-xxljob`：任务 SPI XXL-JOB bridge provider 参考工程
 - `nexary-sample-governance`：治理 runtime 参考工程，演示本地限流、并发隔离、降级 fallback、熔断状态和只读诊断页面
+- `nexary-sample-governance-platform`：治理平台参考工程，演示服务组、集群、机房、中间件依赖、低基数信号和 Console Platform Mode
 
 ## 使用顺序
 
 1. 先按目标能力选择 cache、messaging、job 或 governance 的 starter selector 样例
 2. 如果你需要精确控制 provider 依赖，再看对应 SPI provider 样例
-3. 再结合仓库根目录的 `scripts/middleware/*` 做真实中间件联调
+3. 如果你要看多服务视角，运行 `nexary-sample-governance-platform`
+4. 再结合仓库根目录的 `scripts/middleware/*` 做真实中间件联调
 
 ## 你应该怎么看这些样例
 
