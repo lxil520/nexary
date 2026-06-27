@@ -2,7 +2,7 @@ dependencies {
     api project(':nexary-framework:nexary-core')
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.5'
     compileOnly "org.springframework.boot:spring-boot-autoconfigure:${rootProject.ext.springBoot2Version}"
-    compileOnly 'org.springframework:spring-context:5.3.31'
+    compileOnly 'org.springframework:spring-context:7.0.8'
 }
 
 java {
