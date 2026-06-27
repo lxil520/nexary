@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0
+
+- Redesigned Console Platform Mode as an operations workbench instead of continuing the count-card layout.
+- Reworked the first screen around current health, incident queue, topology impact, service health, and evidence chain.
+- Added severity filters, service / cluster / zone / resource search, selected-incident evidence details, and narrow-screen workbench tabs.
+- Replaced the neon grid visual style with a denser operations-console layout using white panels, a dark navigation rail, and explicit red / amber / green status treatment.
+- Kept v0.19 read-only: no policy writes, no Sentinel / Gateway / APM configuration changes, and no production alert delivery.
+
 ## 0.18.0
 
 - Added incident evidence chains on top of the read-only governance platform model.

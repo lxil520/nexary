@@ -77,7 +77,7 @@ ext {
 
 allprojects {
     group = 'com.aweimao'
-    version = findProperty('nexaryVersion') ?: '0.18.0'
+    version = findProperty('nexaryVersion') ?: '0.19.0'
 }
 
 configure(subprojects.findAll { it.name != 'nexary-bom' && it.buildFile.exists() }) {

@@ -513,7 +513,7 @@ Boot 4 的官方最低 JDK 仍以 Spring 官方文档为准；Nexary 只把 Java
 计划方向：
 
 - `0.18.x`：信号接入和事故证据链，把慢调用、限流、retry-stop、实例异常聚合为可读事故候选。`0.18.0` 已增加首要资源、影响资源数、证据时间线、建议检查项、单事故查询 endpoint 和依赖边告警计数。
-- `0.19.x`：Console 产品重设计，改成日常运维页面，而不是本地计数卡片。
+- `0.19.x`：Console 产品重设计，改成日常运维页面，而不是本地计数卡片。`0.19.0` 已把 Platform Mode 改成事故队列、拓扑影响、服务健康和证据链三栏工作台。
 - `0.20.x`：Sentinel、Gateway、Prometheus / Alertmanager、OTel / SkyWalking 的只读 connector。
 - `0.21.x`：告警路由和 Feishu / DingTalk dry-run。
 - `0.22.x`：低风险配置入口评估版，只允许服务分组、告警规则和通知路由，必须 dry-run、diff、审计和回滚。

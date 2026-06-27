@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: the local governance runtime does not provide a sidecar, agent, remote config push, or cross-instance state sync. The governance platform only aggregates resources, signals, topology, and incident candidates in read-only form. It does not modify Sentinel, Gateway, APM, registry, or notification-channel configuration.
 
-The `0.18.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, and low-cardinality signals reported by JVMs or connectors into read-only topology, service lists, and incident candidates. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals from the same service, cluster, and zone into one incident candidate with a primary resource, impacted resource count, evidence timeline, and suggested check. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
+The `0.19.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, and low-cardinality signals reported by JVMs or connectors into read-only topology, service lists, and incident candidates. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals from the same service, cluster, and zone into one incident candidate with a primary resource, impacted resource count, evidence timeline, and suggested check. v0.19 redesigns Console Platform Mode as an operations workbench that leads with the incident queue, topology impact, service health, and evidence chain instead of adding more count cards. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
 
 ## Add Dependencies
 
@@ -65,6 +65,18 @@ The first Platform Mode is read-only. It shows services, dependencies, incident 
 - `nexary-sample-governance-platform` now seeds open-api and room-resource incident candidates for local verification.
 
 `referenceType` and `referenceKey` are low-cardinality references only. They explain whether the evidence came from a metric query, Sentinel resource, Gateway route, instance health, or fault trace. v0.18 does not connect to a real SkyWalking, Prometheus, Sentinel Dashboard, or Gateway management API; those read-only connectors remain in the v0.20 roadmap slot.
+
+## v0.19 Console Product Redesign
+
+`0.19.0` does not add a new governance execution feature. It turns Platform Mode from a developer debugging page into a daily operations page:
+
+- The first screen shows current health, incident count, affected services, service count, dependency count, and integration status.
+- The left column is an incident queue sorted by severity and evidence count, with severity filters and search across service, cluster, zone, and resource.
+- The center column shows topology impact and a service health table so users can identify the dependency and service group to inspect first.
+- The right column shows the selected incident's impact scope, primary resource, suggested check, and evidence chain.
+- Narrow screens use incident, topology, and service tabs so tables and evidence panels do not collide.
+
+This release remains read-only: it does not write policies, change Sentinel / Gateway / APM configuration, or send production alerts.
 
 ## v0.12 Sentinel Provider
 

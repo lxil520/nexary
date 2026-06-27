@@ -4,7 +4,7 @@
 
 它的边界很明确：本地治理运行时不做 sidecar、agent、远程下发配置或跨实例状态同步。治理平台只做资源、信号、拓扑和事故候选的只读汇聚，不修改 Sentinel、Gateway、APM、注册中心或通知渠道配置。
 
-`0.18.0` 不替代 Sentinel Dashboard、Spring Cloud Gateway、SkyWalking、Prometheus、企业 IM、自动摘流平台或分布式 trace 后端。它解决两层问题：本地治理运行时继续处理请求取消、Sentinel provider、停止重试、优先级隔离、异常实例候选和本地 fault trace；治理平台把多个 JVM 或 connector 上报的服务、集群、机房、中间件依赖和低基数信号汇总成只读拓扑、服务列表和事故候选。v0.18 会把同一服务、集群、机房内的慢调用、错误率、Sentinel block、Gateway 断开、停止重试和异常实例信号聚合成一条事故候选，并展示首要资源、影响资源数、证据时间线和建议检查项。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数；平台信号也拒绝 userId、tenant、payload、cache key、message id、异常全文、stack trace、token 和密码。
+`0.19.0` 不替代 Sentinel Dashboard、Spring Cloud Gateway、SkyWalking、Prometheus、企业 IM、自动摘流平台或分布式 trace 后端。它解决两层问题：本地治理运行时继续处理请求取消、Sentinel provider、停止重试、优先级隔离、异常实例候选和本地 fault trace；治理平台把多个 JVM 或 connector 上报的服务、集群、机房、中间件依赖和低基数信号汇总成只读拓扑、服务列表和事故候选。v0.18 会把同一服务、集群、机房内的慢调用、错误率、Sentinel block、Gateway 断开、停止重试和异常实例信号聚合成一条事故候选，并展示首要资源、影响资源数、证据时间线和建议检查项。v0.19 把 Console Platform Mode 重做为运维工作台，第一屏优先显示事故队列、拓扑影响、服务健康和证据链，而不是继续堆计数卡片。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数；平台信号也拒绝 userId、tenant、payload、cache key、message id、异常全文、stack trace、token 和密码。
 
 ## 引入依赖
 
@@ -65,6 +65,18 @@ Platform Mode 的第一版只读查看服务、依赖、事故候选和连接器
 - `nexary-sample-governance-platform` demo 会生成 open-api 和 room-resource 两类事故候选，便于本地验证。
 
 `referenceType` 和 `referenceKey` 只是低基数定位引用，用来说明这条证据来自指标查询、Sentinel resource、Gateway route、实例健康或 fault trace。v0.18 不连接真实 SkyWalking、Prometheus、Sentinel Dashboard 或 Gateway 管理 API；这些只读 connector 按 roadmap 放到 v0.20。
+
+## v0.19 Console 产品重设计
+
+`0.19.0` 不新增治理执行能力，重点是把 Platform Mode 从开发调试页改成日常运维页：
+
+- 第一屏显示当前健康、事故数、受影响服务数、服务数、依赖数和接入状态。
+- 左侧是事故队列，按严重程度和证据数排序，可按严重程度过滤，也可搜索服务、集群、机房或资源。
+- 中间显示拓扑影响和服务健康表，帮助先判断哪条依赖、哪个服务组需要处理。
+- 右侧显示选中事故的影响范围、首要资源、建议检查项和证据链。
+- 移动窄屏使用事故、拓扑、服务三个视图切换，避免表格和证据面板互相挤压。
+
+这一版仍然只读：不写策略，不修改 Sentinel / Gateway / APM 配置，不发送生产告警。
 
 ## v0.12 Sentinel provider
 
