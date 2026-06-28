@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: the local governance runtime does not provide a sidecar, agent, remote config push, or cross-instance state sync. The governance platform only aggregates resources, signals, topology, and incident candidates in read-only form. It does not modify Sentinel, Gateway, APM, registry, or notification-channel configuration.
 
-The `0.20.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, CAT, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, request-flow samples, transaction stats, host watermarks, and low-cardinality signals into read-only topology, incident evidence packages, and governance planning entry points. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals into incident candidates. v0.19 turns Platform Mode into an operations workbench draft. v0.20 makes the default Console entry a full governance platform RC with Overview, Topology, Request Flows, Incidents, Services, Hosts, Middleware, Resource Governance, Integrations, Notifications, and Policy Plans. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
+The `0.21.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, CAT, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, request-flow samples, transaction stats, host watermarks, and low-cardinality signals into read-only topology, incident evidence packages, and governance planning entry points. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals into incident candidates. v0.19 turns Platform Mode into an operations workbench draft. v0.20 makes the default Console entry a full governance platform RC with Overview, Topology, Request Flows, Incidents, Services, Hosts, Middleware, Resource Governance, Integrations, Notifications, and Policy Plans. v0.21 moves the sample into a real Docker verification environment with Redis, Postgres, RabbitMQ, Prometheus, and SkyWalking. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
 
 ## Add Dependencies
 
@@ -84,6 +84,20 @@ This release remains read-only: it does not write policies, change Sentinel / Ga
 v0.20 does not keep patching the v0.19 page. It makes the governance platform the default Console entry and redefines the asset model, data sources, screen structure, and acceptance. See [Governance Platform RC PRD](governance-platform-prd.md) and [Governance Platform RC UI/UX Design](governance-platform-design.md).
 
 This release keeps the v0.17 to v0.19 read-only resources, signals, topology, and incident-candidate model, then expands it with request-flow samples, CAT-style transaction stats, host signal matrix, service watermarks, zone watermarks, middleware dependencies, external references, policy-plan dry-run, and notification-channel dry-run. Nexary still does not replace SkyWalking, CAT, Prometheus, Sentinel, or Gateway. The platform connects their key evidence into one on-call view.
+
+## v0.21 Real Middleware Probe Starting Point
+
+v0.21 starts moving the governance platform sample from static demo data to a local verifiable chain. Run the complete Docker environment:
+
+```bash
+./scripts/console/up.sh
+./scripts/console/smoke.sh
+open http://127.0.0.1:18090/nexary/console
+```
+
+This environment starts the Console, Redis, Postgres, RabbitMQ, Prometheus, and SkyWalking. `POST /demo/platform/probe?iterations=50` performs real local read/write probes against Redis and Postgres, runs a RabbitMQ publish/consume probe, records low-cardinality platform signals, and exposes Prometheus text metrics at `/demo/platform/prometheus`, including `nexary_demo_probe_calls_total`, `nexary_demo_probe_latency_seconds`, JVM memory, and JVM thread gauges. The Console sample JVM sends local request traces to the Docker OAP through the SkyWalking Java agent. The UI is available at `http://127.0.0.1:18097`.
+
+This release remains read-only. It does not use production credentials, write Sentinel or Gateway configuration, or send real notifications. SkyWalking is used only for local sample tracing; Nexary is not becoming its own agent product.
 
 ## v0.12 Sentinel Provider
 

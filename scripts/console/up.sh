@@ -12,7 +12,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 cd "$ROOT_DIR"
-./gradlew :nexary-samples:nexary-sample-governance-platform:bootJar -PnexaryVersion="${NEXARY_VERSION:-0.20.0}"
+./gradlew :nexary-samples:nexary-sample-governance-platform:bootJar -PnexaryVersion="${NEXARY_VERSION:-0.21.0}"
 rm -rf "$APP_BUILD_DIR"
 mkdir -p "$APP_BUILD_DIR"
 APP_JAR="$(find "$APP_JAR_DIR" -maxdepth 1 -type f -name 'nexary-sample-governance-platform-*.jar' ! -name '*plain*' | sort | tail -n 1)"
@@ -29,3 +29,6 @@ source "$ENV_FILE"
 set +a
 
 echo "Nexary governance Console: http://127.0.0.1:${NEXARY_CONSOLE_PORT:-18090}/nexary/console"
+echo "SkyWalking UI: http://127.0.0.1:${NEXARY_SKYWALKING_UI_PORT:-18097}"
+echo "Prometheus: http://127.0.0.1:${NEXARY_PROMETHEUS_PORT:-18095}"
+echo "RabbitMQ management: http://127.0.0.1:${NEXARY_DEMO_RABBITMQ_MANAGEMENT_PORT:-18094}"

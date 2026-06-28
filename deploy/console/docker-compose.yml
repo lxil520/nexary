@@ -3,12 +3,124 @@ services:
     build:
       context: ../..
       dockerfile: deploy/console/Dockerfile
-    image: nexary/governance-console-demo:${NEXARY_VERSION:-0.20.0}
+    image: nexary/governance-console-demo:${NEXARY_VERSION:-0.21.0}
     container_name: nexary-governance-console-demo
+    environment:
+      NEXARY_DEMO_REDIS_HOST: nexary-console-redis
+      NEXARY_DEMO_REDIS_PORT: 6379
+      NEXARY_DEMO_POSTGRES_URL: jdbc:postgresql://nexary-console-postgres:5432/nexary
+      NEXARY_DEMO_POSTGRES_USER: ${NEXARY_DEMO_POSTGRES_USER:-nexary}
+      NEXARY_DEMO_POSTGRES_PASSWORD: ${NEXARY_DEMO_POSTGRES_PASSWORD:-nexary}
+      NEXARY_DEMO_RABBITMQ_HOST: nexary-console-rabbitmq
+      NEXARY_DEMO_RABBITMQ_PORT: 5672
+      NEXARY_DEMO_RABBITMQ_USER: ${NEXARY_DEMO_RABBITMQ_USER:-nexary}
+      NEXARY_DEMO_RABBITMQ_PASSWORD: ${NEXARY_DEMO_RABBITMQ_PASSWORD:-nexary}
+      JAVA_TOOL_OPTIONS: >-
+        -javaagent:/opt/skywalking/agent/skywalking-agent.jar
+        -Dskywalking.agent.service_name=nexary-governance-console
+        -Dskywalking.agent.instance_name=governance-console-demo
+        -Dskywalking.collector.backend_service=nexary-console-skywalking-oap:11800
     ports:
       - "${NEXARY_CONSOLE_PORT:-18090}:8080"
+    depends_on:
+      nexary-console-skywalking-oap:
+        condition: service_started
+      nexary-console-redis:
+        condition: service_healthy
+      nexary-console-postgres:
+        condition: service_healthy
+      nexary-console-rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "bash -ec '</dev/tcp/127.0.0.1/8080'"]
       interval: 10s
       timeout: 5s
       retries: 20
+
+  nexary-console-redis:
+    image: redis:7-alpine
+    pull_policy: if_not_present
+    container_name: nexary-console-redis
+    ports:
+      - "${NEXARY_DEMO_REDIS_PORT:-18091}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nexary-console-postgres:
+    image: postgres:16-alpine
+    pull_policy: if_not_present
+    container_name: nexary-console-postgres
+    environment:
+      POSTGRES_DB: nexary
+      POSTGRES_USER: ${NEXARY_DEMO_POSTGRES_USER:-nexary}
+      POSTGRES_PASSWORD: ${NEXARY_DEMO_POSTGRES_PASSWORD:-nexary}
+    ports:
+      - "${NEXARY_DEMO_POSTGRES_PORT:-18096}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  nexary-console-rabbitmq:
+    image: public.ecr.aws/docker/library/rabbitmq:3.13-management-alpine
+    pull_policy: if_not_present
+    container_name: nexary-console-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${NEXARY_DEMO_RABBITMQ_USER:-nexary}
+      RABBITMQ_DEFAULT_PASS: ${NEXARY_DEMO_RABBITMQ_PASSWORD:-nexary}
+    ports:
+      - "${NEXARY_DEMO_RABBITMQ_PORT:-18093}:5672"
+      - "${NEXARY_DEMO_RABBITMQ_MANAGEMENT_PORT:-18094}:15672"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  nexary-console-prometheus:
+    image: quay.io/prometheus/prometheus:v2.54.1
+    pull_policy: if_not_present
+    container_name: nexary-console-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=2h"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${NEXARY_PROMETHEUS_PORT:-18095}:9090"
+    depends_on:
+      governance-console:
+        condition: service_healthy
+
+  nexary-console-skywalking-oap:
+    image: apache/skywalking-oap-server:10.4.0
+    pull_policy: if_not_present
+    container_name: nexary-console-skywalking-oap
+    environment:
+      JAVA_OPTS: "-Xms512m -Xmx1024m"
+      SW_STORAGE: postgresql
+      SW_JDBC_URL: jdbc:postgresql://nexary-console-postgres:5432/nexary
+      SW_DATA_SOURCE_USER: ${NEXARY_DEMO_POSTGRES_USER:-nexary}
+      SW_DATA_SOURCE_PASSWORD: ${NEXARY_DEMO_POSTGRES_PASSWORD:-nexary}
+    ports:
+      - "${NEXARY_SKYWALKING_OAP_GRPC_PORT:-18099}:11800"
+      - "${NEXARY_SKYWALKING_OAP_HTTP_PORT:-18098}:12800"
+    depends_on:
+      nexary-console-postgres:
+        condition: service_healthy
+
+  nexary-console-skywalking-ui:
+    image: apache/skywalking-ui:10.4.0
+    pull_policy: if_not_present
+    container_name: nexary-console-skywalking-ui
+    environment:
+      SW_OAP_ADDRESS: http://nexary-console-skywalking-oap:12800
+    ports:
+      - "${NEXARY_SKYWALKING_UI_PORT:-18097}:8080"
+    depends_on:
+      nexary-console-skywalking-oap:
+        condition: service_started

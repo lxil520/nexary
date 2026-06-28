@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: nexary-governance-console
+    metrics_path: /demo/platform/prometheus
+    static_configs:
+      - targets:
+          - governance-console:8080

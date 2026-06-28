@@ -236,7 +236,7 @@ public final class GovernancePlatformService {
     public List<GovernanceTransactionMetric> transactions() {
         List<GovernanceTransactionMetric> items = new ArrayList<>();
         for (GovernanceSignal signal : signals()) {
-            if (signal.severity() == GovernanceSignalSeverity.INFO) {
+            if (signal.severity() == GovernanceSignalSeverity.INFO && !signal.attributes().containsKey("metricTotal")) {
                 continue;
             }
             String endpoint = signal.attributes().getOrDefault("endpoint", signal.resourceKey());

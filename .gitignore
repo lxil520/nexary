@@ -8,6 +8,7 @@ out/
 *.log
 deploy/middleware/powerjob/
 deploy/console/build/
+deploy/console/.skywalking-agent-download/
 .env
 .env.*
 !.env.example

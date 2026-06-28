@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GovernancePlatformServiceTest {
     @Test
@@ -120,6 +121,30 @@ class GovernancePlatformServiceTest {
         assertEquals(1, ((List<?>) snapshot.get("requestFlows")).size());
         assertEquals(1, ((List<?>) snapshot.get("transactions")).size());
         assertEquals(1, ((List<?>) snapshot.get("hosts")).size());
+    }
+
+    @Test
+    void includesInfoMetricSignalsInTransactionsWithoutCreatingIncidents() {
+        GovernancePlatformService service = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+        service.recordSignal(signal(
+                "signaling",
+                "cache:signaling:live-probe",
+                GovernanceSignalType.RESOURCE_EVENT,
+                GovernanceSignalSeverity.INFO,
+                "OK",
+                Instant.EPOCH,
+                Map.of(
+                        "flowKey", "flow-live-redis-probe",
+                        "endpoint", "probe:redis:set-get",
+                        "metricTotal", "20",
+                        "metricFailure", "0",
+                        "metricQps", "40.0",
+                        "metricP95Ms", "8")));
+
+        assertEquals(0, service.incidents().size());
+        assertEquals(1, service.transactions().size());
+        assertEquals("probe:redis:set-get", service.transactions().get(0).endpointKey());
+        assertTrue(service.requestFlow("flow-live-redis-probe").isPresent());
     }
 
     private GovernanceSignal signal(

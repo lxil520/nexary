@@ -13,9 +13,15 @@ source "$ENV_FILE"
 set +a
 
 BASE_URL="http://127.0.0.1:${NEXARY_CONSOLE_PORT:-18090}"
+PROMETHEUS_URL="http://127.0.0.1:${NEXARY_PROMETHEUS_PORT:-18095}"
+SKYWALKING_URL="http://127.0.0.1:${NEXARY_SKYWALKING_UI_PORT:-18097}"
 
 echo "[console] seed platform demo data"
 curl -fsS -X POST "$BASE_URL/demo/platform/seed" | grep '"seeded":true' >/dev/null
+
+echo "[console] run live middleware probe"
+curl -fsS -X POST "$BASE_URL/demo/platform/probe?iterations=20" | grep '"liveProbe":true' >/dev/null
+curl -fsS "$BASE_URL/api/platform/signals" | grep '"source":"live-probe"' >/dev/null
 
 echo "[console] platform overview"
 curl -fsS "$BASE_URL/api/platform/overview" | grep '"workspaceKey":"cloud-phone"' >/dev/null
@@ -27,11 +33,54 @@ curl -fsS "$BASE_URL/api/platform/topology" | grep '"room-resource"' >/dev/null
 
 echo "[console] request flows and host signals"
 curl -fsS "$BASE_URL/api/platform/request-flows" | grep '"flow-signaling-redis-timeout"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/request-flows" | grep '"flow-live-redis-probe"' >/dev/null
 curl -fsS "$BASE_URL/api/platform/transactions" | grep '"endpointKey"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/transactions" | grep '"probe:redis:set-get"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/transactions" | grep '"probe:rabbitmq:publish-consume"' >/dev/null
 curl -fsS "$BASE_URL/api/platform/hosts" | grep '"redis-room-a-primary"' >/dev/null
 
 echo "[console] platform connectors"
 curl -fsS "$BASE_URL/api/platform/connectors" | grep '"FEISHU"' >/dev/null
+
+echo "[console] probe prometheus"
+curl -fsS "$BASE_URL/demo/platform/prometheus" | grep 'nexary_demo_probe_calls_total' >/dev/null
+for attempt in {1..8}; do
+  if curl -fsS "$PROMETHEUS_URL/-/ready" >/dev/null \
+    && curl -fsS "$PROMETHEUS_URL/api/v1/query?query=nexary_demo_probe_calls_total" | grep '"status":"success"' >/dev/null; then
+    break
+  fi
+  if [[ "$attempt" == "8" ]]; then
+    echo "Prometheus did not expose nexary_demo_probe_calls_total" >&2
+    exit 1
+  fi
+  sleep 2
+done
+
+echo "[console] skywalking ui"
+for attempt in {1..12}; do
+  if curl -fsSL "$SKYWALKING_URL" | grep -i 'skywalking' >/dev/null; then
+    break
+  fi
+  if [[ "$attempt" == "12" ]]; then
+    echo "SkyWalking UI did not become readable at $SKYWALKING_URL" >&2
+    exit 1
+  fi
+  sleep 5
+done
+
+echo "[console] skywalking traces"
+SKYWALKING_TABLE_SUFFIX="$(date -u +%Y%m%d)"
+for attempt in {1..12}; do
+  SEGMENT_COUNT="$(docker exec nexary-console-postgres psql -U "${NEXARY_DEMO_POSTGRES_USER:-nexary}" -d nexary -tAc "select count(*) from segment_${SKYWALKING_TABLE_SUFFIX};" 2>/dev/null || echo 0)"
+  if [[ "${SEGMENT_COUNT//[[:space:]]/}" =~ ^[0-9]+$ ]] && [[ "${SEGMENT_COUNT//[[:space:]]/}" -gt 0 ]]; then
+    break
+  fi
+  if [[ "$attempt" == "12" ]]; then
+    echo "SkyWalking did not store traced segments" >&2
+    exit 1
+  fi
+  sleep 5
+done
 
 echo "[console] page html"
 curl -fsSL "$BASE_URL/nexary/console" | grep '/nexary/console/assets/' >/dev/null

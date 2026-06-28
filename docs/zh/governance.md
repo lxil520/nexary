@@ -4,7 +4,7 @@
 
 它的边界很明确：本地治理运行时不做 sidecar、agent、远程下发配置或跨实例状态同步。治理平台只做资源、信号、拓扑和事故候选的只读汇聚，不修改 Sentinel、Gateway、APM、注册中心或通知渠道配置。
 
-`0.20.0` 不替代 Sentinel Dashboard、Spring Cloud Gateway、SkyWalking、CAT、Prometheus、企业 IM、自动摘流平台或分布式 trace 后端。它解决两层问题：本地治理运行时继续处理请求取消、Sentinel provider、停止重试、优先级隔离、异常实例候选和本地 fault trace；治理平台把多个 JVM 或 connector 上报的服务、集群、机房、中间件依赖、请求链路样本、交易统计、主机水位和低基数信号汇总成只读拓扑、事故证据包和治理计划入口。v0.18 会把同一服务、集群、机房内的慢调用、错误率、Sentinel block、Gateway 断开、停止重试和异常实例信号聚合成事故候选。v0.19 把 Platform Mode 改成运维工作台雏形。v0.20 把默认 Console 入口改成完整治理平台 RC，主路径包含总览、拓扑、请求链路、事故、服务、主机实例、中间件、资源治理、集成、通知和策略计划。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数；平台信号也拒绝 userId、tenant、payload、cache key、message id、异常全文、stack trace、token 和密码。
+`0.21.0` 不替代 Sentinel Dashboard、Spring Cloud Gateway、SkyWalking、CAT、Prometheus、企业 IM、自动摘流平台或分布式 trace 后端。它解决两层问题：本地治理运行时继续处理请求取消、Sentinel provider、停止重试、优先级隔离、异常实例候选和本地 fault trace；治理平台把多个 JVM 或 connector 上报的服务、集群、机房、中间件依赖、请求链路样本、交易统计、主机水位和低基数信号汇总成只读拓扑、事故证据包和治理计划入口。v0.18 会把同一服务、集群、机房内的慢调用、错误率、Sentinel block、Gateway 断开、停止重试和异常实例信号聚合成事故候选。v0.19 把 Platform Mode 改成运维工作台雏形。v0.20 把默认 Console 入口改成完整治理平台 RC，主路径包含总览、拓扑、请求链路、事故、服务、主机实例、中间件、资源治理、集成、通知和策略计划。v0.21 把 sample 推进到 Docker 中的 Redis、Postgres、RabbitMQ、Prometheus 和 SkyWalking 真实验证环境。v0.11 的请求失效终止仍在 Sentinel entry 前检查，已取消请求不会进入 Sentinel 统计窗口；v0.15 的实例健康只记录真实下游结果，不把 Sentinel block 当成实例故障；v0.16 trace 只保存低基数字段，不保存业务参数；平台信号也拒绝 userId、tenant、payload、cache key、message id、异常全文、stack trace、token 和密码。
 
 ## 引入依赖
 
@@ -84,6 +84,20 @@ Platform Mode 的第一版只读查看服务、依赖、事故候选和连接器
 v0.20 不继续修补 v0.19 页面。它把治理平台作为默认 Console 入口，重新定义资产模型、数据来源、页面结构和验收。详细 PRD 见 [治理平台 RC PRD](governance-platform-prd.md)，UI/UE 设计见 [治理平台 RC UI/UE 设计](governance-platform-design.md)。
 
 这一版保留 v0.17 到 v0.19 的只读资源、信号、拓扑和事故候选模型，并扩展请求链路样本、CAT 式交易统计、主机信号矩阵、服务水位、机房水位、中间件依赖、外部工具引用、策略计划 dry-run 和通知通道 dry-run。Nexary 仍不替代 SkyWalking、CAT、Prometheus、Sentinel 或 Gateway；平台负责把这些工具的关键证据串到一个值班视图里。
+
+## v0.21 真实中间件探测起点
+
+v0.21 开始把治理平台 sample 从静态演示推进到可验证的本地链路。运行完整 Docker 环境：
+
+```bash
+./scripts/console/up.sh
+./scripts/console/smoke.sh
+open http://127.0.0.1:18090/nexary/console
+```
+
+这个环境会启动 Console、Redis、Postgres、RabbitMQ、Prometheus 和 SkyWalking。`POST /demo/platform/probe?iterations=50` 会对 Redis、Postgres 做真实读写探测，对 RabbitMQ 做真实 publish/consume 探测，记录低基数平台信号，并通过 `/demo/platform/prometheus` 暴露 `nexary_demo_probe_calls_total`、`nexary_demo_probe_latency_seconds`、JVM 内存和线程等 Prometheus 文本指标。Console sample JVM 会通过 SkyWalking Java agent 把本地请求链路发送到 Docker 中的 OAP，UI 地址是 `http://127.0.0.1:18097`。
+
+这一版仍然只读，不接生产凭证，不写 Sentinel/Gateway 配置，不发送真实通知。SkyWalking 只用于本地 sample 链路采集，不把 Nexary 做成自己的 agent 产品。
 
 ## v0.12 Sentinel provider
 

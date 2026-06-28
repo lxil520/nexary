@@ -188,6 +188,7 @@ public final class GovernancePlatformDemoData implements ApplicationRunner {
                 service("board-service", "Board Service", "board-service-cluster", "room-a", "47", "0.085", "920", "1480", "9", "62", "59", "70", "CLOSED", "WATCH", "14.5", "1.1", "0.030"),
                 middleware("redis-main", "Redis Main", "cache", "cn-east", "61", "18", "0.004", "HEALTHY"),
                 middleware("pg-primary", "Postgres Primary", "database", "cn-east", "67", "42", "0.006", "HEALTHY"),
+                middleware("rabbitmq-main", "RabbitMQ Main", "messaging", "cn-east", "44", "22", "0.002", "HEALTHY"),
                 middleware("oss-main", "Object Storage", "object-storage", "cn-east", "58", "64", "0.009", "HEALTHY"),
                 middleware("redis-room", "Room Redis", "cache", "room-a", "92", "230", "0.114", "CRITICAL"),
                 instance("open-api-01", "open-api", "open-api-cluster", "cn-east", "WARNING", "68", "72", "8", "44", "4.2", "1.4", "860", "148", "42", "PACKET_LOSS"),
@@ -206,6 +207,7 @@ public final class GovernancePlatformDemoData implements ApplicationRunner {
                 dependency("sdk-api", "signaling", GovernanceDependencyKind.SIGNALING, "signal:sdk-api:connect"),
                 dependency("scheduler", "room-resource", GovernanceDependencyKind.JOB, "job:scheduler:repair-room"),
                 dependency("consumer", "redis-main", GovernanceDependencyKind.MESSAGING, "mq:consumer:retry-stop"),
+                dependency("consumer", "rabbitmq-main", GovernanceDependencyKind.MESSAGING, "mq:consumer:events"),
                 dependency("consumer", "oss-main", GovernanceDependencyKind.OBJECT_STORAGE, "oss:consumer:snapshot"),
                 dependency("room-resource", "redis-room", GovernanceDependencyKind.CACHE, "cache:room-resource:state"),
                 dependency("signaling", "room-resource", GovernanceDependencyKind.RESOURCE, "downstream:signaling:room-resource"),
@@ -216,8 +218,8 @@ public final class GovernancePlatformDemoData implements ApplicationRunner {
     private List<GovernanceConnector> connectors() {
         return List.of(
                 new GovernanceConnector("nexary-sdk-demo", GovernanceConnectorKind.NEXARY_SDK, GovernanceConnectorState.HEALTHY, "Nexary SDK", "demo signals received", Map.of("mode", "demo")),
-                new GovernanceConnector("micrometer-demo", GovernanceConnectorKind.MICROMETER, GovernanceConnectorState.HEALTHY, "Micrometer", "local metrics ready", Map.of("mode", "demo")),
-                new GovernanceConnector("prometheus-readonly-demo", GovernanceConnectorKind.PROMETHEUS, GovernanceConnectorState.HEALTHY, "Prometheus", "watermarks query demo", Map.of("mode", "demo")),
+                new GovernanceConnector("micrometer-demo", GovernanceConnectorKind.MICROMETER, GovernanceConnectorState.HEALTHY, "Micrometer", "local probe metrics exposed", Map.of("mode", "live-probe")),
+                new GovernanceConnector("prometheus-readonly-demo", GovernanceConnectorKind.PROMETHEUS, GovernanceConnectorState.HEALTHY, "Prometheus", "docker scraper ready", Map.of("mode", "docker-readonly")),
                 new GovernanceConnector("alertmanager-readonly-demo", GovernanceConnectorKind.ALERTMANAGER, GovernanceConnectorState.DEGRADED, "Alertmanager", "readonly alert stream", Map.of("mode", "demo")),
                 new GovernanceConnector("skywalking-readonly-demo", GovernanceConnectorKind.SKYWALKING, GovernanceConnectorState.HEALTHY, "SkyWalking", "service trace evidence demo", Map.of("mode", "demo")),
                 new GovernanceConnector("sentinel-readonly-demo", GovernanceConnectorKind.SENTINEL, GovernanceConnectorState.DEGRADED, "Sentinel", "read-only demo data", Map.of("mode", "demo")),

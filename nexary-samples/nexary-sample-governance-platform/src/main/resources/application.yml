@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: nexary-sample-governance-platform
+  data:
+    redis:
+      host: ${NEXARY_DEMO_REDIS_HOST:127.0.0.1}
+      port: ${NEXARY_DEMO_REDIS_PORT:18091}
+      timeout: 2s
 
 nexary:
   governance:
@@ -19,3 +24,13 @@ nexary:
         operation: seed
   console:
     enabled: true
+  demo:
+    postgres:
+      url: ${NEXARY_DEMO_POSTGRES_URL:jdbc:postgresql://127.0.0.1:18096/nexary}
+      user: ${NEXARY_DEMO_POSTGRES_USER:nexary}
+      password: ${NEXARY_DEMO_POSTGRES_PASSWORD:nexary}
+    rabbitmq:
+      host: ${NEXARY_DEMO_RABBITMQ_HOST:127.0.0.1}
+      port: ${NEXARY_DEMO_RABBITMQ_PORT:18093}
+      user: ${NEXARY_DEMO_RABBITMQ_USER:nexary}
+      password: ${NEXARY_DEMO_RABBITMQ_PASSWORD:nexary}
