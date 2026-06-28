@@ -29,10 +29,10 @@ export function usePlatformData() {
     errorMessage: readonly(errorMessage),
     lastRefreshAt: readonly(lastRefreshAt),
     hasLoaded: readonly(hasLoaded),
-    serviceCount: computed(() => snapshot.value?.services.length ?? 0),
+    serviceCount: computed(() => snapshot.value?.overview.summary.serviceCount ?? snapshot.value?.services.length ?? 0),
     incidentCount: computed(() => snapshot.value?.incidents.length ?? 0),
-    dependencyCount: computed(() => snapshot.value?.topology.dependencies.length ?? 0),
-    connectorCount: computed(() => snapshot.value?.connectors.length ?? 0),
+    dependencyCount: computed(() => snapshot.value?.overview.summary.dependencyCount ?? snapshot.value?.topology.dependencies.length ?? 0),
+    connectorCount: computed(() => snapshot.value?.overview.summary.connectorCount ?? snapshot.value?.connectors.length ?? 0),
     refreshPlatform,
   };
 }

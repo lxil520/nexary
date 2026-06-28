@@ -3,10 +3,10 @@ import { computed, onMounted } from 'vue';
 import EmptyState from '../components/EmptyState.vue';
 import ErrorState from '../components/ErrorState.vue';
 import LoadingBlock from '../components/LoadingBlock.vue';
-import MetricCard from '../components/MetricCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { useConsoleData } from '../composables/useConsoleData';
 import { useLocale } from '../composables/useLocale';
+import { usePlatformData } from '../composables/usePlatformData';
 
 const emit = defineEmits<{
   selectTrace: [traceKey: string];
@@ -14,7 +14,44 @@ const emit = defineEmits<{
 }>();
 
 const { traces, faultTraceSummary, isLoading, errorMessage, hasLoaded, refreshAll } = useConsoleData();
-const { enumLabel, formatTimestamp, t } = useLocale();
+const { snapshot, isLoading: platformLoading, hasLoaded: platformLoaded, refreshPlatform } = usePlatformData();
+const { enumLabel, formatTimestamp, locale, t } = useLocale();
+
+const copy = computed(() =>
+  locale.value === 'zh'
+    ? {
+        loading: '正在加载证据链',
+        traceCenter: '证据链工作台',
+        traceCenterNote: '把平台事故证据和本地故障 Trace 放在同一个排障路径里。',
+        faultSummary: '故障 Trace',
+        evidenceChain: '平台证据链',
+        localTraces: '本地 Trace 明细',
+        noEvidence: '没有平台事故证据',
+        primaryResource: '首要资源',
+        suggested: '建议检查',
+        reference: '引用',
+        signal: '信号',
+        outcome: '结果',
+        duration: '耗时',
+        impact: '影响',
+      }
+    : {
+        loading: 'Loading evidence chains',
+        traceCenter: 'Evidence Chain Workbench',
+        traceCenterNote: 'Connect platform incident evidence with local fault traces.',
+        faultSummary: 'Fault Traces',
+        evidenceChain: 'Platform Evidence Chain',
+        localTraces: 'Local Trace Details',
+        noEvidence: 'No platform incident evidence',
+        primaryResource: 'Primary Resource',
+        suggested: 'Suggested Check',
+        reference: 'Reference',
+        signal: 'Signal',
+        outcome: 'Outcome',
+        duration: 'Duration',
+        impact: 'Impact',
+      },
+);
 
 const orderedTraces = computed(() =>
   [...traces.value].sort((left, right) => {
@@ -23,32 +60,136 @@ const orderedTraces = computed(() =>
     return rightTime - leftTime;
   }),
 );
+const incidents = computed(() => snapshot.value?.incidents ?? []);
+const primaryIncident = computed(() => incidents.value[0] ?? null);
+const evidenceItems = computed(() => primaryIncident.value?.evidence ?? []);
+const isInitialLoading = computed(() => (isLoading.value && !hasLoaded.value) || (platformLoading.value && !platformLoaded.value));
+
+function refreshTraces(): void {
+  void Promise.all([refreshAll(), refreshPlatform()]);
+}
 
 onMounted(() => {
-  if (!hasLoaded.value) {
-    void refreshAll();
+  if (!hasLoaded.value || !platformLoaded.value) {
+    refreshTraces();
   }
 });
 </script>
 
 <template>
-  <LoadingBlock v-if="isLoading && !hasLoaded" :label="t('traces.loading')" />
-  <ErrorState v-else-if="errorMessage" :title="t('traces.errorTitle')" :message="errorMessage" @retry="refreshAll" />
-  <div v-else class="view-stack">
-    <section class="metric-grid" :aria-label="t('traces.summary')">
-      <MetricCard :label="t('traces.retained')" :value="faultTraceSummary?.traceCount ?? traces.length" :detail="t('traces.retainedDetail')" tone="info" />
-      <MetricCard :label="t('traces.stopped')" :value="faultTraceSummary?.stoppedCount ?? 0" :detail="t('traces.stoppedDetail')" tone="warning" />
-      <MetricCard :label="t('traces.blocked')" :value="faultTraceSummary?.blockedCount ?? 0" :detail="t('traces.blockedDetail')" tone="warning" />
-      <MetricCard :label="t('traces.cancelled')" :value="faultTraceSummary?.cancelledCount ?? 0" :detail="t('traces.cancelledDetail')" tone="warning" />
-      <MetricCard :label="t('traces.retryStopped')" :value="faultTraceSummary?.retryStoppedCount ?? 0" :detail="t('traces.retryStoppedDetail')" tone="warning" />
-      <MetricCard :label="t('traces.instanceRelated')" :value="faultTraceSummary?.instanceRelatedCount ?? 0" :detail="t('traces.instanceRelatedDetail')" tone="danger" />
+  <LoadingBlock v-if="isInitialLoading" :label="copy.loading" />
+  <ErrorState v-else-if="errorMessage" :title="t('traces.errorTitle')" :message="errorMessage" @retry="refreshTraces" />
+  <div v-else class="ops-page">
+    <section class="ops-hero ops-hero--compact">
+      <div>
+        <p class="eyebrow">{{ copy.traceCenter }}</p>
+        <h2>{{ copy.traceCenter }}</h2>
+        <p>{{ copy.traceCenterNote }}</p>
+      </div>
+      <div class="ops-hero__metrics">
+        <article>
+          <span>{{ t('traces.retained') }}</span>
+          <strong>{{ faultTraceSummary?.traceCount ?? traces.length }}</strong>
+        </article>
+        <article>
+          <span>{{ t('traces.stopped') }}</span>
+          <strong>{{ faultTraceSummary?.stoppedCount ?? 0 }}</strong>
+        </article>
+        <article>
+          <span>{{ t('traces.instanceRelated') }}</span>
+          <strong>{{ faultTraceSummary?.instanceRelatedCount ?? 0 }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.evidenceChain }}</span>
+          <strong>{{ evidenceItems.length }}</strong>
+        </article>
+      </div>
     </section>
 
-    <section class="panel">
-      <div class="panel__header">
-        <h2>{{ t('traces.recent') }}</h2>
-        <span>{{ orderedTraces.length }} {{ t('state.shown') }}</span>
+    <section class="ops-dual-grid">
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ copy.evidenceChain }}</span>
+            <h3>{{ primaryIncident?.title ?? copy.evidenceChain }}</h3>
+            <p v-if="primaryIncident">
+              {{ copy.impact }} {{ primaryIncident.impactScope.serviceKey }} / {{ primaryIncident.impactScope.clusterKey }} / {{ primaryIncident.impactScope.zoneKey }}
+            </p>
+          </div>
+          <StatusBadge :label="primaryIncident?.severity ?? 'INFO'" :state="primaryIncident?.severity ?? 'INFO'" />
+        </header>
+        <EmptyState v-if="!primaryIncident" :title="copy.noEvidence" :message="t('traces.emptyMessage')" />
+        <div v-else class="ops-evidence-board">
+          <dl>
+            <div>
+              <dt>{{ copy.primaryResource }}</dt>
+              <dd>{{ primaryIncident.primaryResourceKey }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.suggested }}</dt>
+              <dd>
+                <button
+                  v-if="primaryIncident.suggestedCheck"
+                  class="link-button"
+                  type="button"
+                  @click="emit('selectResource', primaryIncident.suggestedCheck.resourceKey)"
+                >
+                  <span class="table-primary">{{ primaryIncident.suggestedCheck.resourceKey }}</span>
+                </button>
+                <span v-else>{{ enumLabel('NONE') }}</span>
+              </dd>
+            </div>
+          </dl>
+          <ol class="ops-timeline">
+            <li v-for="item in evidenceItems" :key="`${item.timestamp}-${item.resourceKey}-${item.signalType}`">
+              <time>{{ formatTimestamp(item.timestamp) }}</time>
+              <strong>{{ item.resourceKey }}</strong>
+              <span>{{ copy.signal }} {{ item.signalType }} / {{ copy.outcome }} {{ item.outcome }} / {{ copy.duration }} {{ item.durationBucket }}</span>
+              <small>{{ copy.reference }} {{ item.referenceType }} / {{ item.referenceKey }}</small>
+            </li>
+          </ol>
+        </div>
       </div>
+
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ copy.faultSummary }}</span>
+            <h3>{{ copy.faultSummary }}</h3>
+          </div>
+        </header>
+        <div class="ops-signal-grid ops-signal-grid--three">
+          <article data-tone="warning">
+            <span>{{ t('traces.blocked') }}</span>
+            <strong>{{ faultTraceSummary?.blockedCount ?? 0 }}</strong>
+          </article>
+          <article data-tone="warning">
+            <span>{{ t('traces.cancelled') }}</span>
+            <strong>{{ faultTraceSummary?.cancelledCount ?? 0 }}</strong>
+          </article>
+          <article data-tone="critical">
+            <span>{{ t('traces.retryStopped') }}</span>
+            <strong>{{ faultTraceSummary?.retryStoppedCount ?? 0 }}</strong>
+          </article>
+        </div>
+        <div class="ops-mini-list">
+          <article v-for="(count, reason) in faultTraceSummary?.topStopReasons ?? {}" :key="reason">
+            <strong>{{ enumLabel(reason) }}</strong>
+            <span>{{ t('table.stopReason') }}</span>
+            <b>{{ count }}</b>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="ops-panel">
+      <header>
+        <div>
+          <span>{{ copy.localTraces }}</span>
+          <h3>{{ t('traces.recent') }}</h3>
+        </div>
+        <span>{{ orderedTraces.length }} {{ t('state.shown') }}</span>
+      </header>
       <EmptyState
         v-if="orderedTraces.length === 0"
         :title="t('traces.emptyTitle')"

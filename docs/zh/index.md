@@ -9,6 +9,8 @@
 - [Messaging 指南](messaging.md)
 - [Job 指南](job.md)
 - [Governance 指南](governance.md)
+- [治理平台重建 PRD](governance-platform-prd.md)
+- [治理平台 UI/UE 设计](governance-platform-design.md)
 - [只读治理诊断 Console PRD](console-prd.md)
 - [只读治理诊断 Console 设计](console-design.md)
 - [Observation 与 Micrometer](observation.md)

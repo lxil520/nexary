@@ -1,95 +1,250 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import SettingsReadonlyView from './views/SettingsReadonlyView.vue';
+import PlatformWorkbenchView from './views/PlatformWorkbenchView.vue';
 import OverviewView from './views/OverviewView.vue';
 import ResourcesView from './views/ResourcesView.vue';
 import ResourceDetailView from './views/ResourceDetailView.vue';
 import EventsView from './views/EventsView.vue';
 import TracesView from './views/TracesView.vue';
 import TraceDetailView from './views/TraceDetailView.vue';
-import SettingsReadonlyView from './views/SettingsReadonlyView.vue';
-import PlatformOverviewView from './views/PlatformOverviewView.vue';
 import { useConsoleData } from './composables/useConsoleData';
 import { useLocale } from './composables/useLocale';
 import { usePlatformData } from './composables/usePlatformData';
 import logoUrl from './assets/nexary-logo.svg';
 
-type ViewId = 'overview' | 'platform' | 'resources' | 'resource-detail' | 'events' | 'traces' | 'trace-detail' | 'settings';
+type PlatformSection =
+  | 'overview'
+  | 'topology'
+  | 'request-flows'
+  | 'incidents'
+  | 'services'
+  | 'hosts'
+  | 'middleware'
+  | 'resources'
+  | 'integrations'
+  | 'notifications'
+  | 'policies';
+type LocalView =
+  | 'local-overview'
+  | 'local-resources'
+  | 'local-resource-detail'
+  | 'local-events'
+  | 'local-traces'
+  | 'local-trace-detail';
+type LocalTabView = Exclude<LocalView, 'local-resource-detail' | 'local-trace-detail'> | 'settings';
+type NavigationItemId = PlatformSection | 'local';
+type ViewId = PlatformSection | LocalView | 'settings';
 
 interface RouteState {
   view: ViewId;
-  resourceKey: string | null;
-  traceKey: string | null;
+  resourceKey?: string;
+  traceKey?: string;
 }
 
 const CONSOLE_BASE_PATH = '/nexary/console';
 
 const navigationItems: Array<{
-  id: ViewId;
-  labelKey: 'nav.overview' | 'nav.platform' | 'nav.resources' | 'nav.events' | 'nav.traces' | 'nav.settings';
+  id: NavigationItemId;
+  path: string;
+  zh: string;
+  en: string;
 }> = [
-  { id: 'overview', labelKey: 'nav.overview' },
-  { id: 'platform', labelKey: 'nav.platform' },
-  { id: 'resources', labelKey: 'nav.resources' },
-  { id: 'events', labelKey: 'nav.events' },
-  { id: 'traces', labelKey: 'nav.traces' },
-  { id: 'settings', labelKey: 'nav.settings' },
+  { id: 'overview', path: '', zh: '总览', en: 'Overview' },
+  { id: 'topology', path: 'topology', zh: '拓扑', en: 'Topology' },
+  { id: 'request-flows', path: 'request-flows', zh: '请求链路', en: 'Request Flows' },
+  { id: 'incidents', path: 'incidents', zh: '事故', en: 'Incidents' },
+  { id: 'services', path: 'services', zh: '服务', en: 'Services' },
+  { id: 'hosts', path: 'hosts', zh: '主机实例', en: 'Hosts' },
+  { id: 'middleware', path: 'middleware', zh: '中间件', en: 'Middleware' },
+  { id: 'resources', path: 'resources', zh: '资源治理', en: 'Resources' },
+  { id: 'integrations', path: 'integrations', zh: '集成', en: 'Integrations' },
+  { id: 'notifications', path: 'notifications', zh: '通知', en: 'Notifications' },
+  { id: 'policies', path: 'policies', zh: '策略计划', en: 'Policy Plans' },
+  { id: 'local', path: 'local', zh: '本地诊断', en: 'Local Diagnostics' },
+];
+const platformSections: PlatformSection[] = [
+  'overview',
+  'topology',
+  'request-flows',
+  'incidents',
+  'services',
+  'hosts',
+  'middleware',
+  'resources',
+  'integrations',
+  'notifications',
+  'policies',
+];
+const localTabs: Array<{
+  view: LocalTabView;
+  zh: string;
+  en: string;
+}> = [
+  { view: 'local-overview', zh: '本地概览', en: 'Local Overview' },
+  { view: 'local-resources', zh: '资源', en: 'Resources' },
+  { view: 'local-events', zh: '事件', en: 'Events' },
+  { view: 'local-traces', zh: 'Trace', en: 'Trace' },
+  { view: 'settings', zh: '设置', en: 'Settings' },
 ];
 
 const route = ref<RouteState>(routeFromLocation());
+const globalWorkspace = ref('cloud-phone');
+const globalEnvironment = ref('prod-demo');
+const globalTeam = ref('platform-team');
+const globalTimeRange = ref('30m');
+const globalSeverity = ref('all');
+
 const { isLoading: localLoading, lastRefreshAt: localLastRefreshAt, refreshAll } = useConsoleData();
 const { isLoading: platformLoading, lastRefreshAt: platformLastRefreshAt, refreshPlatform } = usePlatformData();
 const { locale, setLocale, t } = useLocale();
 
-const isPlatformView = computed(() => route.value.view === 'platform');
-const isLoading = computed(() => (isPlatformView.value ? platformLoading.value : localLoading.value));
-const lastRefreshAt = computed(() => (isPlatformView.value ? platformLastRefreshAt.value : localLastRefreshAt.value));
+const platformSection = computed<PlatformSection>(() => (isPlatformSection(route.value.view) ? route.value.view : 'overview'));
+const isSettings = computed(() => route.value.view === 'settings');
+const isLocalArea = computed(() => isLocalView(route.value.view) || isSettings.value);
+const isLoading = computed(() => (isLocalArea.value ? localLoading.value : platformLoading.value));
+const lastRefreshAt = computed(() => {
+  const timestamps = [isLocalArea.value ? localLastRefreshAt.value : platformLastRefreshAt.value]
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return timestamps.at(-1) ?? null;
+});
 
 const title = computed(() => {
-  if (route.value.view === 'resource-detail') {
-    return t('title.resourceDetail');
+  if (isLocalArea.value) {
+    return localLabel(route.value.view);
   }
-  if (route.value.view === 'trace-detail') {
-    return t('title.traceDetail');
+  return isPlatformSection(route.value.view) ? navLabel(route.value.view) : navLabel('overview');
+});
+
+const subtitle = computed(() => {
+  if (isLocalArea.value) {
+    return locale.value === 'zh'
+      ? '当前 JVM 只读诊断：资源、事件、fault trace 和 Console 边界'
+      : 'Current-JVM read-only diagnostics: resources, events, fault traces, and Console boundary';
   }
-  const item = navigationItems.find((entry) => entry.id === route.value.view);
-  return item ? t(item.labelKey) : t('nav.overview');
+  return locale.value === 'zh'
+    ? '统一治理平台 RC：跨工具证据聚合、请求分析、事故归因和治理编排入口'
+    : 'Governance platform RC: cross-tool evidence, request analysis, incident diagnosis, and dry-run planning';
 });
 
 const refreshLabel = computed(() =>
   lastRefreshAt.value ? `${t('app.updated')} ${lastRefreshAt.value}` : t('app.notRefreshed'),
 );
 
-const scopeLabel = computed(() => (isPlatformView.value ? t('app.platformScope') : t('app.scope')));
-const scopeNote = computed(() => (isPlatformView.value ? t('app.platformNote') : t('app.jvmNote')));
+const workspaceLabel = computed(() =>
+  locale.value === 'zh' && globalWorkspace.value === 'cloud-phone' ? '云手机' : globalWorkspace.value,
+);
 
-function navigate(view: ViewId): void {
-  pushRoute({ view, resourceKey: null, traceKey: null });
+const environmentLabel = computed(() => {
+  if (locale.value !== 'zh') {
+    return globalEnvironment.value;
+  }
+  return globalEnvironment.value === 'prod-demo' ? '生产演示' : '预发演示';
+});
+
+const teamLabel = computed(() => globalTeam.value);
+
+const timeRangeOptions = computed(() =>
+  locale.value === 'zh'
+    ? [
+        { value: '30m', label: '近 30 分钟' },
+        { value: '2h', label: '近 2 小时' },
+        { value: '24h', label: '近 24 小时' },
+      ]
+    : [
+        { value: '30m', label: '30m' },
+        { value: '2h', label: '2h' },
+        { value: '24h', label: '24h' },
+      ],
+);
+
+const severityOptions = computed(() =>
+  locale.value === 'zh'
+    ? [
+        { value: 'all', label: '全部级别' },
+        { value: 'critical', label: '严重' },
+        { value: 'warning', label: '警告' },
+      ]
+    : [
+        { value: 'all', label: 'All severity' },
+        { value: 'critical', label: 'Critical' },
+        { value: 'warning', label: 'Warning' },
+      ],
+);
+
+function navLabel(view: NavigationItemId): string {
+  const item = navigationItems.find((entry) => entry.id === view);
+  return item ? (locale.value === 'zh' ? item.zh : item.en) : navigationItems[0].zh;
+}
+
+function localLabel(view: ViewId): string {
+  if (view === 'local-resource-detail') {
+    return locale.value === 'zh' ? '资源详情' : 'Resource Detail';
+  }
+  if (view === 'local-trace-detail') {
+    return locale.value === 'zh' ? 'Trace 详情' : 'Trace Detail';
+  }
+  const item = localTabs.find((entry) => entry.view === view);
+  return item ? (locale.value === 'zh' ? item.zh : item.en) : localTabs[0].zh;
+}
+
+function localTabLabel(view: LocalTabView): string {
+  const item = localTabs.find((entry) => entry.view === view);
+  return item ? (locale.value === 'zh' ? item.zh : item.en) : localTabs[0].zh;
+}
+
+function navigate(view: NavigationItemId): void {
+  if (view === 'local') {
+    pushRoute({ view: 'local-overview' });
+    return;
+  }
+  pushRoute({ view });
+}
+
+function navigateLocal(view: LocalTabView): void {
+  pushRoute({ view });
 }
 
 function refreshCurrent(): void {
-  if (isPlatformView.value) {
-    void refreshPlatform();
+  if (isLocalArea.value) {
+    void refreshAll();
     return;
   }
-  void refreshAll();
+  void refreshPlatform();
 }
 
-function openResource(resourceKey: string): void {
-  pushRoute({ view: 'resource-detail', resourceKey, traceKey: null });
-}
-
-function openTrace(traceKey: string): void {
-  pushRoute({ view: 'trace-detail', resourceKey: null, traceKey });
-}
-
-function isNavigationItemActive(view: ViewId): boolean {
-  if (view === 'resources') {
-    return route.value.view === 'resources' || route.value.view === 'resource-detail';
-  }
-  if (view === 'traces') {
-    return route.value.view === 'traces' || route.value.view === 'trace-detail';
+function isNavigationItemActive(view: NavigationItemId): boolean {
+  if (view === 'local') {
+    return isLocalArea.value;
   }
   return route.value.view === view;
+}
+
+function isLocalTabActive(view: LocalTabView): boolean {
+  if (view === 'local-resources') {
+    return route.value.view === 'local-resources' || route.value.view === 'local-resource-detail';
+  }
+  if (view === 'local-traces') {
+    return route.value.view === 'local-traces' || route.value.view === 'local-trace-detail';
+  }
+  return route.value.view === view;
+}
+
+function openLocalResource(resourceKey: string): void {
+  pushRoute({ view: 'local-resource-detail', resourceKey });
+}
+
+function openLocalTrace(traceKey: string): void {
+  pushRoute({ view: 'local-trace-detail', traceKey });
+}
+
+function isPlatformSection(view: ViewId): view is PlatformSection {
+  return platformSections.includes(view as PlatformSection);
+}
+
+function isLocalView(view: ViewId): view is LocalView {
+  return view.startsWith('local-');
 }
 
 function pushRoute(nextRoute: RouteState): void {
@@ -101,28 +256,29 @@ function pushRoute(nextRoute: RouteState): void {
 }
 
 function pathFromRoute(nextRoute: RouteState): string {
-  if (nextRoute.view === 'resources') {
-    return `${CONSOLE_BASE_PATH}/resources`;
-  }
-  if (nextRoute.view === 'platform') {
-    return `${CONSOLE_BASE_PATH}/platform`;
-  }
-  if (nextRoute.view === 'events') {
-    return `${CONSOLE_BASE_PATH}/events`;
-  }
-  if (nextRoute.view === 'traces') {
-    return `${CONSOLE_BASE_PATH}/traces`;
-  }
-  if (nextRoute.view === 'trace-detail' && nextRoute.traceKey) {
-    return `${CONSOLE_BASE_PATH}/traces/${encodeURIComponent(nextRoute.traceKey)}`;
-  }
   if (nextRoute.view === 'settings') {
     return `${CONSOLE_BASE_PATH}/settings`;
   }
-  if (nextRoute.view === 'resource-detail' && nextRoute.resourceKey) {
-    return `${CONSOLE_BASE_PATH}/resources/${encodeURIComponent(nextRoute.resourceKey)}`;
+  if (nextRoute.view === 'local-overview') {
+    return `${CONSOLE_BASE_PATH}/local`;
   }
-  return CONSOLE_BASE_PATH;
+  if (nextRoute.view === 'local-resources') {
+    return `${CONSOLE_BASE_PATH}/local/resources`;
+  }
+  if (nextRoute.view === 'local-resource-detail') {
+    return `${CONSOLE_BASE_PATH}/local/resources/${encodeURIComponent(nextRoute.resourceKey ?? '')}`;
+  }
+  if (nextRoute.view === 'local-events') {
+    return `${CONSOLE_BASE_PATH}/local/events`;
+  }
+  if (nextRoute.view === 'local-traces') {
+    return `${CONSOLE_BASE_PATH}/local/traces`;
+  }
+  if (nextRoute.view === 'local-trace-detail') {
+    return `${CONSOLE_BASE_PATH}/local/traces/${encodeURIComponent(nextRoute.traceKey ?? '')}`;
+  }
+  const item = navigationItems.find((entry) => entry.id === nextRoute.view);
+  return item?.path ? `${CONSOLE_BASE_PATH}/${item.path}` : CONSOLE_BASE_PATH;
 }
 
 function syncRoute(): void {
@@ -142,71 +298,78 @@ function routeFromHash(): RouteState | null {
   if (rawHash.length === 0) {
     return null;
   }
-  if (rawHash === 'overview') {
-    return { view: 'overview', resourceKey: null, traceKey: null };
-  }
-  const [view, encodedKey] = rawHash.split('/');
-  if (view === 'platform' || view === 'resources' || view === 'events' || view === 'traces' || view === 'settings') {
-    return { view, resourceKey: null, traceKey: null };
-  }
-  if (view === 'resource-detail' && encodedKey) {
-    const resourceKey = decodePathSegment(encodedKey);
-    return resourceKey
-      ? { view, resourceKey, traceKey: null }
-      : { view: 'overview', resourceKey: null, traceKey: null };
-  }
-  if (view === 'trace-detail' && encodedKey) {
-    const traceKey = decodePathSegment(encodedKey);
-    return traceKey ? { view, resourceKey: null, traceKey } : { view: 'overview', resourceKey: null, traceKey: null };
-  }
-  return { view: 'overview', resourceKey: null, traceKey: null };
+  const legacyMap: Record<string, ViewId> = {
+    overview: 'overview',
+    platform: 'overview',
+    topology: 'topology',
+    local: 'local-overview',
+    traces: 'request-flows',
+    'request-flows': 'request-flows',
+    events: 'incidents',
+    incidents: 'incidents',
+    services: 'services',
+    hosts: 'hosts',
+    middleware: 'middleware',
+    resources: 'resources',
+    integrations: 'integrations',
+    notifications: 'notifications',
+    policies: 'policies',
+    settings: 'settings',
+  };
+  return { view: legacyMap[rawHash.split('/')[0]] ?? 'overview' };
 }
 
 function routeFromPath(pathname: string): RouteState {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   if (normalizedPath === CONSOLE_BASE_PATH || normalizedPath === `${CONSOLE_BASE_PATH}/overview`) {
-    return { view: 'overview', resourceKey: null, traceKey: null };
+    return { view: 'overview' };
   }
   if (!normalizedPath.startsWith(`${CONSOLE_BASE_PATH}/`)) {
-    return { view: 'overview', resourceKey: null, traceKey: null };
+    return { view: 'overview' };
   }
   const relativePath = normalizedPath.slice(CONSOLE_BASE_PATH.length + 1);
-  if (relativePath === 'resources') {
-    return { view: 'resources', resourceKey: null, traceKey: null };
+  if (relativePath === 'settings') {
+    return { view: 'settings' };
+  }
+  const localRoute = routeFromLocalPath(relativePath);
+  if (localRoute) {
+    return localRoute;
   }
   if (relativePath === 'platform') {
-    return { view: 'platform', resourceKey: null, traceKey: null };
+    return { view: 'overview' };
+  }
+  if (relativePath === 'traces' || relativePath.startsWith('traces/')) {
+    return { view: 'request-flows' };
   }
   if (relativePath === 'events') {
-    return { view: 'events', resourceKey: null, traceKey: null };
+    return { view: 'incidents' };
   }
-  if (relativePath === 'traces') {
-    return { view: 'traces', resourceKey: null, traceKey: null };
-  }
-  if (relativePath === 'settings') {
-    return { view: 'settings', resourceKey: null, traceKey: null };
-  }
-  if (relativePath.startsWith('resources/')) {
-    const encodedKey = relativePath.slice('resources/'.length);
-    const resourceKey = decodePathSegment(encodedKey);
-    return resourceKey
-      ? { view: 'resource-detail', resourceKey, traceKey: null }
-      : { view: 'resources', resourceKey: null, traceKey: null };
-  }
-  if (relativePath.startsWith('traces/')) {
-    const encodedKey = relativePath.slice('traces/'.length);
-    const traceKey = decodePathSegment(encodedKey);
-    return traceKey ? { view: 'trace-detail', resourceKey: null, traceKey } : { view: 'traces', resourceKey: null, traceKey: null };
-  }
-  return { view: 'overview', resourceKey: null, traceKey: null };
+  const item = navigationItems.find((entry) => entry.path === relativePath);
+  return { view: item && item.id !== 'local' ? item.id : 'overview' };
 }
 
-function decodePathSegment(value: string): string | null {
-  try {
-    return decodeURIComponent(value);
-  } catch {
+function routeFromLocalPath(relativePath: string): RouteState | null {
+  const segments = relativePath.split('/').filter(Boolean);
+  if (segments[0] !== 'local') {
     return null;
   }
+  if (segments.length === 1) {
+    return { view: 'local-overview' };
+  }
+  if (segments[1] === 'resources') {
+    return segments[2]
+      ? { view: 'local-resource-detail', resourceKey: decodeURIComponent(segments[2]) }
+      : { view: 'local-resources' };
+  }
+  if (segments[1] === 'events') {
+    return { view: 'local-events' };
+  }
+  if (segments[1] === 'traces') {
+    return segments[2]
+      ? { view: 'local-trace-detail', traceKey: decodeURIComponent(segments[2]) }
+      : { view: 'local-traces' };
+  }
+  return { view: 'local-overview' };
 }
 
 onMounted(() => {
@@ -227,7 +390,7 @@ onBeforeUnmount(() => {
         <img class="brand-logo" :src="logoUrl" alt="Nexary" />
         <div class="brand-copy">
           <strong>Nexary Console</strong>
-          <span>{{ t('app.subtitle') }}</span>
+          <span>Governance RC</span>
         </div>
       </div>
       <nav class="nav-list">
@@ -239,17 +402,35 @@ onBeforeUnmount(() => {
           :aria-current="isNavigationItemActive(item.id) ? 'page' : undefined"
           @click="navigate(item.id)"
         >
-          {{ t(item.labelKey) }}
+          {{ navLabel(item.id) }}
         </button>
       </nav>
     </aside>
 
     <main class="main-area">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">{{ scopeLabel }}</p>
+        <div class="topbar__identity">
+          <span>{{ subtitle }}</span>
           <h1>{{ title }}</h1>
-          <p class="topbar__note">{{ scopeNote }}</p>
+        </div>
+        <div class="topbar__scope" aria-label="Observation scope">
+          <span>{{ workspaceLabel }}</span>
+          <span>{{ environmentLabel }}</span>
+          <span>{{ teamLabel }}</span>
+          <label>
+            <select v-model="globalTimeRange" aria-label="Time range">
+              <option v-for="option in timeRangeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <select v-model="globalSeverity" aria-label="Severity">
+              <option v-for="option in severityOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
         </div>
         <div class="topbar__actions">
           <div class="locale-segment" :aria-label="t('app.language')">
@@ -263,21 +444,37 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <OverviewView v-if="route.view === 'overview'" @select-resource="openResource" />
-      <PlatformOverviewView v-else-if="route.view === 'platform'" />
-      <ResourcesView v-else-if="route.view === 'resources'" @select-resource="openResource" />
+      <div v-if="isLocalArea" class="local-tabs" aria-label="Local diagnostics">
+        <button
+          v-for="tab in localTabs"
+          :key="tab.view"
+          type="button"
+          :class="{ 'is-active': isLocalTabActive(tab.view) }"
+          @click="navigateLocal(tab.view)"
+        >
+          {{ localTabLabel(tab.view) }}
+        </button>
+      </div>
+
+      <SettingsReadonlyView v-if="route.view === 'settings'" />
+      <OverviewView v-else-if="route.view === 'local-overview'" @select-resource="openLocalResource" />
+      <ResourcesView v-else-if="route.view === 'local-resources'" @select-resource="openLocalResource" />
       <ResourceDetailView
-        v-else-if="route.view === 'resource-detail' && route.resourceKey"
-        :resource-key="route.resourceKey"
+        v-else-if="route.view === 'local-resource-detail'"
+        :resource-key="route.resourceKey ?? ''"
       />
-      <EventsView v-else-if="route.view === 'events'" />
-      <TracesView v-else-if="route.view === 'traces'" @select-trace="openTrace" @select-resource="openResource" />
+      <EventsView v-else-if="route.view === 'local-events'" />
+      <TracesView
+        v-else-if="route.view === 'local-traces'"
+        @select-trace="openLocalTrace"
+        @select-resource="openLocalResource"
+      />
       <TraceDetailView
-        v-else-if="route.view === 'trace-detail' && route.traceKey"
-        :trace-key="route.traceKey"
-        @select-resource="openResource"
+        v-else-if="route.view === 'local-trace-detail'"
+        :trace-key="route.traceKey ?? ''"
+        @select-resource="openLocalResource"
       />
-      <SettingsReadonlyView v-else-if="route.view === 'settings'" />
+      <PlatformWorkbenchView v-else :section="platformSection" />
     </main>
   </div>
 </template>

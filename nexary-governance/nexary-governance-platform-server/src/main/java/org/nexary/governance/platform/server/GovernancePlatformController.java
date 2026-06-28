@@ -56,6 +56,18 @@ public final class GovernancePlatformController {
         return PlatformJson.topology(service.topology());
     }
 
+    /** Returns dashboard-ready platform overview data. */
+    @GetMapping("/overview")
+    public Map<String, Object> overview() {
+        return service.overview();
+    }
+
+    /** Returns the complete read-only platform snapshot. */
+    @GetMapping("/snapshot")
+    public Map<String, Object> snapshot() {
+        return service.snapshot();
+    }
+
     /** Returns service nodes. */
     @GetMapping("/services")
     public Map<String, Object> services() {
@@ -75,6 +87,33 @@ public final class GovernancePlatformController {
                 .map(PlatformJson::incident)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns request-flow samples. */
+    @GetMapping("/request-flows")
+    public Map<String, Object> requestFlows() {
+        return Map.of("items", service.requestFlows().stream().map(PlatformJson::requestFlow).toList());
+    }
+
+    /** Returns one request-flow sample by stable key. */
+    @GetMapping("/request-flows/{traceKey}")
+    public ResponseEntity<Map<String, Object>> requestFlow(@PathVariable("traceKey") String traceKey) {
+        return service.requestFlow(traceKey)
+                .map(PlatformJson::requestFlow)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns CAT-style transaction metrics. */
+    @GetMapping("/transactions")
+    public Map<String, Object> transactions() {
+        return Map.of("items", service.transactions().stream().map(PlatformJson::transaction).toList());
+    }
+
+    /** Returns host and instance waterline signals. */
+    @GetMapping("/hosts")
+    public Map<String, Object> hosts() {
+        return Map.of("items", service.hosts().stream().map(PlatformJson::host).toList());
     }
 
     /** Returns connector statuses. */

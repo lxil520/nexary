@@ -9,6 +9,8 @@
 - [Messaging Guide](messaging.md)
 - [Job Guide](job.md)
 - [Governance Guide](governance.md)
+- [Governance Platform Rebuild PRD](governance-platform-prd.md)
+- [Governance Platform UI/UX Design](governance-platform-design.md)
 - [Read-Only Governance Diagnostic Console PRD](console-prd.md)
 - [Read-Only Governance Diagnostic Console Design](console-design.md)
 - [Observation and Micrometer](observation.md)

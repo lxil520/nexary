@@ -506,18 +506,21 @@ Included scope:
 - production Feishu / DingTalk alert delivery.
 - automatic traffic drain, automatic scaling, or automatic rule changes.
 
-## `0.18+` Platform Polish, Evidence Chains, and Read-Only External Integrations
+## `0.18+` Platform Evidence Chains and Governance Platform Rebuild
 
-Later releases should first make the existing governance work usable as a platform before moving into capacity, chaos, and automatic stop-loss.
+Later releases should first turn existing governance signals into a platform that works for on-call operators before moving into capacity, chaos, and automatic stop-loss.
 
 Planned direction:
 
 - `0.18.x`: signal ingestion and incident evidence chains, grouping slow calls, rate limits, retry-stop, and abnormal instances into readable incident candidates. `0.18.0` adds primary resource, impacted resource count, evidence timeline, suggested check, single-incident query endpoint, and dependency-edge alert counts.
 - `0.19.x`: Console product redesign for daily operations instead of local count cards. `0.19.0` changes Platform Mode into a three-column workbench for incident queue, topology impact, service health, and evidence chain.
-- `0.20.x`: read-only connectors for Sentinel, Gateway, Prometheus / Alertmanager, and OTel / SkyWalking.
-- `0.21.x`: alert routing and Feishu / DingTalk dry-run.
-- `0.22.x`: low-risk configuration entry evaluation, limited to service grouping, alert rules, and notification routes, with dry-run, diff, audit, and rollback.
-- `0.23+`: evaluate capacity, chaos, automatic stop-loss, automatic traffic drain, and automatic scaling.
+- `0.20.x`: unified governance platform RC. The default entry becomes Overview, Topology, Request Flows, Incidents, Services, Hosts, Middleware, Resource Governance, Integrations, Notifications, and Policy Plans. It adds cloud-phone demo data, request-flow samples, CAT-style transaction stats, host signal matrix, and a read-only platform snapshot.
+- `0.21.x`: real read-only Prometheus / Micrometer metrics and service watermarks, replacing v0.20 demo watermarks with configurable data sources.
+- `0.22.x`: read-only connectors and evidence-chain upgrades for Sentinel, Gateway, OTel / SkyWalking, and Actuator / Spring Boot Admin, turning external references into real drill-down links.
+- `0.23.x`: policy-plan dry-run that generates diffs and review material without writing external systems.
+- `0.24.x`: Feishu / DingTalk notification-channel dry-run, test delivery, deduplication, mute, and recovery rules.
+- `0.25.x`: deeper platform UI and dashboard configuration, including more service detail, chart combinations, saved views, and team views.
+- `0.26+`: evaluate RBAC, audit, policy versions, rollback, retention, capacity, chaos, automatic stop-loss, automatic traffic drain, and automatic scaling.
 
 ## `1.0.0` Stability Target
 

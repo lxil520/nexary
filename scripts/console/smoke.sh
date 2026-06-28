@@ -14,16 +14,24 @@ set +a
 
 BASE_URL="http://127.0.0.1:${NEXARY_CONSOLE_PORT:-18090}"
 
-echo "[console] trigger local governance events"
-curl -fsS "$BASE_URL/governance/profiles/u-1" >/dev/null
-curl -fsS "$BASE_URL/governance/profiles/u-2" >/dev/null
-curl -fsS "$BASE_URL/governance/profiles/u-3" >/dev/null
+echo "[console] seed platform demo data"
+curl -fsS -X POST "$BASE_URL/demo/platform/seed" | grep '"seeded":true' >/dev/null
 
-echo "[console] diagnostics summary"
-curl -fsS "$BASE_URL/nexary/governance/summary" | grep '"resourceCount"' >/dev/null
+echo "[console] platform overview"
+curl -fsS "$BASE_URL/api/platform/overview" | grep '"workspaceKey":"cloud-phone"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/overview" | grep '"notificationRoutes"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/snapshot" | grep '"requestFlows"' >/dev/null
 
-echo "[console] diagnostics resources"
-curl -fsS "$BASE_URL/nexary/governance/resources" | grep '"resourceKey"' >/dev/null
+echo "[console] platform topology"
+curl -fsS "$BASE_URL/api/platform/topology" | grep '"room-resource"' >/dev/null
+
+echo "[console] request flows and host signals"
+curl -fsS "$BASE_URL/api/platform/request-flows" | grep '"flow-signaling-redis-timeout"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/transactions" | grep '"endpointKey"' >/dev/null
+curl -fsS "$BASE_URL/api/platform/hosts" | grep '"redis-room-a-primary"' >/dev/null
+
+echo "[console] platform connectors"
+curl -fsS "$BASE_URL/api/platform/connectors" | grep '"FEISHU"' >/dev/null
 
 echo "[console] page html"
 curl -fsSL "$BASE_URL/nexary/console" | grep '/nexary/console/assets/' >/dev/null

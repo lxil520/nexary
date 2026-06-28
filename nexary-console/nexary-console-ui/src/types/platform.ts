@@ -53,6 +53,81 @@ export interface PlatformEvidenceItem {
   timestamp: string | null;
 }
 
+export interface PlatformEvidenceRef {
+  type: string;
+  refKey: string;
+  label: string;
+  href: string;
+}
+
+export interface PlatformSpan {
+  spanId: string;
+  parentSpanId: string;
+  serviceKey: string;
+  resourceKey: string;
+  component: string;
+  operation: string;
+  startOffsetMs: number;
+  durationMs: number;
+  status: string;
+  errorType: string;
+  evidenceRefs: PlatformEvidenceRef[];
+}
+
+export interface PlatformRequestFlow {
+  traceKey: string;
+  entryServiceKey: string;
+  endpointKey: string;
+  zoneKey: string;
+  status: string;
+  durationMs: number;
+  startedAt: string | null;
+  spanCount: number;
+  primaryError: string;
+  summary: string;
+  spans: PlatformSpan[];
+  evidenceRefs: PlatformEvidenceRef[];
+}
+
+export interface PlatformTransactionMetric {
+  serviceKey: string;
+  endpointKey: string;
+  zoneKey: string;
+  windowStart: string | null;
+  windowEnd: string | null;
+  total: number;
+  failure: number;
+  failureRate: number;
+  tps: number;
+  qps: number;
+  minMs: number;
+  maxMs: number;
+  avgMs: number;
+  p95Ms: number;
+  p99Ms: number;
+  sampleTraceKey: string;
+}
+
+export interface PlatformHostSignal {
+  hostKey: string;
+  serviceKey: string;
+  clusterKey: string;
+  zoneKey: string;
+  state: string;
+  cpuPercent: number;
+  memoryPercent: number;
+  swapPercent: number;
+  diskIoPercent: number;
+  networkJitterMs: number;
+  packetLossPercent: number;
+  connectionCount: number;
+  jvmThreadCount: number;
+  gcPauseMs: number;
+  lastError: string;
+  lastSeenAt: string | null;
+  attributes: Record<string, string>;
+}
+
 export interface PlatformSuggestedCheck {
   resourceKey: string;
   message: string;
@@ -93,10 +168,116 @@ export interface PlatformTopology {
   connectors: PlatformConnectorStatus[];
 }
 
+export interface PlatformOverviewSummary {
+  workspaceKey: string;
+  environmentKey: string;
+  health: string;
+  criticalIncidents: number;
+  warningIncidents: number;
+  serviceCount: number;
+  zoneCount: number;
+  dependencyCount: number;
+  connectorCount: number;
+  middlewareCount: number;
+  openPolicyPlans: number;
+  notificationRoutes: number;
+  lastSignalAt: string | null;
+}
+
+export interface PlatformServiceWatermark {
+  serviceKey: string;
+  name: string;
+  teamKey: string;
+  environmentKey: string;
+  clusterKey: string;
+  zoneKey: string;
+  qps: number;
+  errorRate: number;
+  p95Ms: number;
+  p99Ms: number;
+  instanceCount: number;
+  cpuPercent: number;
+  memoryPercent: number;
+  watermarkPercent: number;
+  sentinelState: string;
+  gatewayState: string;
+  warningCount: number;
+  criticalCount: number;
+  activeIncidents: number;
+  state: string;
+}
+
+export interface PlatformZoneWatermark {
+  zoneKey: string;
+  environmentKey: string;
+  serviceCount: number;
+  warningCount: number;
+  criticalCount: number;
+  cpuPercent: number;
+  memoryPercent: number;
+  networkJitterMs: number;
+  packetLossPercent: number;
+  httpFailureRate: number;
+  state: string;
+}
+
+export interface PlatformMiddlewareWatermark {
+  middlewareKey: string;
+  name: string;
+  kind: string;
+  environmentKey: string;
+  zoneKey: string;
+  usagePercent: number;
+  latencyMs: number;
+  errorRate: number;
+  connectedServices: number;
+  warningCount: number;
+  criticalCount: number;
+  state: string;
+}
+
+export interface PlatformPolicyPlan {
+  planKey: string;
+  title: string;
+  serviceKey: string;
+  resourceKey: string;
+  signalType: string;
+  state: string;
+  risk: string;
+  proposedAction: string;
+  evidenceCount: number;
+  lastSeenAt: string | null;
+}
+
+export interface PlatformNotificationRoute {
+  routeKey: string;
+  channel: string;
+  displayName: string;
+  targetTeam: string;
+  minSeverity: string;
+  state: string;
+  dryRun: boolean;
+  lastMessage: string;
+  boundIncidentCount: number;
+}
+
+export interface PlatformOverview {
+  summary: PlatformOverviewSummary;
+  serviceWatermarks: PlatformServiceWatermark[];
+  zoneWatermarks: PlatformZoneWatermark[];
+  middlewareWatermarks: PlatformMiddlewareWatermark[];
+  policyPlans: PlatformPolicyPlan[];
+  notificationRoutes: PlatformNotificationRoute[];
+}
+
 export interface PlatformSnapshot {
+  overview: PlatformOverview;
   topology: PlatformTopology;
   services: PlatformServiceNode[];
   incidents: PlatformIncidentCandidate[];
   connectors: PlatformConnectorStatus[];
   signals: PlatformSignal[];
+  requestFlows: PlatformRequestFlow[];
+  transactions: PlatformTransactionMetric[];
+  hosts: PlatformHostSignal[];
 }

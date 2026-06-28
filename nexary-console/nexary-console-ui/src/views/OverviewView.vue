@@ -3,141 +3,386 @@ import { computed, onMounted } from 'vue';
 import EmptyState from '../components/EmptyState.vue';
 import ErrorState from '../components/ErrorState.vue';
 import LoadingBlock from '../components/LoadingBlock.vue';
-import MetricCard from '../components/MetricCard.vue';
-import ResourceTable from '../components/ResourceTable.vue';
+import StatusBadge from '../components/StatusBadge.vue';
 import { useConsoleData } from '../composables/useConsoleData';
 import { useLocale } from '../composables/useLocale';
+import { usePlatformData } from '../composables/usePlatformData';
+import type { PlatformServiceWatermark } from '../types/platform';
 
 const emit = defineEmits<{
   selectResource: [resourceKey: string];
 }>();
 
 const { summary, resources, events, isLoading, errorMessage, hasLoaded, refreshAll } = useConsoleData();
-const { enumLabel, t } = useLocale();
+const {
+  snapshot,
+  isLoading: platformLoading,
+  errorMessage: platformErrorMessage,
+  hasLoaded: platformLoaded,
+  refreshPlatform,
+} = usePlatformData();
+const { enumLabel, formatTimestamp, locale, t } = useLocale();
 
-const degradedCount = computed(() =>
-  resources.value.filter((resource) => resource.runtimeSnapshot?.degraded || resource.policySnapshot.degraded).length,
+const copy = computed(() =>
+  locale.value === 'zh'
+    ? {
+        loading: '正在加载治理工作台',
+        errorTitle: '治理数据不可用',
+        title: '今日值班态势',
+        subtitle: '先看事故，再看影响，再决定进入资源、事件或 Trace。',
+        health: '平台态势',
+        incidents: '事故候选',
+        affectedZones: '影响机房',
+        hotServices: '高风险服务',
+        localGuard: '本地治理信号',
+        openCircuits: '打开熔断',
+        rejected: '拒绝',
+        stoppedTrace: '停止 Trace',
+        failures: '失败',
+        quarantine: '封禁候选',
+        currentIncident: '首要事故',
+        noIncident: '当前没有事故候选',
+        evidence: '证据',
+        primaryResource: '首要资源',
+        enterResource: '查看资源',
+        waterline: '水位',
+        qps: 'QPS',
+        p95: 'P95',
+        errorRate: '错误率',
+        noServices: '暂无服务水位',
+        noLocal: '本地治理还没有事件',
+        recentEvents: '最近事件',
+        middleware: '中间件热点',
+        zones: '机房水位',
+        connectors: '接入工具',
+        stateNeedsAction: '需要处理',
+        stateWatch: '观察',
+        stateHealthy: '正常',
+      }
+    : {
+        loading: 'Loading governance workbench',
+        errorTitle: 'Governance data is unavailable',
+        title: 'Today Operations Posture',
+        subtitle: 'Start with incidents, inspect impact, then drill into resources, events, or traces.',
+        health: 'Platform State',
+        incidents: 'Incident Candidates',
+        affectedZones: 'Affected Zones',
+        hotServices: 'High-Risk Services',
+        localGuard: 'Local Guard Signals',
+        openCircuits: 'Open Circuits',
+        rejected: 'Rejected',
+        stoppedTrace: 'Stopped Traces',
+        failures: 'Failures',
+        quarantine: 'Quarantine Candidates',
+        currentIncident: 'Primary Incident',
+        noIncident: 'No incident candidates',
+        evidence: 'Evidence',
+        primaryResource: 'Primary Resource',
+        enterResource: 'Open Resource',
+        waterline: 'Watermark',
+        qps: 'QPS',
+        p95: 'P95',
+        errorRate: 'Error Rate',
+        noServices: 'No service watermarks',
+        noLocal: 'No local governance events yet',
+        recentEvents: 'Recent Events',
+        middleware: 'Middleware Hotspots',
+        zones: 'Zone Watermarks',
+        connectors: 'Connected Tools',
+        stateNeedsAction: 'Needs Action',
+        stateWatch: 'Watch',
+        stateHealthy: 'Healthy',
+      },
 );
-const hotResources = computed(() =>
-  [...resources.value]
-    .sort((left, right) => (right.runtimeSnapshot?.totalRejections ?? 0) - (left.runtimeSnapshot?.totalRejections ?? 0))
+
+const overview = computed(() => snapshot.value?.overview ?? null);
+const incidents = computed(() => snapshot.value?.incidents ?? []);
+const primaryIncident = computed(() => incidents.value[0] ?? null);
+const hotServices = computed(() =>
+  [...(overview.value?.serviceWatermarks ?? [])]
+    .sort((left, right) => stateWeight(right.state) - stateWeight(left.state) || right.watermarkPercent - left.watermarkPercent)
     .slice(0, 5),
 );
-const recentEvents = computed(() => events.value.slice(0, 5));
-const retainedEventCount = computed(() => events.value.length);
-const hasAttention = computed(
-  () =>
-    (summary.value?.openCircuitCount ?? 0) > 0 ||
-    (summary.value?.rejectedCount ?? 0) > 0 ||
-    (summary.value?.cancelledCount ?? 0) > 0 ||
-    (summary.value?.retryStoppedCount ?? 0) > 0 ||
-    (summary.value?.blockedCount ?? 0) > 0 ||
-    (summary.value?.isolatedCount ?? 0) > 0 ||
-    (summary.value?.stoppedTraceCount ?? 0) > 0 ||
-    (summary.value?.instanceSuspectCount ?? 0) > 0 ||
-    (summary.value?.quarantineCandidateCount ?? 0) > 0 ||
-    (summary.value?.failureCount ?? 0) > 0 ||
-    degradedCount.value > 0,
+const hotMiddleware = computed(() =>
+  [...(overview.value?.middlewareWatermarks ?? [])]
+    .sort((left, right) => stateWeight(right.state) - stateWeight(left.state) || right.usagePercent - left.usagePercent)
+    .slice(0, 3),
 );
-const postureLabel = computed(() => (hasAttention.value ? t('overview.postureWatch') : t('overview.postureStable')));
+const zoneWatermarks = computed(() => overview.value?.zoneWatermarks ?? []);
+const recentEvents = computed(() => events.value.slice(0, 5));
+const attentionResources = computed(() =>
+  [...resources.value]
+    .filter((resource) => {
+      const runtime = resource.runtimeSnapshot;
+      return (
+        runtime?.circuitState === 'OPEN' ||
+        (runtime?.totalRejections ?? 0) > 0 ||
+        resource.lastTraceStopReason && resource.lastTraceStopReason !== 'NONE'
+      );
+    })
+    .slice(0, 5),
+);
+const localSignals = computed(() => [
+  { label: copy.value.openCircuits, value: summary.value?.openCircuitCount ?? 0, tone: 'critical' },
+  { label: copy.value.rejected, value: summary.value?.rejectedCount ?? 0, tone: 'warning' },
+  { label: copy.value.stoppedTrace, value: summary.value?.stoppedTraceCount ?? 0, tone: 'warning' },
+  { label: copy.value.failures, value: summary.value?.failureCount ?? 0, tone: 'critical' },
+  { label: copy.value.quarantine, value: summary.value?.quarantineCandidateCount ?? 0, tone: 'critical' },
+]);
+const healthLabel = computed(() => {
+  const health = overview.value?.summary.health ?? 'HEALTHY';
+  if (health === 'NEEDS_ACTION' || health === 'CRITICAL') {
+    return copy.value.stateNeedsAction;
+  }
+  if (health === 'WATCH' || health === 'WARNING') {
+    return copy.value.stateWatch;
+  }
+  return copy.value.stateHealthy;
+});
+const isInitialLoading = computed(() => (isLoading.value && !hasLoaded.value) || (platformLoading.value && !platformLoaded.value));
+const mergedError = computed(() => errorMessage.value ?? platformErrorMessage.value);
+
+function stateWeight(state: string): number {
+  const normalized = state.toUpperCase();
+  if (['CRITICAL', 'FAILED', 'OPEN', 'NEEDS_ACTION'].includes(normalized)) {
+    return 3;
+  }
+  if (['WARNING', 'DEGRADED', 'HALF_OPEN', 'WATCH'].includes(normalized)) {
+    return 2;
+  }
+  return 1;
+}
+
+function stateTone(state: string): string {
+  const weight = stateWeight(state);
+  if (weight >= 3) {
+    return 'critical';
+  }
+  if (weight === 2) {
+    return 'warning';
+  }
+  return 'healthy';
+}
+
+function serviceResourceKey(service: PlatformServiceWatermark): string {
+  if (service.serviceKey === 'room-resource') {
+    return 'downstream:room-resource:allocate';
+  }
+  if (service.serviceKey === 'open-api') {
+    return 'gateway:open-api:route';
+  }
+  return service.serviceKey;
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatMetricPercent(value: number): string {
+  return `${Math.round(value * 10) / 10}%`;
+}
+
+function refreshWorkbench(): void {
+  void Promise.all([refreshAll(), refreshPlatform()]);
+}
 
 onMounted(() => {
-  if (!hasLoaded.value) {
-    void refreshAll();
+  if (!hasLoaded.value || !platformLoaded.value) {
+    refreshWorkbench();
   }
 });
 </script>
 
 <template>
-  <LoadingBlock v-if="isLoading && !hasLoaded" :label="t('overview.loading')" />
+  <LoadingBlock v-if="isInitialLoading" :label="copy.loading" />
   <ErrorState
-    v-else-if="errorMessage"
-    :title="t('overview.errorTitle')"
-    :message="errorMessage"
-    @retry="refreshAll"
+    v-else-if="mergedError"
+    :title="copy.errorTitle"
+    :message="mergedError"
+    @retry="refreshWorkbench"
   />
-  <EmptyState
-    v-else-if="hasLoaded && !summary"
-    :title="t('overview.emptyTitle')"
-    :message="t('overview.emptyMessage')"
-  />
-  <div v-else class="view-stack">
-    <section class="signal-deck" :data-tone="hasAttention ? 'warning' : 'stable'">
-      <div class="signal-deck__main">
-        <p class="eyebrow">{{ t('overview.cockpitLabel') }}</p>
-        <h2>{{ t('overview.posture') }}</h2>
-        <div class="signal-deck__status">
-          <span aria-hidden="true"></span>
-          <strong>{{ postureLabel }}</strong>
-        </div>
-        <p>{{ t('overview.postureDetail') }}</p>
+  <div v-else class="ops-page ops-home">
+    <section class="ops-hero" :data-state="stateTone(overview?.summary.health ?? 'HEALTHY')">
+      <div>
+        <p class="eyebrow">{{ copy.health }}</p>
+        <h2>{{ copy.title }}</h2>
+        <p>{{ copy.subtitle }}</p>
       </div>
-      <div class="signal-rail">
-        <div>
-          <span>{{ t('overview.trackedResources') }}</span>
-          <strong>{{ summary?.resourceCount ?? 0 }}</strong>
+      <div class="ops-hero__metrics">
+        <article>
+          <span>{{ copy.health }}</span>
+          <strong>{{ healthLabel }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.incidents }}</span>
+          <strong>{{ overview?.summary.criticalIncidents ?? incidents.length }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.affectedZones }}</span>
+          <strong>{{ overview?.summary.zoneCount ?? zoneWatermarks.length }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.connectors }}</span>
+          <strong>{{ overview?.summary.connectorCount ?? snapshot?.connectors.length ?? 0 }}</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="ops-home-grid">
+      <div class="ops-panel ops-panel--incident">
+        <header>
+          <div>
+            <span>{{ copy.currentIncident }}</span>
+            <h3>{{ primaryIncident?.title ?? copy.noIncident }}</h3>
+          </div>
+          <StatusBadge
+            :label="primaryIncident?.severity ?? 'HEALTHY'"
+            :state="primaryIncident?.severity ?? 'HEALTHY'"
+          />
+        </header>
+        <div v-if="primaryIncident" class="ops-incident-summary">
+          <dl>
+            <div>
+              <dt>{{ copy.primaryResource }}</dt>
+              <dd>{{ primaryIncident.primaryResourceKey }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.evidence }}</dt>
+              <dd>{{ primaryIncident.evidenceCount }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.affectedZones }}</dt>
+              <dd>{{ primaryIncident.impactScope.zoneKey }}</dd>
+            </div>
+          </dl>
+          <button
+            v-if="primaryIncident.suggestedCheck"
+            class="button button--primary"
+            type="button"
+            @click="emit('selectResource', primaryIncident.suggestedCheck.resourceKey)"
+          >
+            {{ copy.enterResource }}
+          </button>
         </div>
-        <div>
-          <span>{{ t('overview.retainedEvents') }}</span>
-          <strong>{{ retainedEventCount }}</strong>
-        </div>
-        <div>
-          <span>{{ t('overview.guardrail') }}</span>
-          <strong>{{ t('overview.guardrailDetail') }}</strong>
+        <EmptyState v-else :title="copy.noIncident" :message="t('state.noEventsMessage')" />
+      </div>
+
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ copy.localGuard }}</span>
+            <h3>{{ copy.localGuard }}</h3>
+          </div>
+        </header>
+        <div class="ops-signal-grid">
+          <article v-for="signal in localSignals" :key="signal.label" :data-tone="signal.tone">
+            <span>{{ signal.label }}</span>
+            <strong>{{ signal.value }}</strong>
+          </article>
         </div>
       </div>
     </section>
 
-    <section class="metric-grid" :aria-label="t('overview.runtimeSummary')">
-      <MetricCard :label="t('overview.resources')" :value="summary?.resourceCount ?? 0" :detail="t('overview.resourcesDetail')" tone="info" />
-      <MetricCard :label="t('overview.openCircuits')" :value="summary?.openCircuitCount ?? 0" :detail="t('overview.openCircuitsDetail')" tone="danger" />
-      <MetricCard :label="t('overview.rejected')" :value="summary?.rejectedCount ?? 0" :detail="t('overview.rejectedDetail')" tone="warning" />
-      <MetricCard :label="t('overview.blocked')" :value="summary?.blockedCount ?? 0" :detail="t('overview.blockedDetail')" tone="warning" />
-      <MetricCard :label="t('overview.isolated')" :value="summary?.isolatedCount ?? 0" :detail="t('overview.isolatedDetail')" tone="warning" />
-      <MetricCard :label="t('overview.faultTraces')" :value="summary?.faultTraceCount ?? 0" :detail="t('overview.faultTracesDetail')" tone="info" />
-      <MetricCard :label="t('overview.stoppedTraces')" :value="summary?.stoppedTraceCount ?? 0" :detail="t('overview.stoppedTracesDetail')" tone="warning" />
-      <MetricCard :label="t('overview.instanceSuspect')" :value="summary?.instanceSuspectCount ?? 0" :detail="t('overview.instanceSuspectDetail')" tone="warning" />
-      <MetricCard :label="t('overview.quarantineCandidate')" :value="summary?.quarantineCandidateCount ?? 0" :detail="t('overview.quarantineCandidateDetail')" tone="danger" />
-      <MetricCard :label="t('overview.recoveryProbe')" :value="summary?.recoveryProbeCount ?? 0" :detail="t('overview.recoveryProbeDetail')" tone="info" />
-      <MetricCard :label="t('overview.sentinel')" :value="summary?.sentinelResourceCount ?? 0" :detail="t('overview.sentinelDetail')" tone="info" />
-      <MetricCard :label="t('overview.cancelled')" :value="summary?.cancelledCount ?? 0" :detail="t('overview.cancelledDetail')" tone="warning" />
-      <MetricCard :label="t('overview.retryStopped')" :value="summary?.retryStoppedCount ?? 0" :detail="t('overview.retryStoppedDetail')" tone="warning" />
-      <MetricCard :label="t('overview.failures')" :value="summary?.failureCount ?? 0" :detail="t('overview.failuresDetail')" tone="danger" />
-      <MetricCard :label="t('overview.fallback')" :value="summary?.fallbackCount ?? 0" :detail="t('overview.fallbackDetail')" tone="neutral" />
-      <MetricCard :label="t('overview.degraded')" :value="degradedCount" :detail="t('overview.degradedDetail')" tone="warning" />
-    </section>
-
-    <section class="split-grid">
-      <div class="panel">
-        <div class="panel__header">
-          <h2>{{ t('overview.attention') }}</h2>
-          <span>{{ hotResources.length }} {{ t('state.shown') }}</span>
+    <section class="ops-work-grid">
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ copy.waterline }}</span>
+            <h3>{{ copy.hotServices }}</h3>
+          </div>
+          <span>{{ hotServices.length }} {{ t('state.shown') }}</span>
+        </header>
+        <EmptyState v-if="hotServices.length === 0" :title="copy.noServices" :message="t('resources.noResourcesMessage')" />
+        <div v-else class="ops-watermark-list">
+          <button
+            v-for="service in hotServices"
+            :key="service.serviceKey"
+            type="button"
+            class="ops-watermark-row"
+            @click="emit('selectResource', serviceResourceKey(service))"
+          >
+            <span>
+              <strong>{{ service.name }}</strong>
+              <small>{{ service.clusterKey }} / {{ service.zoneKey }}</small>
+            </span>
+            <span class="ops-meter" :data-tone="stateTone(service.state)">
+              <i :style="{ width: `${Math.min(service.watermarkPercent, 100)}%` }"></i>
+            </span>
+            <span class="ops-row-stats">
+              <b>{{ service.watermarkPercent }}%</b>
+              <small>{{ copy.qps }} {{ service.qps }} / {{ copy.p95 }} {{ service.p95Ms }}ms / {{ copy.errorRate }} {{ formatPercent(service.errorRate) }}</small>
+            </span>
+          </button>
         </div>
-        <EmptyState
-          v-if="hotResources.length === 0"
-          :title="t('state.noResources')"
-          :message="t('state.noResourcesMessage')"
-        />
-        <ResourceTable v-else :resources="hotResources" compact @select="emit('selectResource', $event)" />
       </div>
 
-      <div class="panel">
-        <div class="panel__header">
-          <h2>{{ t('overview.recentEvents') }}</h2>
-          <span>{{ recentEvents.length }} {{ t('state.shown') }}</span>
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ copy.zones }}</span>
+            <h3>{{ copy.zones }}</h3>
+          </div>
+        </header>
+        <div class="ops-zone-strip">
+          <article v-for="zone in zoneWatermarks" :key="zone.zoneKey" :data-tone="stateTone(zone.state)">
+            <strong>{{ zone.zoneKey }}</strong>
+            <span>CPU {{ formatMetricPercent(zone.cpuPercent) }} / MEM {{ formatMetricPercent(zone.memoryPercent) }}</span>
+            <small>jitter {{ zone.networkJitterMs }}ms / loss {{ formatMetricPercent(zone.packetLossPercent) }}</small>
+          </article>
         </div>
-        <EmptyState
-          v-if="recentEvents.length === 0"
-          :title="t('state.noEvents')"
-          :message="t('state.noEventsMessage')"
-        />
-        <ul v-else class="event-list">
+        <div class="ops-mini-list">
+          <article v-for="middleware in hotMiddleware" :key="middleware.middlewareKey">
+            <strong>{{ middleware.name }}</strong>
+            <span>{{ middleware.kind }} / {{ middleware.zoneKey }}</span>
+            <b>{{ formatMetricPercent(middleware.usagePercent) }}</b>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="ops-work-grid ops-work-grid--lower">
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ copy.recentEvents }}</span>
+            <h3>{{ copy.recentEvents }}</h3>
+          </div>
+        </header>
+        <EmptyState v-if="recentEvents.length === 0" :title="copy.noLocal" :message="t('state.noEventsMessage')" />
+        <ol v-else class="ops-timeline">
           <li v-for="event in recentEvents" :key="`${event.timestamp}-${event.resourceKey}`">
-            <span>{{ enumLabel(event.outcome) }}</span>
+            <time>{{ formatTimestamp(event.timestamp) }}</time>
             <strong>{{ event.resourceKey }}</strong>
-            <small>{{ enumLabel(event.quarantineReason && event.quarantineReason !== 'NONE' ? event.quarantineReason : event.isolationReason && event.isolationReason !== 'NONE' ? event.isolationReason : event.retryStopReason && event.retryStopReason !== 'NONE' ? event.retryStopReason : event.blockReason && event.blockReason !== 'NONE' ? event.blockReason : event.cancellationReason !== 'NONE' ? event.cancellationReason : event.rejectionReason) }}</small>
+            <span>{{ enumLabel(event.outcome) }} / {{ enumLabel(event.tracePrimaryStopReason ?? event.rejectionReason) }}</span>
           </li>
-        </ul>
+        </ol>
+      </div>
+
+      <div class="ops-panel">
+        <header>
+          <div>
+            <span>{{ t('overview.attention') }}</span>
+            <h3>{{ t('overview.attention') }}</h3>
+          </div>
+        </header>
+        <EmptyState v-if="attentionResources.length === 0" :title="t('state.noResources')" :message="t('state.noResourcesMessage')" />
+        <div v-else class="ops-resource-stack">
+          <button
+            v-for="resource in attentionResources"
+            :key="resource.resourceKey"
+            type="button"
+            @click="emit('selectResource', resource.resourceKey)"
+          >
+            <span>
+              <strong>{{ resource.name }}</strong>
+              <small>{{ resource.resourceKey }}</small>
+            </span>
+            <StatusBadge
+              :label="resource.runtimeSnapshot?.circuitState ?? resource.lastTraceStopReason ?? 'NONE'"
+              :state="resource.runtimeSnapshot?.circuitState ?? resource.lastTraceStopReason ?? 'NONE'"
+            />
+          </button>
+        </div>
       </div>
     </section>
   </div>

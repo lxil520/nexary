@@ -4,7 +4,7 @@ Governance adds local protection around Java calls: do not start work after the 
 
 The boundary is deliberate: the local governance runtime does not provide a sidecar, agent, remote config push, or cross-instance state sync. The governance platform only aggregates resources, signals, topology, and incident candidates in read-only form. It does not modify Sentinel, Gateway, APM, registry, or notification-channel configuration.
 
-The `0.19.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, and low-cardinality signals reported by JVMs or connectors into read-only topology, service lists, and incident candidates. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals from the same service, cluster, and zone into one incident candidate with a primary resource, impacted resource count, evidence timeline, and suggested check. v0.19 redesigns Console Platform Mode as an operations workbench that leads with the incident queue, topology impact, service health, and evidence chain instead of adding more count cards. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
+The `0.20.0` line does not replace Sentinel Dashboard, Spring Cloud Gateway, SkyWalking, CAT, Prometheus, enterprise IM, automatic traffic-drain platforms, or a distributed trace backend. It handles two layers: the local governance runtime still handles request cancellation, the Sentinel provider, retry-stop, priority isolation, abnormal instance candidates, and local fault traces; the governance platform aggregates services, clusters, zones, middleware dependencies, request-flow samples, transaction stats, host watermarks, and low-cardinality signals into read-only topology, incident evidence packages, and governance planning entry points. v0.18 groups slow calls, error-rate signals, Sentinel blocks, Gateway disconnects, retry-stop signals, and abnormal instance signals into incident candidates. v0.19 turns Platform Mode into an operations workbench draft. v0.20 makes the default Console entry a full governance platform RC with Overview, Topology, Request Flows, Incidents, Services, Hosts, Middleware, Resource Governance, Integrations, Notifications, and Policy Plans. The v0.11 cancellation check still runs before Sentinel entry, so canceled requests do not pollute Sentinel windows. v0.15 instance health records only real downstream results and does not count Sentinel blocks as instance failures. v0.16 traces store only low-cardinality fields and do not store business parameters. Platform signals also reject user ids, tenants, payloads, cache keys, message ids, exception text, stack traces, tokens, and passwords.
 
 ## Add Dependencies
 
@@ -41,7 +41,8 @@ To inspect the read-only governance platform view:
 ./gradlew :nexary-samples:nexary-sample-governance-platform:bootRun
 curl -s http://localhost:18092/api/platform/topology
 curl -s http://localhost:18092/api/platform/incidents
-open http://localhost:18092/nexary/console/platform
+curl -s http://localhost:18092/api/platform/request-flows
+open http://localhost:18092/nexary/console
 ```
 
 ## v0.17 Read-Only Governance Platform Foundation
@@ -77,6 +78,12 @@ The first Platform Mode is read-only. It shows services, dependencies, incident 
 - Narrow screens use incident, topology, and service tabs so tables and evidence panels do not collide.
 
 This release remains read-only: it does not write policies, change Sentinel / Gateway / APM configuration, or send production alerts.
+
+## v0.20 Governance Platform RC
+
+v0.20 does not keep patching the v0.19 page. It makes the governance platform the default Console entry and redefines the asset model, data sources, screen structure, and acceptance. See [Governance Platform RC PRD](governance-platform-prd.md) and [Governance Platform RC UI/UX Design](governance-platform-design.md).
+
+This release keeps the v0.17 to v0.19 read-only resources, signals, topology, and incident-candidate model, then expands it with request-flow samples, CAT-style transaction stats, host signal matrix, service watermarks, zone watermarks, middleware dependencies, external references, policy-plan dry-run, and notification-channel dry-run. Nexary still does not replace SkyWalking, CAT, Prometheus, Sentinel, or Gateway. The platform connects their key evidence into one on-call view.
 
 ## v0.12 Sentinel Provider
 

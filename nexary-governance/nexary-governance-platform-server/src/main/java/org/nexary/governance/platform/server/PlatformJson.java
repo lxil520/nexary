@@ -3,9 +3,14 @@ package org.nexary.governance.platform.server;
 import org.nexary.governance.platform.EvidenceItem;
 import org.nexary.governance.platform.GovernanceConnectorStatus;
 import org.nexary.governance.platform.GovernanceDependencyEdge;
+import org.nexary.governance.platform.GovernanceEvidenceRef;
+import org.nexary.governance.platform.GovernanceHostSignal;
+import org.nexary.governance.platform.GovernanceRequestFlow;
 import org.nexary.governance.platform.GovernanceServiceNode;
 import org.nexary.governance.platform.GovernanceSignal;
+import org.nexary.governance.platform.GovernanceSpan;
 import org.nexary.governance.platform.GovernanceTopology;
+import org.nexary.governance.platform.GovernanceTransactionMetric;
 import org.nexary.governance.platform.ImpactScope;
 import org.nexary.governance.platform.IncidentCandidate;
 import org.nexary.governance.platform.SuggestedCheck;
@@ -92,6 +97,91 @@ final class PlatformJson {
         json.put("durationBucket", signal.durationBucket());
         json.put("timestamp", signal.timestamp());
         json.put("attributes", signal.attributes());
+        return json;
+    }
+
+    static Map<String, Object> requestFlow(GovernanceRequestFlow flow) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("traceKey", flow.traceKey());
+        json.put("entryServiceKey", flow.entryServiceKey());
+        json.put("endpointKey", flow.endpointKey());
+        json.put("zoneKey", flow.zoneKey());
+        json.put("status", flow.status());
+        json.put("durationMs", flow.durationMs());
+        json.put("startedAt", flow.startedAt());
+        json.put("spanCount", flow.spanCount());
+        json.put("primaryError", flow.primaryError());
+        json.put("summary", flow.summary());
+        json.put("spans", flow.spans().stream().map(PlatformJson::span).toList());
+        json.put("evidenceRefs", flow.evidenceRefs().stream().map(PlatformJson::evidenceRef).toList());
+        return json;
+    }
+
+    static Map<String, Object> transaction(GovernanceTransactionMetric metric) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("serviceKey", metric.serviceKey());
+        json.put("endpointKey", metric.endpointKey());
+        json.put("zoneKey", metric.zoneKey());
+        json.put("windowStart", metric.windowStart());
+        json.put("windowEnd", metric.windowEnd());
+        json.put("total", metric.total());
+        json.put("failure", metric.failure());
+        json.put("failureRate", metric.failureRate());
+        json.put("tps", metric.tps());
+        json.put("qps", metric.qps());
+        json.put("minMs", metric.minMs());
+        json.put("maxMs", metric.maxMs());
+        json.put("avgMs", metric.avgMs());
+        json.put("p95Ms", metric.p95Ms());
+        json.put("p99Ms", metric.p99Ms());
+        json.put("sampleTraceKey", metric.sampleTraceKey());
+        return json;
+    }
+
+    static Map<String, Object> host(GovernanceHostSignal host) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("hostKey", host.hostKey());
+        json.put("serviceKey", host.serviceKey());
+        json.put("clusterKey", host.clusterKey());
+        json.put("zoneKey", host.zoneKey());
+        json.put("state", host.state());
+        json.put("cpuPercent", host.cpuPercent());
+        json.put("memoryPercent", host.memoryPercent());
+        json.put("swapPercent", host.swapPercent());
+        json.put("diskIoPercent", host.diskIoPercent());
+        json.put("networkJitterMs", host.networkJitterMs());
+        json.put("packetLossPercent", host.packetLossPercent());
+        json.put("connectionCount", host.connectionCount());
+        json.put("jvmThreadCount", host.jvmThreadCount());
+        json.put("gcPauseMs", host.gcPauseMs());
+        json.put("lastError", host.lastError());
+        json.put("lastSeenAt", host.lastSeenAt());
+        json.put("attributes", host.attributes());
+        return json;
+    }
+
+    private static Map<String, Object> span(GovernanceSpan span) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("spanId", span.spanId());
+        json.put("parentSpanId", span.parentSpanId());
+        json.put("serviceKey", span.serviceKey());
+        json.put("resourceKey", span.resourceKey());
+        json.put("component", span.component());
+        json.put("operation", span.operation());
+        json.put("startOffsetMs", span.startOffsetMs());
+        json.put("durationMs", span.durationMs());
+        json.put("status", span.status());
+        json.put("errorType", span.errorType());
+        json.put("evidenceRefs", span.evidenceRefs().stream().map(PlatformJson::evidenceRef).toList());
+        return json;
+    }
+
+    private static Map<String, Object> evidenceRef(GovernanceEvidenceRef ref) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("type", ref.type().name());
+        json.put("refKey", ref.refKey());
+        json.put("label", ref.label());
+        json.put("href", ref.href());
         return json;
     }
 

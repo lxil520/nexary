@@ -3,6 +3,7 @@ package org.nexary.governance.platform;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,5 +72,69 @@ class GovernancePlatformModelTest {
                 "TRACE",
                 "trace id with spaces",
                 Instant.EPOCH));
+    }
+
+    @Test
+    void requestFlowKeepsSanitizedTraceEvidence() {
+        GovernanceEvidenceRef ref = new GovernanceEvidenceRef(
+                GovernanceEvidenceRefType.SKYWALKING_TRACE,
+                "sw-flow-room-resource-redis-room",
+                "SkyWalking trace",
+                "readonly://skywalking/trace/sw-flow-room-resource-redis-room");
+        GovernanceSpan span = new GovernanceSpan(
+                "flow-room-resource-redis-room-span-1",
+                "",
+                "room-resource",
+                "cache:redis-room:state",
+                "redis",
+                "allocate state lookup",
+                0,
+                2760,
+                "ERROR",
+                "REDIS_TIMEOUT",
+                List.of(ref));
+        GovernanceRequestFlow flow = new GovernanceRequestFlow(
+                "flow-room-resource-redis-room",
+                "room-resource",
+                "http:room-resource:allocate",
+                "room-a",
+                "ERROR",
+                3180,
+                Instant.EPOCH,
+                1,
+                "REDIS_TIMEOUT",
+                "Room resource dependency timeout",
+                List.of(span),
+                List.of(ref));
+
+        assertEquals("flow-room-resource-redis-room", flow.traceKey());
+        assertEquals("redis", flow.spans().get(0).component());
+        assertEquals(GovernanceEvidenceRefType.SKYWALKING_TRACE, flow.evidenceRefs().get(0).type());
+    }
+
+    @Test
+    void hostSignalKeepsWatermarkBuckets() {
+        GovernanceHostSignal host = new GovernanceHostSignal(
+                "redis-room-a-primary",
+                "redis-room",
+                "redis-room-cluster",
+                "room-a",
+                "CRITICAL",
+                77,
+                94,
+                68,
+                91,
+                2.2,
+                0.2,
+                2160,
+                62,
+                0,
+                "REDIS_TIMEOUT",
+                Instant.EPOCH,
+                Map.of("source", "demo"));
+
+        assertEquals("redis-room-a-primary", host.hostKey());
+        assertEquals(68.0, host.swapPercent());
+        assertEquals("REDIS_TIMEOUT", host.lastError());
     }
 }

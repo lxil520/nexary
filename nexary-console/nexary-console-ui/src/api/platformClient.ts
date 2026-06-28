@@ -3,14 +3,26 @@ import type {
   PlatformConnectorStatus,
   PlatformDependencyEdge,
   PlatformEvidenceItem,
+  PlatformEvidenceRef,
+  PlatformHostSignal,
   PlatformImpactScope,
   PlatformIncidentCandidate,
+  PlatformMiddlewareWatermark,
+  PlatformNotificationRoute,
+  PlatformOverview,
+  PlatformOverviewSummary,
+  PlatformPolicyPlan,
   PlatformServiceNode,
+  PlatformServiceWatermark,
   PlatformSeverity,
   PlatformSignal,
   PlatformSnapshot,
+  PlatformRequestFlow,
+  PlatformSpan,
   PlatformSuggestedCheck,
+  PlatformTransactionMetric,
   PlatformTopology,
+  PlatformZoneWatermark,
 } from '../types/platform';
 
 type JsonRecord = Record<string, unknown>;
@@ -21,14 +33,22 @@ const platformApiBase = normalizeBase(import.meta.env.VITE_NEXARY_PLATFORM_API_B
 
 export async function fetchPlatformSnapshot(): Promise<PlatformSnapshot> {
   return withFallback(async () => {
-    const [topology, services, incidents, connectors, signals] = await Promise.all([
+    try {
+      return toSnapshot(await fetchJson('/snapshot'));
+    } catch (error) {
+      if (dataMode === 'api') {
+        throw error;
+      }
+    }
+    const [overview, topology, services, incidents, connectors, signals] = await Promise.all([
+      fetchJson('/overview').then(toOverview),
       fetchJson('/topology').then(toTopology),
       fetchJson('/services').then((data) => readItems(data).map(toServiceNode)),
       fetchJson('/incidents').then((data) => readItems(data).map(toIncident)),
       fetchJson('/connectors').then((data) => readItems(data).map(toConnector)),
       fetchJson('/signals').then((data) => readItems(data).map(toSignal)),
     ]);
-    return { topology, services, incidents, connectors, signals };
+    return { overview, topology, services, incidents, connectors, signals, requestFlows: [], transactions: [], hosts: [] };
   }, mockPlatformSnapshot);
 }
 
@@ -62,6 +82,144 @@ function toTopology(data: unknown): PlatformTopology {
     services: readItems(record.services).map(toServiceNode),
     dependencies: readItems(record.dependencies).map(toDependency),
     connectors: readItems(record.connectors).map(toConnector),
+  };
+}
+
+function toSnapshot(data: unknown): PlatformSnapshot {
+  const record = asRecord(data);
+  return {
+    overview: toOverview(record.overview),
+    topology: toTopology(record.topology),
+    services: readItems(record.services).map(toServiceNode),
+    incidents: readItems(record.incidents).map(toIncident),
+    connectors: readItems(record.connectors).map(toConnector),
+    signals: readItems(record.signals).map(toSignal),
+    requestFlows: readItems(record.requestFlows).map(toRequestFlow),
+    transactions: readItems(record.transactions).map(toTransaction),
+    hosts: readItems(record.hosts).map(toHostSignal),
+  };
+}
+
+function toOverview(data: unknown): PlatformOverview {
+  const record = asRecord(data);
+  return {
+    summary: toOverviewSummary(record.summary),
+    serviceWatermarks: readItems(record.serviceWatermarks).map(toServiceWatermark),
+    zoneWatermarks: readItems(record.zoneWatermarks).map(toZoneWatermark),
+    middlewareWatermarks: readItems(record.middlewareWatermarks).map(toMiddlewareWatermark),
+    policyPlans: readItems(record.policyPlans).map(toPolicyPlan),
+    notificationRoutes: readItems(record.notificationRoutes).map(toNotificationRoute),
+  };
+}
+
+function toOverviewSummary(data: unknown): PlatformOverviewSummary {
+  const record = asRecord(data);
+  return {
+    workspaceKey: readString(record, 'workspaceKey', 'unknown'),
+    environmentKey: readString(record, 'environmentKey', 'unknown'),
+    health: readString(record, 'health', 'HEALTHY'),
+    criticalIncidents: readNumber(record, 'criticalIncidents'),
+    warningIncidents: readNumber(record, 'warningIncidents'),
+    serviceCount: readNumber(record, 'serviceCount'),
+    zoneCount: readNumber(record, 'zoneCount'),
+    dependencyCount: readNumber(record, 'dependencyCount'),
+    connectorCount: readNumber(record, 'connectorCount'),
+    middlewareCount: readNumber(record, 'middlewareCount'),
+    openPolicyPlans: readNumber(record, 'openPolicyPlans'),
+    notificationRoutes: readNumber(record, 'notificationRoutes'),
+    lastSignalAt: readNullableString(record, 'lastSignalAt'),
+  };
+}
+
+function toServiceWatermark(data: unknown): PlatformServiceWatermark {
+  const record = asRecord(data);
+  return {
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    name: readString(record, 'name', 'unknown'),
+    teamKey: readString(record, 'teamKey', 'unknown'),
+    environmentKey: readString(record, 'environmentKey', 'unknown'),
+    clusterKey: readString(record, 'clusterKey', 'unknown'),
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
+    qps: readNumber(record, 'qps'),
+    errorRate: readNumber(record, 'errorRate'),
+    p95Ms: readNumber(record, 'p95Ms'),
+    p99Ms: readNumber(record, 'p99Ms'),
+    instanceCount: readNumber(record, 'instanceCount'),
+    cpuPercent: readNumber(record, 'cpuPercent'),
+    memoryPercent: readNumber(record, 'memoryPercent'),
+    watermarkPercent: readNumber(record, 'watermarkPercent'),
+    sentinelState: readString(record, 'sentinelState', 'CLOSED'),
+    gatewayState: readString(record, 'gatewayState', 'HEALTHY'),
+    warningCount: readNumber(record, 'warningCount'),
+    criticalCount: readNumber(record, 'criticalCount'),
+    activeIncidents: readNumber(record, 'activeIncidents'),
+    state: readString(record, 'state', 'HEALTHY'),
+  };
+}
+
+function toZoneWatermark(data: unknown): PlatformZoneWatermark {
+  const record = asRecord(data);
+  return {
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
+    environmentKey: readString(record, 'environmentKey', 'unknown'),
+    serviceCount: readNumber(record, 'serviceCount'),
+    warningCount: readNumber(record, 'warningCount'),
+    criticalCount: readNumber(record, 'criticalCount'),
+    cpuPercent: readNumber(record, 'cpuPercent'),
+    memoryPercent: readNumber(record, 'memoryPercent'),
+    networkJitterMs: readNumber(record, 'networkJitterMs'),
+    packetLossPercent: readNumber(record, 'packetLossPercent'),
+    httpFailureRate: readNumber(record, 'httpFailureRate'),
+    state: readString(record, 'state', 'HEALTHY'),
+  };
+}
+
+function toMiddlewareWatermark(data: unknown): PlatformMiddlewareWatermark {
+  const record = asRecord(data);
+  return {
+    middlewareKey: readString(record, 'middlewareKey', 'unknown'),
+    name: readString(record, 'name', 'unknown'),
+    kind: readString(record, 'kind', 'middleware'),
+    environmentKey: readString(record, 'environmentKey', 'unknown'),
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
+    usagePercent: readNumber(record, 'usagePercent'),
+    latencyMs: readNumber(record, 'latencyMs'),
+    errorRate: readNumber(record, 'errorRate'),
+    connectedServices: readNumber(record, 'connectedServices'),
+    warningCount: readNumber(record, 'warningCount'),
+    criticalCount: readNumber(record, 'criticalCount'),
+    state: readString(record, 'state', 'HEALTHY'),
+  };
+}
+
+function toPolicyPlan(data: unknown): PlatformPolicyPlan {
+  const record = asRecord(data);
+  return {
+    planKey: readString(record, 'planKey', 'unknown'),
+    title: readString(record, 'title', 'unknown'),
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    resourceKey: readString(record, 'resourceKey', 'unknown'),
+    signalType: readString(record, 'signalType', 'RESOURCE_EVENT'),
+    state: readString(record, 'state', 'DRY_RUN'),
+    risk: readString(record, 'risk', 'MEDIUM'),
+    proposedAction: readString(record, 'proposedAction', ''),
+    evidenceCount: readNumber(record, 'evidenceCount'),
+    lastSeenAt: readNullableString(record, 'lastSeenAt'),
+  };
+}
+
+function toNotificationRoute(data: unknown): PlatformNotificationRoute {
+  const record = asRecord(data);
+  return {
+    routeKey: readString(record, 'routeKey', 'unknown'),
+    channel: readString(record, 'channel', 'FEISHU'),
+    displayName: readString(record, 'displayName', 'unknown'),
+    targetTeam: readString(record, 'targetTeam', 'platform-team'),
+    minSeverity: readString(record, 'minSeverity', 'CRITICAL'),
+    state: readString(record, 'state', 'DISABLED'),
+    dryRun: readBoolean(record, 'dryRun'),
+    lastMessage: readString(record, 'lastMessage', ''),
+    boundIncidentCount: readNumber(record, 'boundIncidentCount'),
   };
 }
 
@@ -175,18 +333,115 @@ function toSignal(data: unknown): PlatformSignal {
   };
 }
 
+function toRequestFlow(data: unknown): PlatformRequestFlow {
+  const record = asRecord(data);
+  return {
+    traceKey: readString(record, 'traceKey', 'unknown'),
+    entryServiceKey: readString(record, 'entryServiceKey', 'unknown'),
+    endpointKey: readString(record, 'endpointKey', 'unknown'),
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
+    status: readString(record, 'status', 'OK'),
+    durationMs: readNumber(record, 'durationMs'),
+    startedAt: readNullableString(record, 'startedAt'),
+    spanCount: readNumber(record, 'spanCount'),
+    primaryError: readString(record, 'primaryError', 'NONE'),
+    summary: readString(record, 'summary', ''),
+    spans: readItems(record.spans).map(toSpan),
+    evidenceRefs: readItems(record.evidenceRefs).map(toEvidenceRef),
+  };
+}
+
+function toSpan(data: unknown): PlatformSpan {
+  const record = asRecord(data);
+  return {
+    spanId: readString(record, 'spanId', 'unknown'),
+    parentSpanId: readString(record, 'parentSpanId', ''),
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    resourceKey: readString(record, 'resourceKey', 'unknown'),
+    component: readString(record, 'component', 'service'),
+    operation: readString(record, 'operation', 'unknown'),
+    startOffsetMs: readNumber(record, 'startOffsetMs'),
+    durationMs: readNumber(record, 'durationMs'),
+    status: readString(record, 'status', 'OK'),
+    errorType: readString(record, 'errorType', 'NONE'),
+    evidenceRefs: readItems(record.evidenceRefs).map(toEvidenceRef),
+  };
+}
+
+function toEvidenceRef(data: unknown): PlatformEvidenceRef {
+  const record = asRecord(data);
+  return {
+    type: readString(record, 'type', 'LOG_QUERY'),
+    refKey: readString(record, 'refKey', 'unknown'),
+    label: readString(record, 'label', 'Evidence'),
+    href: readString(record, 'href', ''),
+  };
+}
+
+function toTransaction(data: unknown): PlatformTransactionMetric {
+  const record = asRecord(data);
+  return {
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    endpointKey: readString(record, 'endpointKey', 'unknown'),
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
+    windowStart: readNullableString(record, 'windowStart'),
+    windowEnd: readNullableString(record, 'windowEnd'),
+    total: readNumber(record, 'total'),
+    failure: readNumber(record, 'failure'),
+    failureRate: readNumber(record, 'failureRate'),
+    tps: readNumber(record, 'tps'),
+    qps: readNumber(record, 'qps'),
+    minMs: readNumber(record, 'minMs'),
+    maxMs: readNumber(record, 'maxMs'),
+    avgMs: readNumber(record, 'avgMs'),
+    p95Ms: readNumber(record, 'p95Ms'),
+    p99Ms: readNumber(record, 'p99Ms'),
+    sampleTraceKey: readString(record, 'sampleTraceKey', ''),
+  };
+}
+
+function toHostSignal(data: unknown): PlatformHostSignal {
+  const record = asRecord(data);
+  return {
+    hostKey: readString(record, 'hostKey', 'unknown'),
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    clusterKey: readString(record, 'clusterKey', 'unknown'),
+    zoneKey: readString(record, 'zoneKey', 'unknown'),
+    state: readString(record, 'state', 'HEALTHY'),
+    cpuPercent: readNumber(record, 'cpuPercent'),
+    memoryPercent: readNumber(record, 'memoryPercent'),
+    swapPercent: readNumber(record, 'swapPercent'),
+    diskIoPercent: readNumber(record, 'diskIoPercent'),
+    networkJitterMs: readNumber(record, 'networkJitterMs'),
+    packetLossPercent: readNumber(record, 'packetLossPercent'),
+    connectionCount: readNumber(record, 'connectionCount'),
+    jvmThreadCount: readNumber(record, 'jvmThreadCount'),
+    gcPauseMs: readNumber(record, 'gcPauseMs'),
+    lastError: readString(record, 'lastError', 'NONE'),
+    lastSeenAt: readNullableString(record, 'lastSeenAt'),
+    attributes: readStringRecord(record, 'attributes'),
+  };
+}
+
 function mockPlatformSnapshot(): PlatformSnapshot {
   const services: PlatformServiceNode[] = [
-    { serviceKey: 'open-api', name: 'Open API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'open-api-cluster', zoneKey: 'cn-east', warningCount: 1, criticalCount: 0, attributes: {} },
-    { serviceKey: 'room-resource', name: 'Room Resource', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'room-resource-cluster', zoneKey: 'room-a', warningCount: 0, criticalCount: 1, attributes: {} },
+    { serviceKey: 'open-api', name: 'Open API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'open-api-cluster', zoneKey: 'cn-east', warningCount: 2, criticalCount: 1, attributes: {} },
+    { serviceKey: 'sdk-api', name: 'SDK API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'sdk-api-cluster', zoneKey: 'cn-east', warningCount: 1, criticalCount: 0, attributes: {} },
+    { serviceKey: 'room-resource', name: 'Room Resource', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'room-resource-cluster', zoneKey: 'room-a', warningCount: 1, criticalCount: 1, attributes: {} },
+    { serviceKey: 'signaling', name: 'Signaling', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'signaling-cluster', zoneKey: 'room-a', warningCount: 1, criticalCount: 0, attributes: {} },
   ];
   const dependencies: PlatformDependencyEdge[] = [
     { sourceKey: 'open-api', targetKey: 'redis-main', kind: 'CACHE', resourceKey: 'cache:open-api:profile', warningCount: 0, criticalCount: 0, attributes: {} },
+    { sourceKey: 'sdk-api', targetKey: 'signaling', kind: 'SIGNALING', resourceKey: 'signal:sdk-api:connect', warningCount: 1, criticalCount: 0, attributes: {} },
     { sourceKey: 'room-resource', targetKey: 'redis-room', kind: 'CACHE', resourceKey: 'cache:room-resource:state', warningCount: 0, criticalCount: 1, attributes: {} },
   ];
   const connectors: PlatformConnectorStatus[] = [
     { connectorKey: 'nexary-sdk-demo', kind: 'NEXARY_SDK', state: 'HEALTHY', displayName: 'Nexary SDK', lastMessage: 'demo signals received', lastSeenAt: null },
+    { connectorKey: 'prometheus-readonly-demo', kind: 'PROMETHEUS', state: 'HEALTHY', displayName: 'Prometheus', lastMessage: 'watermarks query demo', lastSeenAt: null },
+    { connectorKey: 'skywalking-readonly-demo', kind: 'SKYWALKING', state: 'HEALTHY', displayName: 'SkyWalking', lastMessage: 'service trace evidence demo', lastSeenAt: null },
     { connectorKey: 'sentinel-readonly-demo', kind: 'SENTINEL', state: 'DEGRADED', displayName: 'Sentinel', lastMessage: 'read-only demo data', lastSeenAt: null },
+    { connectorKey: 'gateway-readonly-demo', kind: 'GATEWAY', state: 'DEGRADED', displayName: 'Spring Cloud Gateway', lastMessage: 'route health demo', lastSeenAt: null },
+    { connectorKey: 'feishu-dry-run-demo', kind: 'FEISHU', state: 'DISABLED', displayName: 'Feishu Dry Run', lastMessage: 'critical incident test message only', lastSeenAt: null },
   ];
   const incidents: PlatformIncidentCandidate[] = [
     {
@@ -216,12 +471,104 @@ function mockPlatformSnapshot(): PlatformSnapshot {
       impactedResourceCount: 1,
     },
   ];
+  const overview: PlatformOverview = {
+    summary: {
+      workspaceKey: 'cloud-phone',
+      environmentKey: 'prod-demo',
+      health: 'NEEDS_ACTION',
+      criticalIncidents: 1,
+      warningIncidents: 2,
+      serviceCount: services.length,
+      zoneCount: 2,
+      dependencyCount: dependencies.length,
+      connectorCount: connectors.length,
+      middlewareCount: 4,
+      openPolicyPlans: 1,
+      notificationRoutes: 1,
+      lastSignalAt: null,
+    },
+    serviceWatermarks: [
+      { serviceKey: 'open-api', name: 'Open API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'open-api-cluster', zoneKey: 'cn-east', qps: 145, errorRate: 0.026, p95Ms: 620, p99Ms: 1340, instanceCount: 12, cpuPercent: 68, memoryPercent: 72, watermarkPercent: 74, sentinelState: 'OPEN', gatewayState: 'WATCH', warningCount: 2, criticalCount: 1, activeIncidents: 1, state: 'CRITICAL' },
+      { serviceKey: 'sdk-api', name: 'SDK API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'sdk-api-cluster', zoneKey: 'cn-east', qps: 212, errorRate: 0.011, p95Ms: 260, p99Ms: 740, instanceCount: 16, cpuPercent: 55, memoryPercent: 63, watermarkPercent: 61, sentinelState: 'CLOSED', gatewayState: 'WATCH', warningCount: 1, criticalCount: 0, activeIncidents: 0, state: 'WARNING' },
+      { serviceKey: 'room-resource', name: 'Room Resource', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'room-resource-cluster', zoneKey: 'room-a', qps: 96, errorRate: 0.091, p95Ms: 1800, p99Ms: 3200, instanceCount: 18, cpuPercent: 86, memoryPercent: 82, watermarkPercent: 91, sentinelState: 'CLOSED', gatewayState: 'DEGRADED', warningCount: 1, criticalCount: 1, activeIncidents: 1, state: 'CRITICAL' },
+      { serviceKey: 'signaling', name: 'Signaling', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'signaling-cluster', zoneKey: 'room-a', qps: 184, errorRate: 0.017, p95Ms: 380, p99Ms: 900, instanceCount: 14, cpuPercent: 73, memoryPercent: 69, watermarkPercent: 76, sentinelState: 'CLOSED', gatewayState: 'DEGRADED', warningCount: 1, criticalCount: 0, activeIncidents: 0, state: 'WARNING' },
+    ],
+    zoneWatermarks: [
+      { zoneKey: 'cn-east', environmentKey: 'prod-demo', serviceCount: 2, warningCount: 3, criticalCount: 1, cpuPercent: 61.5, memoryPercent: 67.5, networkJitterMs: 4.2, packetLossPercent: 1.4, httpFailureRate: 0.022, state: 'CRITICAL' },
+      { zoneKey: 'room-a', environmentKey: 'prod-demo', serviceCount: 2, warningCount: 2, criticalCount: 1, cpuPercent: 79.5, memoryPercent: 75.5, networkJitterMs: 18.5, packetLossPercent: 2.8, httpFailureRate: 0.083, state: 'CRITICAL' },
+    ],
+    middlewareWatermarks: [
+      { middlewareKey: 'redis-main', name: 'Redis Main', kind: 'cache', environmentKey: 'prod-demo', zoneKey: 'cn-east', usagePercent: 61, latencyMs: 18, errorRate: 0.004, connectedServices: 1, warningCount: 0, criticalCount: 0, state: 'HEALTHY' },
+      { middlewareKey: 'pg-primary', name: 'Postgres Primary', kind: 'database', environmentKey: 'prod-demo', zoneKey: 'cn-east', usagePercent: 67, latencyMs: 42, errorRate: 0.006, connectedServices: 1, warningCount: 0, criticalCount: 0, state: 'HEALTHY' },
+      { middlewareKey: 'redis-room', name: 'Room Redis', kind: 'cache', environmentKey: 'prod-demo', zoneKey: 'room-a', usagePercent: 89, latencyMs: 210, errorRate: 0.071, connectedServices: 1, warningCount: 0, criticalCount: 1, state: 'CRITICAL' },
+    ],
+    policyPlans: [
+      { planKey: 'plan-incident-room-resource-downstream', title: 'Dry-run review for downstream:room-resource:allocate', serviceKey: 'room-resource', resourceKey: 'downstream:room-resource:allocate', signalType: 'QUARANTINE_CANDIDATE', state: 'DRY_RUN', risk: 'HIGH', proposedAction: 'Keep manual approval before traffic quarantine', evidenceCount: 1, lastSeenAt: null },
+    ],
+    notificationRoutes: [
+      { routeKey: 'feishu-dry-run-demo', channel: 'FEISHU', displayName: 'Feishu Dry Run', targetTeam: 'platform-team', minSeverity: 'CRITICAL', state: 'DISABLED', dryRun: true, lastMessage: 'critical incident test message only', boundIncidentCount: 1 },
+    ],
+  };
+  const requestFlows: PlatformRequestFlow[] = [
+    {
+      traceKey: 'flow-signaling-redis-timeout',
+      entryServiceKey: 'signaling',
+      endpointKey: 'http:signaling:heartbeat',
+      zoneKey: 'room-a',
+      status: 'ERROR',
+      durationMs: 2860,
+      startedAt: null,
+      spanCount: 2,
+      primaryError: 'REDIS_TIMEOUT',
+      summary: 'Redis command timeout with swap and disk IO pressure',
+      spans: [
+        { spanId: 'flow-signaling-redis-timeout-span-1', parentSpanId: '', serviceKey: 'signaling', resourceKey: 'http:signaling:heartbeat', component: 'http', operation: 'heartbeat', startOffsetMs: 0, durationMs: 2860, status: 'ERROR', errorType: 'REDIS_TIMEOUT', evidenceRefs: [] },
+        { spanId: 'flow-signaling-redis-timeout-span-2', parentSpanId: 'flow-signaling-redis-timeout-span-1', serviceKey: 'redis-room', resourceKey: 'cache:redis-room:state', component: 'redis', operation: 'GET room state', startOffsetMs: 42, durationMs: 2310, status: 'ERROR', errorType: 'REDIS_TIMEOUT', evidenceRefs: [] },
+      ],
+      evidenceRefs: [
+        { type: 'SKYWALKING_TRACE', refKey: 'sw-flow-signaling-redis-timeout', label: 'SkyWalking trace', href: '' },
+        { type: 'CAT_TRANSACTION', refKey: 'cat-signaling-redis-room', label: 'CAT transaction', href: '' },
+        { type: 'PROMQL', refKey: 'prom-redis-room-swap-io', label: 'PromQL', href: '' },
+      ],
+    },
+    {
+      traceKey: 'flow-signaling-board-broken-pipe',
+      entryServiceKey: 'signaling',
+      endpointKey: 'http:signaling:instance-callback',
+      zoneKey: 'room-a',
+      status: 'SLOW',
+      durationMs: 940,
+      startedAt: null,
+      spanCount: 1,
+      primaryError: 'BROKEN_PIPE',
+      summary: 'Board service became unreachable or closed the response',
+      spans: [
+        { spanId: 'flow-signaling-board-broken-pipe-span-1', parentSpanId: '', serviceKey: 'board-service', resourceKey: 'http:board-service:callback', component: 'http', operation: 'callback write', startOffsetMs: 0, durationMs: 870, status: 'SLOW', errorType: 'BROKEN_PIPE', evidenceRefs: [] },
+      ],
+      evidenceRefs: [
+        { type: 'LOG_QUERY', refKey: 'log-signaling-board-broken-pipe', label: 'Log query', href: '' },
+        { type: 'GATEWAY_ROUTE', refKey: 'gateway-board-callback', label: 'Gateway route', href: '' },
+      ],
+    },
+  ];
+  const transactions: PlatformTransactionMetric[] = [
+    { serviceKey: 'signaling', endpointKey: 'http:signaling:heartbeat', zoneKey: 'room-a', windowStart: null, windowEnd: null, total: 184, failure: 21, failureRate: 0.114, tps: 0.61, qps: 0.61, minMs: 42, maxMs: 3410, avgMs: 810, p95Ms: 2260, p99Ms: 3410, sampleTraceKey: 'flow-signaling-redis-timeout' },
+    { serviceKey: 'room-resource', endpointKey: 'http:room-resource:allocate', zoneKey: 'room-a', windowStart: null, windowEnd: null, total: 96, failure: 18, failureRate: 0.188, tps: 0.32, qps: 0.32, minMs: 88, maxMs: 4210, avgMs: 1180, p95Ms: 2840, p99Ms: 4210, sampleTraceKey: 'flow-room-resource-redis-room' },
+  ];
+  const hosts: PlatformHostSignal[] = [
+    { hostKey: 'signaling-room-a-01', serviceKey: 'signaling', clusterKey: 'signaling-cluster', zoneKey: 'room-a', state: 'WARNING', cpuPercent: 73, memoryPercent: 69, swapPercent: 12, diskIoPercent: 52, networkJitterMs: 16.2, packetLossPercent: 1.9, connectionCount: 1280, jvmThreadCount: 184, gcPauseMs: 56, lastError: 'BROKEN_PIPE', lastSeenAt: null, attributes: {} },
+    { hostKey: 'redis-room-a-primary', serviceKey: 'redis-room', clusterKey: 'redis-room-cluster', zoneKey: 'room-a', state: 'CRITICAL', cpuPercent: 77, memoryPercent: 94, swapPercent: 68, diskIoPercent: 91, networkJitterMs: 2.2, packetLossPercent: 0.2, connectionCount: 2160, jvmThreadCount: 62, gcPauseMs: 0, lastError: 'REDIS_TIMEOUT', lastSeenAt: null, attributes: {} },
+  ];
   return {
+    overview,
     topology: { services, dependencies, connectors },
     services,
     incidents,
     connectors,
     signals: [],
+    requestFlows,
+    transactions,
+    hosts,
   };
 }
 
@@ -261,6 +608,10 @@ function readNullableString(record: JsonRecord, key: string): string | null {
 function readNumber(record: JsonRecord, key: string): number {
   const value = record[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readBoolean(record: JsonRecord, key: string): boolean {
+  return record[key] === true;
 }
 
 function readStringRecord(record: JsonRecord, key: string): Record<string, string> {

@@ -17,8 +17,27 @@ const emit = defineEmits<{
 }>();
 
 const { isLoading, errorMessage, hasLoaded, refreshAll, loadTrace, traceByKey } = useConsoleData();
-const { enumLabel, formatTimestamp, t } = useLocale();
+const { enumLabel, formatTimestamp, locale, t } = useLocale();
 const trace = computed(() => traceByKey(props.traceKey));
+const copy = computed(() =>
+  locale.value === 'zh'
+    ? {
+        hero: 'Trace 证据详情',
+        heroNote: '把一次本地故障 Trace 拆成阶段、资源、动作、原因和建议检查资源。',
+        outcome: '最终结果',
+        stopReason: '停止原因',
+        rootResource: '根资源',
+        steps: '步骤',
+      }
+    : {
+        hero: 'Trace Evidence Detail',
+        heroNote: 'Break one local fault trace into stages, resources, actions, reasons, and suggested checks.',
+        outcome: 'Terminal Outcome',
+        stopReason: 'Stop Reason',
+        rootResource: 'Root Resource',
+        steps: 'Steps',
+      },
+);
 
 function stepReason(step: ConsoleTraceStep): string {
   if (step.quarantineReason && step.quarantineReason !== 'NONE') {
@@ -73,25 +92,43 @@ watch(
     :title="t('traceDetail.notFound')"
     :message="t('traceDetail.notFoundMessage')"
   />
-  <div v-else class="view-stack">
-    <section class="detail-header">
+  <div v-else class="ops-page">
+    <section class="ops-hero ops-hero--compact">
       <div>
-        <p class="eyebrow">{{ t('traceDetail.localKey') }}</p>
-        <h1>{{ trace.traceKey }}</h1>
+        <p class="eyebrow">{{ copy.hero }}</p>
+        <h2>{{ trace.traceKey }}</h2>
         <p class="resource-key">{{ trace.rootResourceKey }}</p>
+        <p>{{ copy.heroNote }}</p>
       </div>
-      <div class="detail-header__badges">
-        <StatusBadge :label="trace.terminalOutcome" :state="trace.terminalOutcome" />
-        <StatusBadge :label="trace.primaryStopReason" :state="trace.primaryStopReason" />
+      <div class="ops-hero__metrics">
+        <article>
+          <span>{{ copy.outcome }}</span>
+          <strong>{{ enumLabel(trace.terminalOutcome) }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.stopReason }}</span>
+          <strong>{{ enumLabel(trace.primaryStopReason) }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.rootResource }}</span>
+          <strong>{{ trace.rootResourceKey }}</strong>
+        </article>
+        <article>
+          <span>{{ copy.steps }}</span>
+          <strong>{{ trace.steps.length }}</strong>
+        </article>
       </div>
     </section>
 
-    <section class="panel">
-      <div class="panel__header">
-        <h2>{{ t('traceDetail.summary') }}</h2>
+    <section class="ops-panel">
+      <header>
+        <div>
+          <span>{{ t('traceDetail.summary') }}</span>
+          <h3>{{ t('traceDetail.summary') }}</h3>
+        </div>
         <span>{{ trace.steps.length }} {{ t('table.steps') }}</span>
-      </div>
-      <dl class="definition-grid">
+      </header>
+      <dl class="ops-definition-list">
         <div>
           <dt>{{ t('table.resource') }}</dt>
           <dd>{{ trace.rootResourceKey }}</dd>
@@ -121,11 +158,14 @@ watch(
       </dl>
     </section>
 
-    <section class="panel">
-      <div class="panel__header">
-        <h2>{{ t('traceDetail.steps') }}</h2>
+    <section class="ops-panel">
+      <header>
+        <div>
+          <span>{{ t('traceDetail.lowCardinality') }}</span>
+          <h3>{{ t('traceDetail.steps') }}</h3>
+        </div>
         <span>{{ t('traceDetail.lowCardinality') }}</span>
-      </div>
+      </header>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
