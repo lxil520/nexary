@@ -124,6 +124,71 @@ class GovernancePlatformServiceTest {
     }
 
     @Test
+    void snapshotExposesDataModeAndFreshness() {
+        GovernancePlatformService empty = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+
+        Map<String, Object> emptySnapshot = empty.snapshot();
+
+        assertEquals("UNAVAILABLE", emptySnapshot.get("sourceMode"));
+        assertTrue(((Map<?, ?>) emptySnapshot.get("freshness")).containsKey("generatedAt"));
+
+        GovernancePlatformService demo = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+        demo.recordSignal(signal(
+                "signaling",
+                "cache:signaling:room-state",
+                GovernanceSignalType.REDIS_TIMEOUT,
+                GovernanceSignalSeverity.CRITICAL,
+                "TIMEOUT",
+                Instant.now(),
+                Map.of("source", "demo", "flowKey", "flow-demo")));
+
+        assertEquals("DEMO", demo.snapshot().get("sourceMode"));
+    }
+
+    @Test
+    void requestFlowQueryFiltersSortsAndPaginates() {
+        GovernancePlatformService service = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+        service.recordSignal(signal(
+                "open-api",
+                "cache:open-api:profile",
+                GovernanceSignalType.REDIS_TIMEOUT,
+                GovernanceSignalSeverity.CRITICAL,
+                "TIMEOUT",
+                Instant.EPOCH.plusSeconds(2),
+                Map.of(
+                        "flowKey", "flow-open-api-redis",
+                        "durationMs", "2200",
+                        "endpoint", "GET:/profile",
+                        "targetResource", "cache:redis:profile",
+                        "skywalkingRef", "sw-open-api-redis")));
+        service.recordSignal(signal(
+                "open-api",
+                "http:open-api:health",
+                GovernanceSignalType.RESOURCE_EVENT,
+                GovernanceSignalSeverity.INFO,
+                "OK",
+                Instant.EPOCH.plusSeconds(3),
+                Map.of(
+                        "flowKey", "flow-open-api-health",
+                        "durationMs", "20",
+                        "endpoint", "GET:/health")));
+
+        List<?> flows = service.requestFlows(
+                null,
+                null,
+                "open-api",
+                "profile",
+                "ERROR",
+                1000L,
+                "redis",
+                "skywalking",
+                "duration_desc");
+
+        assertEquals(1, flows.size());
+        assertEquals("flow-open-api-redis", service.requestFlows(null, null, null, null, null, null, null, null, "duration_desc").get(0).traceKey());
+    }
+
+    @Test
     void includesInfoMetricSignalsInTransactionsWithoutCreatingIncidents() {
         GovernancePlatformService service = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
         service.recordSignal(signal(

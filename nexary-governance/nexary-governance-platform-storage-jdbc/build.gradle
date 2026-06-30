@@ -1,0 +1,5 @@
+dependencies {
+    api project(':nexary-governance:nexary-governance-platform-server')
+    api 'org.springframework:spring-jdbc'
+    api 'com.fasterxml.jackson.core:jackson-databind'
+}

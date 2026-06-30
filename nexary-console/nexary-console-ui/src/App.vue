@@ -97,7 +97,7 @@ const globalSeverity = ref('all');
 
 const { isLoading: localLoading, lastRefreshAt: localLastRefreshAt, refreshAll } = useConsoleData();
 const { isLoading: platformLoading, lastRefreshAt: platformLastRefreshAt, refreshPlatform } = usePlatformData();
-const { locale, setLocale, t } = useLocale();
+const { formatTimestamp, locale, setLocale, t } = useLocale();
 
 const platformSection = computed<PlatformSection>(() => (isPlatformSection(route.value.view) ? route.value.view : 'overview'));
 const isSettings = computed(() => route.value.view === 'settings');
@@ -128,8 +128,30 @@ const subtitle = computed(() => {
     : 'Governance platform RC: cross-tool evidence, request analysis, incident diagnosis, and dry-run planning';
 });
 
+const localBoundaryRows = computed(() =>
+  locale.value === 'zh'
+    ? [
+        { label: '数据模式', value: 'LOCAL_JVM' },
+        { label: '最近刷新', value: formatTimestamp(localLastRefreshAt.value) },
+        { label: '读取端点', value: '/nexary/governance/*' },
+        { label: '作用范围', value: '当前进程 / 当前实例' },
+      ]
+    : [
+        { label: 'Data mode', value: 'LOCAL_JVM' },
+        { label: 'Last refresh', value: formatTimestamp(localLastRefreshAt.value) },
+        { label: 'Read endpoint', value: '/nexary/governance/*' },
+        { label: 'Scope', value: 'Current process / instance' },
+      ],
+);
+
+const localBoundaryNote = computed(() =>
+  locale.value === 'zh'
+    ? '本页只展示当前 JVM 保留的低基数诊断，不代表平台请求链路、SkyWalking trace 或跨实例历史数据。'
+    : 'This page shows low-cardinality diagnostics retained by this JVM only; it is not platform request tracing, SkyWalking trace data, or cross-instance history.',
+);
+
 const refreshLabel = computed(() =>
-  lastRefreshAt.value ? `${t('app.updated')} ${lastRefreshAt.value}` : t('app.notRefreshed'),
+  lastRefreshAt.value ? `${t('app.updated')} ${formatTimestamp(lastRefreshAt.value)}` : t('app.notRefreshed'),
 );
 
 const workspaceLabel = computed(() =>
@@ -199,6 +221,10 @@ function navigate(view: NavigationItemId): void {
     pushRoute({ view: 'local-overview' });
     return;
   }
+  pushRoute({ view });
+}
+
+function navigatePlatformSection(view: PlatformSection): void {
   pushRoute({ view });
 }
 
@@ -338,7 +364,12 @@ function routeFromPath(pathname: string): RouteState {
   if (relativePath === 'platform') {
     return { view: 'overview' };
   }
-  if (relativePath === 'traces' || relativePath.startsWith('traces/')) {
+  if (
+    relativePath === 'traces' ||
+    relativePath.startsWith('traces/') ||
+    relativePath === 'flows' ||
+    relativePath.startsWith('flows/')
+  ) {
     return { view: 'request-flows' };
   }
   if (relativePath === 'events') {
@@ -444,6 +475,19 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
+      <section
+        v-if="isLocalArea"
+        class="ops-data-mode-strip local-boundary-strip"
+        data-tone="warning"
+        aria-label="Local diagnostics data boundary"
+      >
+        <div v-for="row in localBoundaryRows" :key="row.label">
+          <span>{{ row.label }}</span>
+          <strong>{{ row.value }}</strong>
+        </div>
+        <p>{{ localBoundaryNote }}</p>
+      </section>
+
       <div v-if="isLocalArea" class="local-tabs" aria-label="Local diagnostics">
         <button
           v-for="tab in localTabs"
@@ -474,7 +518,7 @@ onBeforeUnmount(() => {
         :trace-key="route.traceKey ?? ''"
         @select-resource="openLocalResource"
       />
-      <PlatformWorkbenchView v-else :section="platformSection" />
+      <PlatformWorkbenchView v-else :section="platformSection" @navigate-section="navigatePlatformSection" />
     </main>
   </div>
 </template>

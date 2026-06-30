@@ -12,7 +12,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 cd "$ROOT_DIR"
-./gradlew :nexary-samples:nexary-sample-governance-platform:bootJar -PnexaryVersion="${NEXARY_VERSION:-0.21.0}"
+./gradlew :nexary-samples:nexary-sample-governance-platform:bootJar -PnexaryVersion="${NEXARY_VERSION:-0.22.0}"
 rm -rf "$APP_BUILD_DIR"
 mkdir -p "$APP_BUILD_DIR"
 APP_JAR="$(find "$APP_JAR_DIR" -maxdepth 1 -type f -name 'nexary-sample-governance-platform-*.jar' ! -name '*plain*' | sort | tail -n 1)"

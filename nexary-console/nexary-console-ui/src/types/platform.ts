@@ -1,5 +1,24 @@
 export type PlatformSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
 export type PlatformConnectorState = 'DISABLED' | 'HEALTHY' | 'DEGRADED' | 'FAILED';
+export type PlatformSourceMode = 'DEMO' | 'MOCK' | 'LIVE' | 'STALE' | 'UNAVAILABLE' | 'UNKNOWN';
+
+export interface PlatformDataFreshness {
+  state: PlatformSourceMode;
+  generatedAt: string | null;
+  lastSignalAt: string | null;
+  lastConnectorSeenAt: string | null;
+  staleAfterSeconds: number;
+}
+
+export interface PlatformDataSource {
+  sourceKey: string;
+  kind: string;
+  state: string;
+  displayName: string;
+  lastSeenAt: string | null;
+  lastMessage: string;
+  mode: PlatformSourceMode;
+}
 
 export interface PlatformServiceNode {
   serviceKey: string;
@@ -87,6 +106,29 @@ export interface PlatformRequestFlow {
   summary: string;
   spans: PlatformSpan[];
   evidenceRefs: PlatformEvidenceRef[];
+}
+
+export interface PlatformTraceQuery {
+  from?: string | null;
+  to?: string | null;
+  serviceKey?: string | null;
+  endpointKey?: string | null;
+  status?: string | null;
+  minDurationMs?: number | null;
+  resourceKey?: string | null;
+  source?: string | null;
+  sort?: string | null;
+  page?: number | null;
+  size?: number | null;
+}
+
+export interface PlatformTraceQueryResult {
+  items: PlatformRequestFlow[];
+  page: number;
+  size: number;
+  total: number;
+  sort: string;
+  filters: Record<string, string | number | null>;
 }
 
 export interface PlatformTransactionMetric {
@@ -271,6 +313,11 @@ export interface PlatformOverview {
 }
 
 export interface PlatformSnapshot {
+  sourceMode: PlatformSourceMode;
+  generatedAt: string | null;
+  freshness: PlatformDataFreshness;
+  dataSources: PlatformDataSource[];
+  warnings: string[];
   overview: PlatformOverview;
   topology: PlatformTopology;
   services: PlatformServiceNode[];

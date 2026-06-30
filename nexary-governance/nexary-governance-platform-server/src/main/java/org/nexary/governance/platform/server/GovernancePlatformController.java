@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
@@ -91,8 +92,44 @@ public final class GovernancePlatformController {
 
     /** Returns request-flow samples. */
     @GetMapping("/request-flows")
-    public Map<String, Object> requestFlows() {
-        return Map.of("items", service.requestFlows().stream().map(PlatformJson::requestFlow).toList());
+    public Map<String, Object> requestFlows(
+            @RequestParam(value = "from", required = false) Instant from,
+            @RequestParam(value = "to", required = false) Instant to,
+            @RequestParam(value = "service", required = false) String service,
+            @RequestParam(value = "serviceKey", required = false) String serviceKey,
+            @RequestParam(value = "endpoint", required = false) String endpoint,
+            @RequestParam(value = "endpointKey", required = false) String endpointKey,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "minDurationMs", required = false) Long minDurationMs,
+            @RequestParam(value = "resource", required = false) String resource,
+            @RequestParam(value = "resourceKey", required = false) String resourceKey,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size) {
+        return requestFlowResponse(from, to, firstNonBlank(serviceKey, service), firstNonBlank(endpointKey, endpoint),
+                status, minDurationMs, firstNonBlank(resourceKey, resource), source, sort, page, size);
+    }
+
+    /** Returns request-flow samples through the platform trace query contract. */
+    @GetMapping("/traces")
+    public Map<String, Object> traces(
+            @RequestParam(value = "from", required = false) Instant from,
+            @RequestParam(value = "to", required = false) Instant to,
+            @RequestParam(value = "service", required = false) String service,
+            @RequestParam(value = "serviceKey", required = false) String serviceKey,
+            @RequestParam(value = "endpoint", required = false) String endpoint,
+            @RequestParam(value = "endpointKey", required = false) String endpointKey,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "minDurationMs", required = false) Long minDurationMs,
+            @RequestParam(value = "resource", required = false) String resource,
+            @RequestParam(value = "resourceKey", required = false) String resourceKey,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size) {
+        return requestFlowResponse(from, to, firstNonBlank(serviceKey, service), firstNonBlank(endpointKey, endpoint),
+                status, minDurationMs, firstNonBlank(resourceKey, resource), source, sort, page, size);
     }
 
     /** Returns one request-flow sample by stable key. */
@@ -102,6 +139,12 @@ public final class GovernancePlatformController {
                 .map(PlatformJson::requestFlow)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns one platform trace sample by stable key. */
+    @GetMapping("/traces/{traceKey}")
+    public ResponseEntity<Map<String, Object>> trace(@PathVariable("traceKey") String traceKey) {
+        return requestFlow(traceKey);
     }
 
     /** Returns CAT-style transaction metrics. */
@@ -126,6 +169,65 @@ public final class GovernancePlatformController {
     @GetMapping("/signals")
     public Map<String, Object> retainedSignals() {
         return Map.of("items", service.signals().stream().map(PlatformJson::signal).toList());
+    }
+
+    private Map<String, Object> requestFlowResponse(
+            Instant from,
+            Instant to,
+            String serviceKey,
+            String endpointKey,
+            String status,
+            Long minDurationMs,
+            String resourceKey,
+            String source,
+            String sort,
+            Integer page,
+            Integer size) {
+        int effectivePage = page == null || page < 0 ? 0 : page;
+        int effectiveSize = size == null ? 50 : Math.max(1, Math.min(size, 200));
+        List<Map<String, Object>> filtered = service.requestFlows(from, to, serviceKey, endpointKey, status,
+                        minDurationMs, resourceKey, source, sort)
+                .stream()
+                .map(PlatformJson::requestFlow)
+                .toList();
+        int fromIndex = Math.min(filtered.size(), effectivePage * effectiveSize);
+        int toIndex = Math.min(filtered.size(), fromIndex + effectiveSize);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("items", filtered.subList(fromIndex, toIndex));
+        response.put("page", effectivePage);
+        response.put("size", effectiveSize);
+        response.put("total", filtered.size());
+        response.put("sort", sort == null || sort.isBlank() ? "risk" : sort);
+        response.put("filters", traceFilters(from, to, serviceKey, endpointKey, status, minDurationMs, resourceKey, source));
+        return response;
+    }
+
+    private Map<String, Object> traceFilters(
+            Instant from,
+            Instant to,
+            String serviceKey,
+            String endpointKey,
+            String status,
+            Long minDurationMs,
+            String resourceKey,
+            String source) {
+        Map<String, Object> filters = new LinkedHashMap<>();
+        filters.put("from", from);
+        filters.put("to", to);
+        filters.put("serviceKey", serviceKey);
+        filters.put("endpointKey", endpointKey);
+        filters.put("status", status);
+        filters.put("minDurationMs", minDurationMs);
+        filters.put("resourceKey", resourceKey);
+        filters.put("source", source);
+        return filters;
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred;
+        }
+        return fallback;
     }
 
     /** Mutable HTTP DTO for a resource report. */

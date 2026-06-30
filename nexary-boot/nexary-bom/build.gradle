@@ -16,6 +16,7 @@ dependencies {
         api project(':nexary-governance:nexary-governance-sentinel')
         api project(':nexary-governance:nexary-governance-platform-api')
         api project(':nexary-governance:nexary-governance-platform-server')
+        api project(':nexary-governance:nexary-governance-platform-storage-jdbc')
         api project(':nexary-governance:nexary-governance-platform-storage-postgres')
         api project(':nexary-console:nexary-console-api')
         api project(':nexary-console:nexary-console-server')

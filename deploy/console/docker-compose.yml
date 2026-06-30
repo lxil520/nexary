@@ -3,7 +3,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/console/Dockerfile
-    image: nexary/governance-console-demo:${NEXARY_VERSION:-0.21.0}
+    image: nexary/governance-console-demo:${NEXARY_VERSION:-0.22.0}
     container_name: nexary-governance-console-demo
     environment:
       NEXARY_DEMO_REDIS_HOST: nexary-console-redis

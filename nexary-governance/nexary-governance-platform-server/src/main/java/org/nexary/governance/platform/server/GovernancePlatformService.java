@@ -23,6 +23,7 @@ import org.nexary.governance.platform.ImpactScope;
 import org.nexary.governance.platform.IncidentCandidate;
 import org.nexary.governance.platform.SuggestedCheck;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,6 +37,8 @@ import java.util.stream.Collectors;
 
 /** Read-only platform service for asset ingestion, topology projection, and incident candidates. */
 public final class GovernancePlatformService {
+    private static final Duration STALE_AFTER = Duration.ofMinutes(15);
+
     private final GovernancePlatformRepository repository;
 
     /** Creates the platform service. */
@@ -161,12 +164,22 @@ public final class GovernancePlatformService {
 
     /** Returns the complete read-only platform snapshot for the console. */
     public Map<String, Object> snapshot() {
+        List<GovernancePlatformResourceReport> reports = repository.resourceReports();
+        List<GovernanceSignal> retainedSignals = repository.signals();
+        List<GovernanceConnectorStatus> connectorStatuses = connectorStatuses(reports);
+        Instant generatedAt = Instant.now();
+        String sourceMode = dataSourceMode(reports, retainedSignals, connectorStatuses, generatedAt);
         Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("sourceMode", sourceMode);
+        snapshot.put("generatedAt", generatedAt);
+        snapshot.put("freshness", dataFreshness(retainedSignals, connectorStatuses, generatedAt, sourceMode));
+        snapshot.put("dataSources", dataSources(connectorStatuses, retainedSignals, sourceMode));
+        snapshot.put("warnings", dataWarnings(sourceMode, connectorStatuses, retainedSignals));
         snapshot.put("overview", overview());
         snapshot.put("topology", PlatformJson.topology(topology()));
         snapshot.put("services", services().stream().map(PlatformJson::service).toList());
         snapshot.put("incidents", incidents().stream().map(PlatformJson::incident).toList());
-        snapshot.put("connectors", connectors().stream().map(PlatformJson::connector).toList());
+        snapshot.put("connectors", connectorStatuses.stream().map(PlatformJson::connector).toList());
         snapshot.put("signals", signals().stream().map(PlatformJson::signal).toList());
         snapshot.put("requestFlows", requestFlows().stream().map(PlatformJson::requestFlow).toList());
         snapshot.put("transactions", transactions().stream().map(PlatformJson::transaction).toList());
@@ -220,6 +233,29 @@ public final class GovernancePlatformService {
         }
         flows.sort(Comparator.comparing(GovernanceRequestFlow::startedAt).reversed());
         return flows;
+    }
+
+    /** Returns retained request-flow samples filtered and sorted for read-only trace queries. */
+    public List<GovernanceRequestFlow> requestFlows(
+            Instant from,
+            Instant to,
+            String serviceKey,
+            String endpointKey,
+            String status,
+            Long minDurationMs,
+            String resourceKey,
+            String source,
+            String sort) {
+        return requestFlows().stream()
+                .filter(flow -> matchesTraceRange(flow, from, to))
+                .filter(flow -> matchesTraceService(flow, serviceKey))
+                .filter(flow -> matchesTraceEndpoint(flow, endpointKey))
+                .filter(flow -> matchesTraceStatus(flow, status))
+                .filter(flow -> minDurationMs == null || flow.durationMs() >= minDurationMs)
+                .filter(flow -> matchesTraceResource(flow, resourceKey))
+                .filter(flow -> matchesTraceSource(flow, source))
+                .sorted(traceComparator(sort))
+                .toList();
     }
 
     /** Returns one request-flow sample by sanitized key. */
@@ -322,6 +358,202 @@ public final class GovernancePlatformService {
                         Instant.now(),
                         service.attributes()))
                 .toList();
+    }
+
+    private String dataSourceMode(
+            List<GovernancePlatformResourceReport> reports,
+            List<GovernanceSignal> retainedSignals,
+            List<GovernanceConnectorStatus> connectorStatuses,
+            Instant generatedAt) {
+        if (reports.isEmpty() && retainedSignals.isEmpty() && connectorStatuses.isEmpty()) {
+            return "UNAVAILABLE";
+        }
+        if (hasDemoEvidence(reports, retainedSignals, connectorStatuses)) {
+            return "DEMO";
+        }
+        Instant latestSignalAt = latestSignalAt(retainedSignals);
+        if (latestSignalAt != null && latestSignalAt.plus(STALE_AFTER).isBefore(generatedAt)) {
+            return "STALE";
+        }
+        return "LIVE";
+    }
+
+    private Map<String, Object> dataFreshness(
+            List<GovernanceSignal> retainedSignals,
+            List<GovernanceConnectorStatus> connectorStatuses,
+            Instant generatedAt,
+            String sourceMode) {
+        Map<String, Object> freshness = new LinkedHashMap<>();
+        freshness.put("state", sourceMode);
+        freshness.put("generatedAt", generatedAt);
+        freshness.put("lastSignalAt", latestSignalAt(retainedSignals));
+        freshness.put("lastConnectorSeenAt", connectorStatuses.stream()
+                .map(GovernanceConnectorStatus::lastSeenAt)
+                .max(Comparator.naturalOrder())
+                .orElse(null));
+        freshness.put("staleAfterSeconds", STALE_AFTER.toSeconds());
+        return freshness;
+    }
+
+    private List<Map<String, Object>> dataSources(
+            List<GovernanceConnectorStatus> connectorStatuses,
+            List<GovernanceSignal> retainedSignals,
+            String sourceMode) {
+        if (connectorStatuses.isEmpty()) {
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put("sourceKey", "platform-ingest");
+            source.put("kind", "NEXARY_SDK");
+            source.put("state", retainedSignals.isEmpty() ? "UNAVAILABLE" : sourceMode);
+            source.put("displayName", "Nexary platform ingest");
+            source.put("lastSeenAt", latestSignalAt(retainedSignals));
+            source.put("mode", sourceMode);
+            return List.of(source);
+        }
+        return connectorStatuses.stream()
+                .map(connector -> {
+                    Map<String, Object> source = new LinkedHashMap<>();
+                    source.put("sourceKey", connector.connectorKey());
+                    source.put("kind", connector.kind().name());
+                    source.put("state", connector.state().name());
+                    source.put("displayName", connector.displayName());
+                    source.put("lastSeenAt", connector.lastSeenAt());
+                    source.put("lastMessage", connector.lastMessage());
+                    source.put("mode", sourceMode);
+                    return source;
+                })
+                .toList();
+    }
+
+    private List<String> dataWarnings(
+            String sourceMode,
+            List<GovernanceConnectorStatus> connectorStatuses,
+            List<GovernanceSignal> retainedSignals) {
+        List<String> warnings = new ArrayList<>();
+        if ("DEMO".equals(sourceMode)) {
+            warnings.add("DEMO data is for sample and UI verification only.");
+        }
+        if ("STALE".equals(sourceMode)) {
+            warnings.add("Latest signal is older than " + STALE_AFTER.toMinutes() + " minutes.");
+        }
+        if ("UNAVAILABLE".equals(sourceMode)) {
+            warnings.add("No platform resources, signals, or connector data are available.");
+        }
+        connectorStatuses.stream()
+                .filter(connector -> connector.state().name().equals("DEGRADED") || connector.state().name().equals("FAILED"))
+                .map(connector -> connector.connectorKey() + " is " + connector.state().name())
+                .forEach(warnings::add);
+        if (retainedSignals.isEmpty() && !"UNAVAILABLE".equals(sourceMode)) {
+            warnings.add("No retained governance signals are available for trace or incident views.");
+        }
+        return warnings;
+    }
+
+    private Instant latestSignalAt(List<GovernanceSignal> retainedSignals) {
+        return retainedSignals.stream()
+                .map(GovernanceSignal::timestamp)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+    }
+
+    private boolean hasDemoEvidence(
+            List<GovernancePlatformResourceReport> reports,
+            List<GovernanceSignal> retainedSignals,
+            List<GovernanceConnectorStatus> connectorStatuses) {
+        boolean demoConnector = connectorStatuses.stream()
+                .anyMatch(connector -> containsDemo(connector.connectorKey())
+                        || containsDemo(connector.displayName())
+                        || containsDemo(connector.lastMessage()));
+        boolean demoSignal = retainedSignals.stream()
+                .anyMatch(signal -> "demo".equalsIgnoreCase(signal.attributes().get("source")));
+        boolean demoAsset = reports.stream()
+                .flatMap(report -> report.assets().stream())
+                .anyMatch(asset -> containsDemo(asset.key())
+                        || containsDemo(asset.name())
+                        || "demo".equalsIgnoreCase(asset.attributes().get("sourceMode")));
+        return demoConnector || demoSignal || demoAsset;
+    }
+
+    private boolean containsDemo(String value) {
+        return value != null && value.toLowerCase().contains("demo");
+    }
+
+    private boolean matchesTraceRange(GovernanceRequestFlow flow, Instant from, Instant to) {
+        Instant startedAt = flow.startedAt();
+        if (startedAt == null) {
+            return true;
+        }
+        return (from == null || !startedAt.isBefore(from)) && (to == null || !startedAt.isAfter(to));
+    }
+
+    private boolean matchesTraceService(GovernanceRequestFlow flow, String serviceKey) {
+        if (isBlank(serviceKey)) {
+            return true;
+        }
+        return containsIgnoreCase(flow.entryServiceKey(), serviceKey)
+                || flow.spans().stream().anyMatch(span -> containsIgnoreCase(span.serviceKey(), serviceKey));
+    }
+
+    private boolean matchesTraceEndpoint(GovernanceRequestFlow flow, String endpointKey) {
+        if (isBlank(endpointKey)) {
+            return true;
+        }
+        return containsIgnoreCase(flow.endpointKey(), endpointKey)
+                || flow.spans().stream().anyMatch(span -> containsIgnoreCase(span.operation(), endpointKey));
+    }
+
+    private boolean matchesTraceStatus(GovernanceRequestFlow flow, String status) {
+        return isBlank(status) || flow.status().equalsIgnoreCase(status);
+    }
+
+    private boolean matchesTraceResource(GovernanceRequestFlow flow, String resourceKey) {
+        if (isBlank(resourceKey)) {
+            return true;
+        }
+        return containsIgnoreCase(flow.endpointKey(), resourceKey)
+                || flow.spans().stream().anyMatch(span -> containsIgnoreCase(span.resourceKey(), resourceKey));
+    }
+
+    private boolean matchesTraceSource(GovernanceRequestFlow flow, String source) {
+        if (isBlank(source)) {
+            return true;
+        }
+        return flow.evidenceRefs().stream()
+                .anyMatch(ref -> containsIgnoreCase(ref.type().name(), source)
+                        || containsIgnoreCase(ref.label(), source)
+                        || containsIgnoreCase(ref.refKey(), source));
+    }
+
+    private Comparator<GovernanceRequestFlow> traceComparator(String sort) {
+        String normalized = sort == null ? "risk" : sort.trim().toLowerCase();
+        return switch (normalized) {
+            case "duration", "duration_desc" -> Comparator.comparingLong(GovernanceRequestFlow::durationMs).reversed();
+            case "duration_asc" -> Comparator.comparingLong(GovernanceRequestFlow::durationMs);
+            case "started_at", "started_at_desc", "time", "time_desc" ->
+                    Comparator.comparing(GovernanceRequestFlow::startedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed();
+            case "status" -> Comparator.comparingInt((GovernanceRequestFlow flow) -> traceStatusWeight(flow.status())).reversed()
+                    .thenComparing(Comparator.comparingLong(GovernanceRequestFlow::durationMs).reversed());
+            default -> Comparator.comparingInt((GovernanceRequestFlow flow) -> traceStatusWeight(flow.status())).reversed()
+                    .thenComparing(Comparator.comparingLong(GovernanceRequestFlow::durationMs).reversed())
+                    .thenComparing(Comparator.comparing(GovernanceRequestFlow::startedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+        };
+    }
+
+    private int traceStatusWeight(String status) {
+        if ("ERROR".equalsIgnoreCase(status)) {
+            return 3;
+        }
+        if ("SLOW".equalsIgnoreCase(status) || "WARNING".equalsIgnoreCase(status)) {
+            return 2;
+        }
+        return 1;
+    }
+
+    private boolean containsIgnoreCase(String value, String expected) {
+        return value != null && expected != null && value.toLowerCase().contains(expected.toLowerCase());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Map<String, GovernanceAsset> mergeAssets(List<GovernancePlatformResourceReport> reports) {

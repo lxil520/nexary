@@ -1,6 +1,8 @@
 import type {
   PlatformConnectorState,
   PlatformConnectorStatus,
+  PlatformDataFreshness,
+  PlatformDataSource,
   PlatformDependencyEdge,
   PlatformEvidenceItem,
   PlatformEvidenceRef,
@@ -20,25 +22,30 @@ import type {
   PlatformRequestFlow,
   PlatformSpan,
   PlatformSuggestedCheck,
+  PlatformSourceMode,
+  PlatformTraceQuery,
+  PlatformTraceQueryResult,
   PlatformTransactionMetric,
   PlatformTopology,
   PlatformZoneWatermark,
 } from '../types/platform';
 
 type JsonRecord = Record<string, unknown>;
+type SnapshotPayload = Omit<PlatformSnapshot, 'sourceMode' | 'generatedAt' | 'freshness' | 'dataSources' | 'warnings'>;
 
 const defaultPlatformApiBase = '/api/platform';
 const dataMode = normalizeDataMode(import.meta.env.VITE_NEXARY_CONSOLE_DATA);
 const platformApiBase = normalizeBase(import.meta.env.VITE_NEXARY_PLATFORM_API_BASE, defaultPlatformApiBase);
 
 export async function fetchPlatformSnapshot(): Promise<PlatformSnapshot> {
-  return withFallback(async () => {
-    try {
-      return toSnapshot(await fetchJson('/snapshot'));
-    } catch (error) {
-      if (dataMode === 'api') {
-        throw error;
-      }
+  if (dataMode === 'mock') {
+    return withSnapshotMetadata(mockPlatformSnapshot(), 'MOCK', ['Explicit mock data mode is enabled.']);
+  }
+  try {
+    return toSnapshot(await fetchJson('/snapshot'));
+  } catch (error) {
+    if (dataMode === 'api') {
+      throw error;
     }
     const [overview, topology, services, incidents, connectors, signals] = await Promise.all([
       fetchJson('/overview').then(toOverview),
@@ -48,22 +55,35 @@ export async function fetchPlatformSnapshot(): Promise<PlatformSnapshot> {
       fetchJson('/connectors').then((data) => readItems(data).map(toConnector)),
       fetchJson('/signals').then((data) => readItems(data).map(toSignal)),
     ]);
-    return { overview, topology, services, incidents, connectors, signals, requestFlows: [], transactions: [], hosts: [] };
-  }, mockPlatformSnapshot);
+    return withSnapshotMetadata({
+      overview,
+      topology,
+      services,
+      incidents,
+      connectors,
+      signals,
+      requestFlows: [],
+      transactions: [],
+      hosts: [],
+    }, inferSourceMode(services, connectors, signals), ['Snapshot endpoint unavailable; loaded component platform endpoints.']);
+  }
 }
 
-async function withFallback<T>(apiCall: () => Promise<T>, fallback: () => T): Promise<T> {
-  if (dataMode === 'mock') {
-    return fallback();
-  }
-  try {
-    return await apiCall();
-  } catch (error) {
-    if (dataMode === 'api') {
-      throw error;
-    }
-    return fallback();
-  }
+export async function fetchPlatformTraces(query: PlatformTraceQuery = {}): Promise<PlatformTraceQueryResult> {
+  const params = new URLSearchParams();
+  appendQuery(params, 'from', query.from);
+  appendQuery(params, 'to', query.to);
+  appendQuery(params, 'serviceKey', query.serviceKey);
+  appendQuery(params, 'endpointKey', query.endpointKey);
+  appendQuery(params, 'status', query.status);
+  appendQuery(params, 'minDurationMs', query.minDurationMs);
+  appendQuery(params, 'resourceKey', query.resourceKey);
+  appendQuery(params, 'source', query.source);
+  appendQuery(params, 'sort', query.sort);
+  appendQuery(params, 'page', query.page);
+  appendQuery(params, 'size', query.size);
+  const suffix = params.toString();
+  return toTraceQueryResult(await fetchJson(`/traces${suffix ? `?${suffix}` : ''}`));
 }
 
 async function fetchJson(path: string): Promise<unknown> {
@@ -74,6 +94,13 @@ async function fetchJson(path: string): Promise<unknown> {
     throw new Error(`Platform API ${response.status} ${response.statusText}`);
   }
   return response.json() as Promise<unknown>;
+}
+
+function appendQuery(params: URLSearchParams, key: string, value: string | number | null | undefined): void {
+  if (value === null || value === undefined || value === '') {
+    return;
+  }
+  params.set(key, String(value));
 }
 
 function toTopology(data: unknown): PlatformTopology {
@@ -87,7 +114,7 @@ function toTopology(data: unknown): PlatformTopology {
 
 function toSnapshot(data: unknown): PlatformSnapshot {
   const record = asRecord(data);
-  return {
+  const payload: SnapshotPayload = {
     overview: toOverview(record.overview),
     topology: toTopology(record.topology),
     services: readItems(record.services).map(toServiceNode),
@@ -97,6 +124,28 @@ function toSnapshot(data: unknown): PlatformSnapshot {
     requestFlows: readItems(record.requestFlows).map(toRequestFlow),
     transactions: readItems(record.transactions).map(toTransaction),
     hosts: readItems(record.hosts).map(toHostSignal),
+  };
+  const sourceMode = toSourceMode(readString(record, 'sourceMode', inferSourceMode(payload.services, payload.connectors, payload.signals)));
+  const dataSources = readItems(record.dataSources).map(toDataSource);
+  return {
+    ...payload,
+    sourceMode,
+    generatedAt: readNullableString(record, 'generatedAt'),
+    freshness: toFreshness(record.freshness, payload, sourceMode),
+    dataSources: dataSources.length > 0 ? dataSources : withSnapshotMetadata(payload, sourceMode, []).dataSources,
+    warnings: readStringList(record.warnings),
+  };
+}
+
+function toTraceQueryResult(data: unknown): PlatformTraceQueryResult {
+  const record = asRecord(data);
+  return {
+    items: readItems(record.items).map(toRequestFlow),
+    page: readNumber(record, 'page'),
+    size: readNumber(record, 'size'),
+    total: readNumber(record, 'total'),
+    sort: readString(record, 'sort', 'risk'),
+    filters: readScalarRecord(record, 'filters'),
   };
 }
 
@@ -263,6 +312,67 @@ function toConnector(data: unknown): PlatformConnectorStatus {
   };
 }
 
+function toDataSource(data: unknown): PlatformDataSource {
+  const record = asRecord(data);
+  return {
+    sourceKey: readString(record, 'sourceKey', readString(record, 'connectorKey', 'platform-ingest')),
+    kind: readString(record, 'kind', 'NEXARY_SDK'),
+    state: readString(record, 'state', 'UNKNOWN'),
+    displayName: readString(record, 'displayName', 'Platform ingest'),
+    lastSeenAt: readNullableString(record, 'lastSeenAt'),
+    lastMessage: readString(record, 'lastMessage', ''),
+    mode: toSourceMode(readString(record, 'mode', 'UNKNOWN')),
+  };
+}
+
+function toFreshness(data: unknown, payload: SnapshotPayload, sourceMode: PlatformSourceMode): PlatformDataFreshness {
+  const record = asRecord(data);
+  return {
+    state: toSourceMode(readString(record, 'state', sourceMode)),
+    generatedAt: readNullableString(record, 'generatedAt'),
+    lastSignalAt: readNullableString(record, 'lastSignalAt') ?? payload.overview.summary.lastSignalAt,
+    lastConnectorSeenAt: readNullableString(record, 'lastConnectorSeenAt') ?? latestConnectorSeenAt(payload.connectors),
+    staleAfterSeconds: readNumber(record, 'staleAfterSeconds') || 900,
+  };
+}
+
+function withSnapshotMetadata(payload: SnapshotPayload, sourceMode: PlatformSourceMode, warnings: string[]): PlatformSnapshot {
+  const generatedAt = new Date().toISOString();
+  const dataSources = payload.connectors.length > 0
+    ? payload.connectors.map((connector) => ({
+        sourceKey: connector.connectorKey,
+        kind: connector.kind,
+        state: connector.state,
+        displayName: connector.displayName,
+        lastSeenAt: connector.lastSeenAt,
+        lastMessage: connector.lastMessage,
+        mode: sourceMode,
+      }))
+    : [{
+        sourceKey: 'platform-ingest',
+        kind: 'NEXARY_SDK',
+        state: sourceMode,
+        displayName: 'Nexary platform ingest',
+        lastSeenAt: payload.overview.summary.lastSignalAt,
+        lastMessage: '',
+        mode: sourceMode,
+      }];
+  return {
+    ...payload,
+    sourceMode,
+    generatedAt,
+    freshness: {
+      state: sourceMode,
+      generatedAt,
+      lastSignalAt: payload.overview.summary.lastSignalAt,
+      lastConnectorSeenAt: latestConnectorSeenAt(payload.connectors),
+      staleAfterSeconds: 900,
+    },
+    dataSources,
+    warnings,
+  };
+}
+
 function toIncident(data: unknown): PlatformIncidentCandidate {
   const record = asRecord(data);
   return {
@@ -423,7 +533,7 @@ function toHostSignal(data: unknown): PlatformHostSignal {
   };
 }
 
-function mockPlatformSnapshot(): PlatformSnapshot {
+function mockPlatformSnapshot(): SnapshotPayload {
   const services: PlatformServiceNode[] = [
     { serviceKey: 'open-api', name: 'Open API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'open-api-cluster', zoneKey: 'cn-east', warningCount: 2, criticalCount: 1, attributes: {} },
     { serviceKey: 'sdk-api', name: 'SDK API', teamKey: 'platform-team', environmentKey: 'prod-demo', clusterKey: 'sdk-api-cluster', zoneKey: 'cn-east', warningCount: 1, criticalCount: 0, attributes: {} },
@@ -579,6 +689,36 @@ function normalizeBase(rawValue: unknown, fallback: string): string {
   return rawValue.trim().replace(/\/+$/, '');
 }
 
+function inferSourceMode(
+  services: PlatformServiceNode[],
+  connectors: PlatformConnectorStatus[],
+  signals: PlatformSignal[],
+): PlatformSourceMode {
+  if (services.length === 0 && connectors.length === 0 && signals.length === 0) {
+    return 'UNAVAILABLE';
+  }
+  const hasDemoConnector = connectors.some((connector) =>
+    [connector.connectorKey, connector.displayName, connector.lastMessage].some((value) => value.toLowerCase().includes('demo')),
+  );
+  const hasDemoSignal = signals.some((signal) => signal.attributes.source?.toLowerCase() === 'demo');
+  return hasDemoConnector || hasDemoSignal ? 'DEMO' : 'LIVE';
+}
+
+function latestConnectorSeenAt(connectors: PlatformConnectorStatus[]): string | null {
+  const sorted = connectors
+    .map((connector) => connector.lastSeenAt)
+    .filter((value): value is string => !!value)
+    .sort();
+  return sorted.length > 0 ? sorted[sorted.length - 1] : null;
+}
+
+function toSourceMode(value: string): PlatformSourceMode {
+  const normalized = value.toUpperCase();
+  return normalized === 'DEMO' || normalized === 'MOCK' || normalized === 'LIVE' || normalized === 'STALE' || normalized === 'UNAVAILABLE'
+    ? normalized
+    : 'UNKNOWN';
+}
+
 function normalizeDataMode(rawValue: unknown): 'api' | 'mock' | 'auto' {
   return rawValue === 'api' || rawValue === 'mock' || rawValue === 'auto' ? rawValue : 'auto';
 }
@@ -614,6 +754,13 @@ function readBoolean(record: JsonRecord, key: string): boolean {
   return record[key] === true;
 }
 
+function readStringList(data: unknown): string[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
 function readStringRecord(record: JsonRecord, key: string): Record<string, string> {
   const value = record[key];
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -622,6 +769,20 @@ function readStringRecord(record: JsonRecord, key: string): Record<string, strin
   const result: Record<string, string> = {};
   Object.entries(value as JsonRecord).forEach(([entryKey, entryValue]) => {
     if (typeof entryValue === 'string') {
+      result[entryKey] = entryValue;
+    }
+  });
+  return result;
+}
+
+function readScalarRecord(record: JsonRecord, key: string): Record<string, string | number | null> {
+  const value = record[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  const result: Record<string, string | number | null> = {};
+  Object.entries(value as JsonRecord).forEach(([entryKey, entryValue]) => {
+    if (typeof entryValue === 'string' || typeof entryValue === 'number' || entryValue === null) {
       result[entryKey] = entryValue;
     }
   });

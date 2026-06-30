@@ -13,6 +13,9 @@ const tone = computed(() => {
     return 'success';
   }
   if (
+    value === 'CRITICAL' ||
+    value === 'FAILED' ||
+    value === 'ERROR' ||
     value === 'OPEN' ||
     value === 'FAILURE' ||
     value === 'REJECTED' ||
@@ -24,6 +27,7 @@ const tone = computed(() => {
     return 'danger';
   }
   if (
+    value === 'WARNING' ||
     value === 'HALF_OPEN' ||
     value === 'DEGRADED' ||
     value === 'ISOLATED' ||

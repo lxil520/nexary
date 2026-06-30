@@ -35,6 +35,8 @@ public final class ConsolePageController {
         "/nexary/console/local/traces/{traceKey}",
         "/nexary/console/resources/{resourceKey}",
         "/nexary/console/events",
+        "/nexary/console/flows",
+        "/nexary/console/flows/{flowKey}",
         "/nexary/console/traces",
         "/nexary/console/traces/{traceKey}",
         "/nexary/console/settings"
