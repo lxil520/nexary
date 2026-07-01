@@ -4,7 +4,7 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-autoconfigure:${rootProject.ext.springBoot2Version}"
     implementation "org.springframework.boot:spring-boot-starter-data-redis:${rootProject.ext.springBoot2Version}"
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.5'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.5'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.0'
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.springBoot2Version}"
     testImplementation "org.springframework.boot:spring-boot-starter-test:${rootProject.ext.springBoot2Version}"
 }
