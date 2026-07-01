@@ -123,7 +123,7 @@ jobs:
 
           echo "Central deployment id: ${DEPLOYMENT_ID}"
 
-          for attempt in $(seq 1 90); do
+          for attempt in $(seq 1 180); do
             curl "${CURL_OPTS[@]}" --fail-with-body -sS \
               --request POST \
               --header "Authorization: Bearer ${AUTH_TOKEN}" \
@@ -167,7 +167,7 @@ jobs:
               exit 1
             fi
 
-            if [ "${attempt}" = "90" ]; then
+            if [ "${attempt}" = "180" ]; then
               echo "Timed out waiting for Central validation."
               cat central-status.json
               exit 1
@@ -176,7 +176,7 @@ jobs:
             sleep 10
           done
 
-          for attempt in $(seq 1 90); do
+          for attempt in $(seq 1 180); do
             curl "${CURL_OPTS[@]}" --fail-with-body -sS \
               --request POST \
               --header "Authorization: Bearer ${AUTH_TOKEN}" \
@@ -201,7 +201,7 @@ jobs:
               exit 1
             fi
 
-            if [ "${attempt}" = "90" ]; then
+            if [ "${attempt}" = "180" ]; then
               echo "Timed out waiting for Central publish."
               cat central-status.json
               exit 1

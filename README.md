@@ -15,9 +15,9 @@
 
 Nexary 在业务代码和中间件 SDK 之间加一层很薄的 Java API。业务服务调用 `CacheClient`、`MessagePublisher`、`NexaryJob` 这些稳定入口；Redis、Valkey、Kafka、RocketMQ、ActiveMQ Classic、XXL-JOB、PowerJob 的接线留在框架模块里。后面中间件升级、替换或绕开瓶颈时，改动尽量收敛在依赖和配置上，不把业务系统从头改到尾。
 
-当前 `0.24.0` 以 Spring Boot 3.3 / Java 17+ 为主线，已验证能力包括缓存、消息、任务调度、可观测性桥接、本地治理运行时、只读治理诊断 Console、Boot3 主线的 Sentinel provider、停止重试传播、按固定流量类型和优先级做隔离、异常实例候选识别，以及当前 JVM 内的本地故障定位 trace。治理平台已包含资产模型、资源/信号上报 API、服务/依赖拓扑查询、JDBC 存储边界、Console Platform Mode、事故证据链、请求链路查询、治理计划 dry-run、通知预览和连接器配置中心。`0.24.0` 的治理平台样例接入 Docker 中的 Redis、Postgres、RabbitMQ、Prometheus 和 SkyWalking，能跑真实读写、发布消费、Prometheus 指标采集和 SkyWalking agent 链路写入。Spring Boot 2.7 / Java 8+ 与 Spring Boot 4.1 / Java 21 仍按模块提供已验证入口。
+当前 `0.24.1` 以 Spring Boot 3.3 / Java 17+ 为主线，已验证能力包括缓存、消息、任务调度、可观测性桥接、本地治理运行时、只读治理诊断 Console、Boot3 主线的 Sentinel provider、停止重试传播、按固定流量类型和优先级做隔离、异常实例候选识别，以及当前 JVM 内的本地故障定位 trace。治理平台已包含资产模型、资源/信号上报 API、服务/依赖拓扑查询、JDBC 存储边界、Console Platform Mode、事故证据链、请求链路查询、治理计划 dry-run、通知预览和连接器配置中心。`0.24.1` 的治理平台样例接入 Docker 中的 Redis、Postgres、RabbitMQ、Prometheus 和 SkyWalking，能跑真实读写、发布消费、Prometheus 指标采集和 SkyWalking agent 链路写入。Spring Boot 2.7 / Java 8+ 与 Spring Boot 4.1 / Java 21 仍按模块提供已验证入口。
 
-`0.24.0` 不是 Sentinel、Spring Cloud Gateway、SkyWalking、Prometheus、企业 IM 或 OpenTelemetry 后端的替代品，也不修改外部工具规则。它把 Nexary SDK 资源、治理信号、服务组、集群、机房、中间件依赖、本地连接器配置和只读连接器状态放到同一个平台视图里，并让事故候选带上首要资源、影响资源数、证据时间线和建议检查项。连接器中心可以保存 SkyWalking、Gateway、Sentinel、Prometheus、Actuator 和 Feishu/DingTalk/Webhook 的本地元数据，执行显式 TEST / DRY-RUN 探测，并维护服务到外部工具对象的映射；它仍不写 Sentinel 规则、不改 Gateway route、不发送生产告警。payload、URL query、userId、tenant、messageId、cache key、异常全文、stack trace、token 和密码都不能进入平台信号。
+`0.24.1` 不是 Sentinel、Spring Cloud Gateway、SkyWalking、Prometheus、企业 IM 或 OpenTelemetry 后端的替代品，也不修改外部工具规则。它把 Nexary SDK 资源、治理信号、服务组、集群、机房、中间件依赖、本地连接器配置和只读连接器状态放到同一个平台视图里，并让事故候选带上首要资源、影响资源数、证据时间线和建议检查项。连接器中心可以保存 SkyWalking、Gateway、Sentinel、Prometheus、Actuator 和 Feishu/DingTalk/Webhook 的本地元数据，执行显式 TEST / DRY-RUN 探测，并维护服务到外部工具对象的映射；它仍不写 Sentinel 规则、不改 Gateway route、不发送生产告警。payload、URL query、userId、tenant、messageId、cache key、异常全文、stack trace、token 和密码都不能进入平台信号。
 
 ## 什么情况下值得用
 
