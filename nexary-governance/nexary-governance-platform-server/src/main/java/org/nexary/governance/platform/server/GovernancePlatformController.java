@@ -90,6 +90,70 @@ public final class GovernancePlatformController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Returns local governance review plans. */
+    @GetMapping("/plans")
+    public Map<String, Object> plans() {
+        return Map.of("items", service.plans().stream().map(PlatformJson::reviewPlan).toList());
+    }
+
+    /** Returns one local governance review plan by key. */
+    @GetMapping("/plans/{planKey}")
+    public ResponseEntity<Map<String, Object>> plan(@PathVariable("planKey") String planKey) {
+        return service.plan(planKey)
+                .map(PlatformJson::reviewPlan)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Calculates a dry-run for a local governance review plan. */
+    @PostMapping("/plans/{planKey}/dry-run")
+    public ResponseEntity<Map<String, Object>> dryRunPlan(@PathVariable("planKey") String planKey) {
+        return service.dryRunPlan(planKey)
+                .map(PlatformJson::dryRun)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Exports review material for a local governance review plan. */
+    @PostMapping("/plans/{planKey}/export-review")
+    public ResponseEntity<Map<String, Object>> exportReview(@PathVariable("planKey") String planKey) {
+        return service.exportReview(planKey)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns local notification route metadata. */
+    @GetMapping("/notification-routes")
+    public Map<String, Object> notificationRoutes() {
+        return Map.of("items", service.notificationRoutes().stream()
+                .map(route -> PlatformJson.notificationRoute(route, service.boundIncidentCount(route)))
+                .toList());
+    }
+
+    /** Renders a dry-run notification preview. */
+    @PostMapping("/notification-routes/{routeKey}/preview")
+    public ResponseEntity<Map<String, Object>> previewNotification(@PathVariable("routeKey") String routeKey) {
+        return service.previewNotification(routeKey)
+                .map(PlatformJson::notificationPreview)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Attempts an explicitly marked test notification when test mode is enabled. */
+    @PostMapping("/notification-routes/{routeKey}/test")
+    public ResponseEntity<Map<String, Object>> testNotification(@PathVariable("routeKey") String routeKey) {
+        return service.testNotification(routeKey)
+                .map(PlatformJson::notificationTest)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns local platform audit records. */
+    @GetMapping("/audit-records")
+    public Map<String, Object> auditRecords() {
+        return Map.of("items", service.auditRecords().stream().map(PlatformJson::auditRecord).toList());
+    }
+
     /** Returns request-flow samples. */
     @GetMapping("/request-flows")
     public Map<String, Object> requestFlows(

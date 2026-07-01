@@ -1,18 +1,24 @@
 import type {
   PlatformConnectorState,
   PlatformConnectorStatus,
+  PlatformAuditRecord,
   PlatformDataFreshness,
   PlatformDataSource,
   PlatformDependencyEdge,
+  PlatformDryRunResult,
   PlatformEvidenceItem,
   PlatformEvidenceRef,
   PlatformHostSignal,
   PlatformImpactScope,
   PlatformIncidentCandidate,
   PlatformMiddlewareWatermark,
+  PlatformNotificationPreview,
   PlatformNotificationRoute,
+  PlatformNotificationTestResult,
   PlatformOverview,
   PlatformOverviewSummary,
+  PlatformPlanDiff,
+  PlatformPlanTarget,
   PlatformPolicyPlan,
   PlatformServiceNode,
   PlatformServiceWatermark,
@@ -86,8 +92,35 @@ export async function fetchPlatformTraces(query: PlatformTraceQuery = {}): Promi
   return toTraceQueryResult(await fetchJson(`/traces${suffix ? `?${suffix}` : ''}`));
 }
 
+export async function dryRunPlatformPlan(planKey: string): Promise<PlatformDryRunResult> {
+  return toDryRunResult(await postJson(`/plans/${encodeURIComponent(planKey)}/dry-run`));
+}
+
+export async function exportPlatformPlanReview(planKey: string): Promise<Record<string, unknown>> {
+  return asRecord(await postJson(`/plans/${encodeURIComponent(planKey)}/export-review`));
+}
+
+export async function previewNotificationRoute(routeKey: string): Promise<PlatformNotificationPreview> {
+  return toNotificationPreview(await postJson(`/notification-routes/${encodeURIComponent(routeKey)}/preview`));
+}
+
+export async function testNotificationRoute(routeKey: string): Promise<PlatformNotificationTestResult> {
+  return toNotificationTestResult(await postJson(`/notification-routes/${encodeURIComponent(routeKey)}/test`));
+}
+
 async function fetchJson(path: string): Promise<unknown> {
   const response = await fetch(`${platformApiBase}${path}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`Platform API ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<unknown>;
+}
+
+async function postJson(path: string): Promise<unknown> {
+  const response = await fetch(`${platformApiBase}${path}`, {
+    method: 'POST',
     headers: { Accept: 'application/json' },
   });
   if (!response.ok) {
@@ -124,6 +157,9 @@ function toSnapshot(data: unknown): PlatformSnapshot {
     requestFlows: readItems(record.requestFlows).map(toRequestFlow),
     transactions: readItems(record.transactions).map(toTransaction),
     hosts: readItems(record.hosts).map(toHostSignal),
+    plans: readItems(record.plans).map(toPolicyPlan),
+    notificationRoutes: readItems(record.notificationRoutes).map(toNotificationRoute),
+    auditRecords: readItems(record.auditRecords).map(toAuditRecord),
   };
   const sourceMode = toSourceMode(readString(record, 'sourceMode', inferSourceMode(payload.services, payload.connectors, payload.signals)));
   const dataSources = readItems(record.dataSources).map(toDataSource);
@@ -243,17 +279,63 @@ function toMiddlewareWatermark(data: unknown): PlatformMiddlewareWatermark {
 
 function toPolicyPlan(data: unknown): PlatformPolicyPlan {
   const record = asRecord(data);
+  const evidence = readItems(record.evidence).map(toEvidence);
   return {
     planKey: readString(record, 'planKey', 'unknown'),
+    incidentKey: readString(record, 'incidentKey', ''),
     title: readString(record, 'title', 'unknown'),
     serviceKey: readString(record, 'serviceKey', 'unknown'),
     resourceKey: readString(record, 'resourceKey', 'unknown'),
-    signalType: readString(record, 'signalType', 'RESOURCE_EVENT'),
+    signalType: readString(record, 'signalType', evidence[0]?.signalType ?? 'RESOURCE_EVENT'),
     state: readString(record, 'state', 'DRY_RUN'),
     risk: readString(record, 'risk', 'MEDIUM'),
+    target: record.target ? toPlanTarget(record.target) : null,
+    diffs: readItems(record.diffs).map(toPlanDiff),
+    evidence,
     proposedAction: readString(record, 'proposedAction', ''),
     evidenceCount: readNumber(record, 'evidenceCount'),
-    lastSeenAt: readNullableString(record, 'lastSeenAt'),
+    impactedServiceCount: readNumber(record, 'impactedServiceCount'),
+    impactedInstanceCount: readNumber(record, 'impactedInstanceCount'),
+    createdAt: readNullableString(record, 'createdAt'),
+    updatedAt: readNullableString(record, 'updatedAt'),
+    lastSeenAt: readNullableString(record, 'lastSeenAt') ?? readNullableString(record, 'updatedAt'),
+  };
+}
+
+function toPlanTarget(data: unknown): PlatformPlanTarget {
+  const record = asRecord(data);
+  return {
+    kind: readString(record, 'kind', 'OWNERSHIP_MAPPING'),
+    targetKey: readString(record, 'targetKey', 'unknown'),
+    displayName: readString(record, 'displayName', 'unknown'),
+  };
+}
+
+function toPlanDiff(data: unknown): PlatformPlanDiff {
+  const record = asRecord(data);
+  return {
+    fieldKey: readString(record, 'fieldKey', 'unknown'),
+    beforeValue: readString(record, 'beforeValue', 'unknown'),
+    afterValue: readString(record, 'afterValue', 'review-required'),
+    reason: readString(record, 'reason', ''),
+  };
+}
+
+function toDryRunResult(data: unknown): PlatformDryRunResult {
+  const record = asRecord(data);
+  return {
+    planKey: readString(record, 'planKey', 'unknown'),
+    passed: readBoolean(record, 'passed'),
+    risk: readString(record, 'risk', 'MEDIUM'),
+    impactedServices: readStringList(record.impactedServices),
+    impactedInstances: readStringList(record.impactedInstances),
+    impactedDependencies: readStringList(record.impactedDependencies),
+    requestSampleCount: readNumber(record, 'requestSampleCount'),
+    blockers: readStringList(record.blockers),
+    diffs: readItems(record.diffs).map(toPlanDiff),
+    evidence: readItems(record.evidence).map(toEvidence),
+    summary: readString(record, 'summary', ''),
+    generatedAt: readNullableString(record, 'generatedAt'),
   };
 }
 
@@ -265,10 +347,51 @@ function toNotificationRoute(data: unknown): PlatformNotificationRoute {
     displayName: readString(record, 'displayName', 'unknown'),
     targetTeam: readString(record, 'targetTeam', 'platform-team'),
     minSeverity: readString(record, 'minSeverity', 'CRITICAL'),
+    mode: readString(record, 'mode', readBoolean(record, 'dryRun') ? 'DRY_RUN' : 'DISABLED'),
     state: readString(record, 'state', 'DISABLED'),
     dryRun: readBoolean(record, 'dryRun'),
+    testEnabled: readBoolean(record, 'testEnabled'),
     lastMessage: readString(record, 'lastMessage', ''),
     boundIncidentCount: readNumber(record, 'boundIncidentCount'),
+    attributes: readStringRecord(record, 'attributes'),
+  };
+}
+
+function toNotificationPreview(data: unknown): PlatformNotificationPreview {
+  const record = asRecord(data);
+  return {
+    routeKey: readString(record, 'routeKey', 'unknown'),
+    incidentKey: readString(record, 'incidentKey', 'unknown'),
+    subject: readString(record, 'subject', ''),
+    body: readString(record, 'body', ''),
+    recipients: readStringList(record.recipients),
+    mode: readString(record, 'mode', 'DRY_RUN'),
+    createdAt: readNullableString(record, 'createdAt'),
+  };
+}
+
+function toNotificationTestResult(data: unknown): PlatformNotificationTestResult {
+  const record = asRecord(data);
+  return {
+    testKey: readString(record, 'testKey', 'unknown'),
+    routeKey: readString(record, 'routeKey', 'unknown'),
+    accepted: readBoolean(record, 'accepted'),
+    status: readString(record, 'status', 'TEST_DISABLED'),
+    message: readString(record, 'message', ''),
+    attemptedAt: readNullableString(record, 'attemptedAt'),
+    preview: record.preview ? toNotificationPreview(record.preview) : null,
+  };
+}
+
+function toAuditRecord(data: unknown): PlatformAuditRecord {
+  const record = asRecord(data);
+  return {
+    auditKey: readString(record, 'auditKey', 'unknown'),
+    action: readString(record, 'action', 'UNKNOWN'),
+    subjectKey: readString(record, 'subjectKey', 'unknown'),
+    result: readString(record, 'result', 'OK'),
+    message: readString(record, 'message', ''),
+    createdAt: readNullableString(record, 'createdAt'),
   };
 }
 
@@ -613,10 +736,42 @@ function mockPlatformSnapshot(): SnapshotPayload {
       { middlewareKey: 'redis-room', name: 'Room Redis', kind: 'cache', environmentKey: 'prod-demo', zoneKey: 'room-a', usagePercent: 89, latencyMs: 210, errorRate: 0.071, connectedServices: 1, warningCount: 0, criticalCount: 1, state: 'CRITICAL' },
     ],
     policyPlans: [
-      { planKey: 'plan-incident-room-resource-downstream', title: 'Dry-run review for downstream:room-resource:allocate', serviceKey: 'room-resource', resourceKey: 'downstream:room-resource:allocate', signalType: 'QUARANTINE_CANDIDATE', state: 'DRY_RUN', risk: 'HIGH', proposedAction: 'Keep manual approval before traffic quarantine', evidenceCount: 1, lastSeenAt: null },
+      {
+        planKey: 'plan-incident-room-resource-downstream',
+        incidentKey: 'incident-room-resource-downstream',
+        title: 'Dry-run review for downstream:room-resource:allocate',
+        serviceKey: 'room-resource',
+        resourceKey: 'downstream:room-resource:allocate',
+        signalType: 'QUARANTINE_CANDIDATE',
+        state: 'DRY_RUN',
+        risk: 'HIGH',
+        target: { kind: 'INSTANCE_CANDIDATE', targetKey: 'downstream:room-resource:allocate', displayName: 'downstream:room-resource:allocate' },
+        diffs: [{ fieldKey: 'instanceIsolation', beforeValue: 'none', afterValue: 'candidate-only', reason: 'Instance signal requires manual traffic review' }],
+        evidence: incidents[0].evidence,
+        proposedAction: 'Keep manual approval before traffic quarantine',
+        evidenceCount: 1,
+        impactedServiceCount: 1,
+        impactedInstanceCount: 0,
+        createdAt: null,
+        updatedAt: null,
+        lastSeenAt: null,
+      },
     ],
     notificationRoutes: [
-      { routeKey: 'feishu-dry-run-demo', channel: 'FEISHU', displayName: 'Feishu Dry Run', targetTeam: 'platform-team', minSeverity: 'CRITICAL', state: 'DISABLED', dryRun: true, lastMessage: 'critical incident test message only', boundIncidentCount: 1 },
+      {
+        routeKey: 'feishu-dry-run-demo',
+        channel: 'FEISHU',
+        displayName: 'Feishu Dry Run',
+        targetTeam: 'platform-team',
+        minSeverity: 'CRITICAL',
+        mode: 'DRY_RUN',
+        state: 'DISABLED',
+        dryRun: true,
+        testEnabled: false,
+        lastMessage: 'critical incident test message only',
+        boundIncidentCount: 1,
+        attributes: { readOnly: 'true', writeDisabled: 'true', productionSend: 'false' },
+      },
     ],
   };
   const requestFlows: PlatformRequestFlow[] = [

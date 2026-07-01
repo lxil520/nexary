@@ -280,15 +280,51 @@ export interface PlatformMiddlewareWatermark {
 
 export interface PlatformPolicyPlan {
   planKey: string;
+  incidentKey: string;
   title: string;
   serviceKey: string;
   resourceKey: string;
   signalType: string;
   state: string;
   risk: string;
+  target: PlatformPlanTarget | null;
+  diffs: PlatformPlanDiff[];
+  evidence: PlatformEvidenceItem[];
   proposedAction: string;
   evidenceCount: number;
+  impactedServiceCount: number;
+  impactedInstanceCount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
   lastSeenAt: string | null;
+}
+
+export interface PlatformPlanTarget {
+  kind: string;
+  targetKey: string;
+  displayName: string;
+}
+
+export interface PlatformPlanDiff {
+  fieldKey: string;
+  beforeValue: string;
+  afterValue: string;
+  reason: string;
+}
+
+export interface PlatformDryRunResult {
+  planKey: string;
+  passed: boolean;
+  risk: string;
+  impactedServices: string[];
+  impactedInstances: string[];
+  impactedDependencies: string[];
+  requestSampleCount: number;
+  blockers: string[];
+  diffs: PlatformPlanDiff[];
+  evidence: PlatformEvidenceItem[];
+  summary: string;
+  generatedAt: string | null;
 }
 
 export interface PlatformNotificationRoute {
@@ -297,10 +333,42 @@ export interface PlatformNotificationRoute {
   displayName: string;
   targetTeam: string;
   minSeverity: string;
+  mode: string;
   state: string;
   dryRun: boolean;
+  testEnabled: boolean;
   lastMessage: string;
   boundIncidentCount: number;
+  attributes: Record<string, string>;
+}
+
+export interface PlatformNotificationPreview {
+  routeKey: string;
+  incidentKey: string;
+  subject: string;
+  body: string;
+  recipients: string[];
+  mode: string;
+  createdAt: string | null;
+}
+
+export interface PlatformNotificationTestResult {
+  testKey: string;
+  routeKey: string;
+  accepted: boolean;
+  status: string;
+  message: string;
+  attemptedAt: string | null;
+  preview: PlatformNotificationPreview | null;
+}
+
+export interface PlatformAuditRecord {
+  auditKey: string;
+  action: string;
+  subjectKey: string;
+  result: string;
+  message: string;
+  createdAt: string | null;
 }
 
 export interface PlatformOverview {
@@ -327,4 +395,7 @@ export interface PlatformSnapshot {
   requestFlows: PlatformRequestFlow[];
   transactions: PlatformTransactionMetric[];
   hosts: PlatformHostSignal[];
+  plans?: PlatformPolicyPlan[];
+  notificationRoutes?: PlatformNotificationRoute[];
+  auditRecords?: PlatformAuditRecord[];
 }

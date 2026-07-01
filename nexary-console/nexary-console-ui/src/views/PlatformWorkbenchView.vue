@@ -4,17 +4,26 @@ import EmptyState from '../components/EmptyState.vue';
 import ErrorState from '../components/ErrorState.vue';
 import LoadingBlock from '../components/LoadingBlock.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { fetchPlatformTraces } from '../api/platformClient';
+import {
+  dryRunPlatformPlan,
+  exportPlatformPlanReview,
+  fetchPlatformTraces,
+  previewNotificationRoute,
+  testNotificationRoute,
+} from '../api/platformClient';
 import { useLocale } from '../composables/useLocale';
 import { usePlatformData } from '../composables/usePlatformData';
 import type {
   PlatformConnectorStatus,
   PlatformDataSource,
   PlatformDependencyEdge,
+  PlatformDryRunResult,
   PlatformHostSignal,
   PlatformIncidentCandidate,
   PlatformMiddlewareWatermark,
+  PlatformNotificationPreview,
   PlatformNotificationRoute,
+  PlatformNotificationTestResult,
   PlatformPolicyPlan,
   PlatformRequestFlow,
   PlatformServiceNode,
@@ -49,6 +58,7 @@ type FlowRiskInput = Pick<PlatformRequestFlow, 'status' | 'durationMs'> & {
   readonly evidenceRefs: readonly unknown[];
 };
 type FlowSortInput = FlowRiskInput & Pick<PlatformRequestFlow, 'startedAt'>;
+type PolicyRiskInput = Pick<PlatformPolicyPlan, 'risk' | 'state' | 'evidenceCount'>;
 type FlowEdgeInput = Pick<PlatformRequestFlow, 'entryServiceKey' | 'endpointKey' | 'summary'> & {
   readonly spans: readonly Pick<PlatformSpan, 'resourceKey' | 'serviceKey'>[];
 };
@@ -114,6 +124,14 @@ const traceQueryTotal = ref(0);
 const traceQueryLoading = ref(false);
 const traceQueryError = ref<string | null>(null);
 const traceQueryLoaded = ref(false);
+const policyDryRunResult = ref<PlatformDryRunResult | null>(null);
+const policyExportReview = ref<Record<string, unknown> | null>(null);
+const policyActionError = ref<string | null>(null);
+const policyActionLoading = ref(false);
+const notificationPreview = ref<PlatformNotificationPreview | null>(null);
+const notificationTestResult = ref<PlatformNotificationTestResult | null>(null);
+const notificationActionError = ref<string | null>(null);
+const notificationActionLoading = ref(false);
 const topologyDepth = ref('2');
 const USER_NODE_KEY = '__nexary_user__';
 const FLOW_PAGE_SIZE = 18;
@@ -166,6 +184,20 @@ const copy = computed(() =>
         transactions: '交易统计',
         impact: '影响范围',
         dryRun: 'Dry-run',
+        runDryRun: '执行 Dry-run',
+        exportReview: '导出审查材料',
+        previewMessage: '预览消息',
+        testSend: '测试发送',
+        dryRunResult: 'Dry-run 结果',
+        notificationPreview: '通知预览',
+        notificationTest: '测试结果',
+        blockers: '阻断原因',
+        impacted: '影响对象',
+        requestSamples: '请求样本',
+        targetKind: '目标类型',
+        before: '建议前',
+        after: '建议后',
+        testEnabled: '测试开关',
         noDirectWrite: '只读 / 不写生产配置',
         zone: '机房',
         selectedEdge: '当前链路',
@@ -336,6 +368,20 @@ const copy = computed(() =>
         transactions: 'Transactions',
         impact: 'Impact',
         dryRun: 'Dry-run',
+        runDryRun: 'Run dry-run',
+        exportReview: 'Export review',
+        previewMessage: 'Preview message',
+        testSend: 'Test send',
+        dryRunResult: 'Dry-run result',
+        notificationPreview: 'Notification preview',
+        notificationTest: 'Test result',
+        blockers: 'Blockers',
+        impacted: 'Impacted',
+        requestSamples: 'Request samples',
+        targetKind: 'Target kind',
+        before: 'Before',
+        after: 'After',
+        testEnabled: 'Test enabled',
         noDirectWrite: 'Read-only / no production write',
         zone: 'Zone',
         selectedEdge: 'Selected edge',
@@ -862,6 +908,19 @@ const selectedPolicyIncident = computed(() =>
 const selectedRouteIncident = computed(() =>
   visibleIncidents.value.find((incident) => selectedNotificationRoute.value && severityScore(incident.severity) >= severityScore(selectedNotificationRoute.value.minSeverity)) ?? null,
 );
+const selectedPolicyDryRun = computed(() =>
+  policyDryRunResult.value?.planKey === selectedPolicyPlan.value?.planKey ? policyDryRunResult.value : null,
+);
+const selectedPolicyExport = computed(() =>
+  policyExportReview.value?.planKey === selectedPolicyPlan.value?.planKey ? policyExportReview.value : null,
+);
+const selectedPolicyDiffs = computed(() => selectedPolicyDryRun.value?.diffs ?? selectedPolicyPlan.value?.diffs ?? []);
+const selectedNotificationPreview = computed(() =>
+  notificationPreview.value?.routeKey === selectedNotificationRoute.value?.routeKey ? notificationPreview.value : null,
+);
+const selectedNotificationTest = computed(() =>
+  notificationTestResult.value?.routeKey === selectedNotificationRoute.value?.routeKey ? notificationTestResult.value : null,
+);
 const flowViewModes = computed<Array<{ id: FlowViewMode; label: string }>>(() => [
   { id: 'list', label: copy.value.viewList },
   { id: 'tree', label: copy.value.viewTree },
@@ -933,6 +992,77 @@ async function refreshTraceQuery(): Promise<void> {
     if (sequence === traceQuerySequence) {
       traceQueryLoading.value = false;
     }
+  }
+}
+
+async function runSelectedPolicyDryRun(): Promise<void> {
+  const plan = selectedPolicyPlan.value;
+  if (!plan) {
+    return;
+  }
+  policyActionLoading.value = true;
+  policyActionError.value = null;
+  policyExportReview.value = null;
+  try {
+    policyDryRunResult.value = await dryRunPlatformPlan(plan.planKey);
+    await refreshPlatform();
+  } catch (error) {
+    policyActionError.value = error instanceof Error ? error.message : 'Dry-run failed';
+  } finally {
+    policyActionLoading.value = false;
+  }
+}
+
+async function exportSelectedPolicyReview(): Promise<void> {
+  const plan = selectedPolicyPlan.value;
+  if (!plan) {
+    return;
+  }
+  policyActionLoading.value = true;
+  policyActionError.value = null;
+  try {
+    policyExportReview.value = await exportPlatformPlanReview(plan.planKey);
+    await refreshPlatform();
+  } catch (error) {
+    policyActionError.value = error instanceof Error ? error.message : 'Review export failed';
+  } finally {
+    policyActionLoading.value = false;
+  }
+}
+
+async function previewSelectedNotification(): Promise<void> {
+  const route = selectedNotificationRoute.value;
+  if (!route) {
+    return;
+  }
+  notificationActionLoading.value = true;
+  notificationActionError.value = null;
+  notificationTestResult.value = null;
+  try {
+    notificationPreview.value = await previewNotificationRoute(route.routeKey);
+    await refreshPlatform();
+  } catch (error) {
+    notificationActionError.value = error instanceof Error ? error.message : 'Notification preview failed';
+  } finally {
+    notificationActionLoading.value = false;
+  }
+}
+
+async function testSelectedNotification(): Promise<void> {
+  const route = selectedNotificationRoute.value;
+  if (!route) {
+    return;
+  }
+  notificationActionLoading.value = true;
+  notificationActionError.value = null;
+  try {
+    notificationTestResult.value = await testNotificationRoute(route.routeKey);
+    notificationPreview.value = notificationTestResult.value.preview;
+    await refreshPlatform();
+  } catch (error) {
+    notificationActionError.value = error instanceof Error ? error.message : 'Notification test failed';
+  } finally {
+    notificationActionLoading.value = false;
   }
 }
 
@@ -1056,10 +1186,10 @@ function serviceRiskScore(service: PlatformServiceNode): number {
 
 function severityScore(severity: string | null | undefined): number {
   const value = (severity ?? '').toUpperCase();
-  if (value === 'CRITICAL' || value === 'FAILED' || value === 'ERROR') {
+  if (value === 'CRITICAL' || value === 'HIGH' || value === 'FAILED' || value === 'ERROR') {
     return 100;
   }
-  if (value === 'WARNING' || value === 'DEGRADED' || value === 'SLOW') {
+  if (value === 'WARNING' || value === 'MEDIUM' || value === 'DEGRADED' || value === 'SLOW') {
     return 50;
   }
   return 0;
@@ -1171,7 +1301,7 @@ function routeRiskScore(route: PlatformNotificationRoute): number {
   return severityScore(route.state) + severityScore(route.minSeverity) + route.boundIncidentCount * 8 + (route.dryRun ? 6 : 0);
 }
 
-function policyRiskScore(plan: PlatformPolicyPlan): number {
+function policyRiskScore(plan: PolicyRiskInput): number {
   return severityScore(plan.risk) + severityScore(plan.state) + plan.evidenceCount * 8;
 }
 
@@ -1303,10 +1433,10 @@ function nodeRiskScore(key: string, edges: PlatformDependencyEdge[]): number {
 
 function stateTone(state: string | null | undefined): string {
   const value = (state ?? '').toUpperCase();
-  if (['CRITICAL', 'FAILED', 'ERROR', 'OPEN', 'NEEDS_ACTION'].includes(value)) {
+  if (['CRITICAL', 'HIGH', 'FAILED', 'ERROR', 'OPEN', 'NEEDS_ACTION'].includes(value)) {
     return 'critical';
   }
-  if (['WARNING', 'DEGRADED', 'WATCH', 'SLOW', 'DISABLED'].includes(value)) {
+  if (['WARNING', 'MEDIUM', 'DEGRADED', 'WATCH', 'SLOW', 'DISABLED'].includes(value)) {
     return 'warning';
   }
   return 'healthy';
@@ -2816,18 +2946,39 @@ function spanStats(flow: FlowSpanInput | null): SpanAggregate[] {
           <header><span>{{ copy.selectedRoute }}</span><StatusBadge :label="selectedNotificationRoute?.state ?? 'INFO'" :state="selectedNotificationRoute?.state ?? 'INFO'" /></header>
           <h2>{{ selectedNotificationRoute?.displayName ?? '-' }}</h2>
           <div class="drawer-actions">
+            <button type="button" :disabled="!selectedNotificationRoute || notificationActionLoading" @click="previewSelectedNotification">{{ copy.previewMessage }}</button>
+            <button type="button" :disabled="!selectedNotificationRoute || notificationActionLoading" @click="testSelectedNotification">{{ copy.testSend }}</button>
             <button type="button" :disabled="!selectedRouteIncident" @click="openSelectedRouteIncident">{{ copy.openIncident }}</button>
             <button type="button" @click="emit('navigate-section', 'integrations')">{{ copy.openIntegrations }}</button>
-            <button type="button" @click="emit('navigate-section', 'policies')">{{ copy.openPolicies }}</button>
-            <button type="button" @click="emit('navigate-section', 'resources')">{{ copy.openResources }}</button>
           </div>
           <dl v-if="selectedNotificationRoute">
             <div><dt>{{ copy.channel }}</dt><dd>{{ selectedNotificationRoute.channel }}</dd></div>
             <div><dt>{{ copy.targetTeam }}</dt><dd>{{ selectedNotificationRoute.targetTeam }}</dd></div>
             <div><dt>{{ copy.minSeverity }}</dt><dd>{{ selectedNotificationRoute.minSeverity }}</dd></div>
-            <div><dt>{{ copy.routeMode }}</dt><dd>{{ selectedNotificationRoute.dryRun ? copy.dryRunOnly : copy.enabled }}</dd></div>
+            <div><dt>{{ copy.routeMode }}</dt><dd>{{ selectedNotificationRoute.mode }}</dd></div>
+            <div><dt>{{ copy.testEnabled }}</dt><dd>{{ selectedNotificationRoute.testEnabled ? copy.enabled : copy.unavailable }}</dd></div>
             <div><dt>{{ copy.bound }}</dt><dd>{{ selectedNotificationRoute.boundIncidentCount }}</dd></div>
           </dl>
+          <p v-if="notificationActionError" class="inline-warning">{{ notificationActionError }}</p>
+          <template v-if="selectedNotificationPreview">
+            <h3>{{ copy.notificationPreview }}</h3>
+            <dl>
+              <div><dt>{{ copy.status }}</dt><dd>{{ selectedNotificationPreview.mode }}</dd></div>
+              <div><dt>{{ copy.targetTeam }}</dt><dd>{{ selectedNotificationPreview.recipients.join(', ') || '-' }}</dd></div>
+              <div><dt>{{ copy.incidents }}</dt><dd>{{ selectedNotificationPreview.incidentKey }}</dd></div>
+            </dl>
+            <p>{{ selectedNotificationPreview.subject }}</p>
+            <p>{{ selectedNotificationPreview.body }}</p>
+          </template>
+          <template v-if="selectedNotificationTest">
+            <h3>{{ copy.notificationTest }}</h3>
+            <dl>
+              <div><dt>{{ copy.status }}</dt><dd>{{ selectedNotificationTest.status }}</dd></div>
+              <div><dt>{{ copy.state }}</dt><dd>{{ selectedNotificationTest.accepted ? copy.enabled : copy.unavailable }}</dd></div>
+              <div><dt>{{ copy.observedAt }}</dt><dd>{{ formatTimestamp(selectedNotificationTest.attemptedAt) }}</dd></div>
+            </dl>
+            <p>{{ selectedNotificationTest.message }}</p>
+          </template>
           <h3>{{ copy.lastMessage }}</h3>
           <p>{{ selectedNotificationRoute?.lastMessage ?? '-' }}</p>
         </aside>
@@ -2850,22 +3001,50 @@ function spanStats(flow: FlowSpanInput | null): SpanAggregate[] {
           <header><span>{{ copy.selectedPolicy }}</span><StatusBadge :label="selectedPolicyPlan?.risk ?? 'INFO'" :state="selectedPolicyPlan?.risk ?? 'INFO'" /></header>
           <h2>{{ selectedPolicyPlan?.title ?? '-' }}</h2>
           <div class="drawer-actions">
+            <button type="button" :disabled="!selectedPolicyPlan || policyActionLoading" @click="runSelectedPolicyDryRun">{{ copy.runDryRun }}</button>
+            <button type="button" :disabled="!selectedPolicyPlan || policyActionLoading" @click="exportSelectedPolicyReview">{{ copy.exportReview }}</button>
             <button type="button" :disabled="!selectedPolicyIncident" @click="openSelectedPolicyIncident">{{ copy.openIncident }}</button>
             <button type="button" :disabled="!selectedPolicyPlan" @click="openSelectedPolicyTopology">{{ copy.openTopology }}</button>
-            <button type="button" :disabled="!selectedPolicyPlan" @click="openSelectedPolicyService">{{ copy.openService }}</button>
-            <button type="button" @click="emit('navigate-section', 'notifications')">{{ copy.openNotifications }}</button>
           </div>
           <dl v-if="selectedPolicyPlan">
             <div><dt>{{ copy.service }}</dt><dd>{{ selectedPolicyPlan.serviceKey }}</dd></div>
             <div><dt>{{ copy.resource }}</dt><dd>{{ selectedPolicyPlan.resourceKey }}</dd></div>
+            <div><dt>{{ copy.targetKind }}</dt><dd>{{ selectedPolicyPlan.target?.kind ?? '-' }}</dd></div>
             <div><dt>{{ copy.signalType }}</dt><dd>{{ selectedPolicyPlan.signalType }}</dd></div>
             <div><dt>{{ copy.state }}</dt><dd>{{ selectedPolicyPlan.state }}</dd></div>
             <div><dt>{{ copy.risk }}</dt><dd>{{ selectedPolicyPlan.risk }}</dd></div>
             <div><dt>{{ copy.evidence }}</dt><dd>{{ selectedPolicyPlan.evidenceCount }}</dd></div>
             <div><dt>{{ copy.lastSeen }}</dt><dd>{{ selectedPolicyPlan.lastSeenAt ?? '-' }}</dd></div>
           </dl>
+          <p v-if="policyActionError" class="inline-warning">{{ policyActionError }}</p>
           <h3>{{ copy.proposedAction }}</h3>
           <p>{{ selectedPolicyPlan?.proposedAction ?? '-' }}</p>
+          <template v-if="selectedPolicyDiffs.length > 0">
+            <h3>{{ copy.exportReview }}</h3>
+            <div class="ops-table ops-table--compact">
+              <div v-for="diff in selectedPolicyDiffs" :key="`${diff.fieldKey}:${diff.afterValue}`" class="evidence-row">
+                <strong>{{ diff.fieldKey }}</strong>
+                <small>{{ copy.before }}: {{ diff.beforeValue }}</small>
+                <small>{{ copy.after }}: {{ diff.afterValue }}</small>
+                <em>{{ diff.reason }}</em>
+              </div>
+            </div>
+          </template>
+          <template v-if="selectedPolicyDryRun">
+            <h3>{{ copy.dryRunResult }}</h3>
+            <dl>
+              <div><dt>{{ copy.state }}</dt><dd>{{ selectedPolicyDryRun.passed ? copy.enabled : copy.unavailable }}</dd></div>
+              <div><dt>{{ copy.impacted }}</dt><dd>{{ selectedPolicyDryRun.impactedServices.join(', ') || '-' }}</dd></div>
+              <div><dt>{{ copy.requestSamples }}</dt><dd>{{ selectedPolicyDryRun.requestSampleCount }}</dd></div>
+              <div><dt>{{ copy.observedAt }}</dt><dd>{{ formatTimestamp(selectedPolicyDryRun.generatedAt) }}</dd></div>
+            </dl>
+            <p>{{ selectedPolicyDryRun.summary }}</p>
+            <p v-if="selectedPolicyDryRun.blockers.length > 0">{{ copy.blockers }}: {{ selectedPolicyDryRun.blockers.join(' / ') }}</p>
+          </template>
+          <template v-if="selectedPolicyExport">
+            <h3>{{ copy.exportReview }}</h3>
+            <p>{{ String(selectedPolicyExport.summary ?? selectedPolicyExport.mode ?? '-') }}</p>
+          </template>
         </aside>
       </section>
     </template>

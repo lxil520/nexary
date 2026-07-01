@@ -15,6 +15,8 @@ set +a
 BASE_URL="http://127.0.0.1:${NEXARY_CONSOLE_PORT:-18090}"
 PROMETHEUS_URL="http://127.0.0.1:${NEXARY_PROMETHEUS_PORT:-18095}"
 SKYWALKING_URL="http://127.0.0.1:${NEXARY_SKYWALKING_UI_PORT:-18097}"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "${TMP_DIR}"' EXIT
 
 echo "[console] seed platform demo data"
 curl -fsS -X POST "$BASE_URL/demo/platform/seed" | grep '"seeded":true' >/dev/null
@@ -41,6 +43,37 @@ curl -fsS "$BASE_URL/api/platform/hosts" | grep '"redis-room-a-primary"' >/dev/n
 
 echo "[console] platform connectors"
 curl -fsS "$BASE_URL/api/platform/connectors" | grep '"FEISHU"' >/dev/null
+
+echo "[console] controlled governance entry"
+curl -fsS "$BASE_URL/api/platform/plans" -o "$TMP_DIR/plans.json"
+grep '"planKey"' "$TMP_DIR/plans.json" >/dev/null
+PLAN_KEY="$(sed -n 's/.*"planKey":"\([^"]*\)".*/\1/p' "$TMP_DIR/plans.json" | head -n 1)"
+if [[ -z "$PLAN_KEY" ]]; then
+  echo "No governance review plan returned" >&2
+  exit 1
+fi
+curl -fsS -X POST "$BASE_URL/api/platform/plans/${PLAN_KEY}/dry-run" -o "$TMP_DIR/dry-run.json"
+grep '"passed":' "$TMP_DIR/dry-run.json" >/dev/null
+grep '"risk"' "$TMP_DIR/dry-run.json" >/dev/null
+grep '"summary":"TEST / DRY-RUN only; external systems are not changed"' "$TMP_DIR/dry-run.json" >/dev/null
+curl -fsS -X POST "$BASE_URL/api/platform/plans/${PLAN_KEY}/export-review" -o "$TMP_DIR/export-review.json"
+grep '"mode":"REVIEW_ONLY"' "$TMP_DIR/export-review.json" >/dev/null
+grep '"summary"' "$TMP_DIR/export-review.json" >/dev/null
+
+curl -fsS "$BASE_URL/api/platform/notification-routes" -o "$TMP_DIR/notification-routes.json"
+grep '"routeKey"' "$TMP_DIR/notification-routes.json" >/dev/null
+ROUTE_KEY="$(sed -n 's/.*"routeKey":"\([^"]*\)".*/\1/p' "$TMP_DIR/notification-routes.json" | head -n 1)"
+if [[ -z "$ROUTE_KEY" ]]; then
+  echo "No notification route returned" >&2
+  exit 1
+fi
+curl -fsS -X POST "$BASE_URL/api/platform/notification-routes/${ROUTE_KEY}/preview" -o "$TMP_DIR/notification-preview.json"
+grep '"mode":"' "$TMP_DIR/notification-preview.json" >/dev/null
+grep 'TEST / DRY-RUN' "$TMP_DIR/notification-preview.json" >/dev/null
+curl -fsS -X POST "$BASE_URL/api/platform/notification-routes/${ROUTE_KEY}/test" -o "$TMP_DIR/notification-test.json"
+grep '"accepted":false' "$TMP_DIR/notification-test.json" >/dev/null
+grep '"status":"TEST_DISABLED"' "$TMP_DIR/notification-test.json" >/dev/null
+curl -fsS "$BASE_URL/api/platform/audit-records" | grep '"action"' >/dev/null
 
 echo "[console] probe prometheus"
 curl -fsS "$BASE_URL/demo/platform/prometheus" | grep 'nexary_demo_probe_calls_total' >/dev/null

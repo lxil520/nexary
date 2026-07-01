@@ -1,11 +1,19 @@
 package org.nexary.governance.platform.server;
 
 import org.nexary.governance.platform.EvidenceItem;
+import org.nexary.governance.platform.GovernanceAuditRecord;
 import org.nexary.governance.platform.GovernanceConnectorStatus;
 import org.nexary.governance.platform.GovernanceDependencyEdge;
+import org.nexary.governance.platform.GovernanceDryRunResult;
 import org.nexary.governance.platform.GovernanceEvidenceRef;
 import org.nexary.governance.platform.GovernanceHostSignal;
+import org.nexary.governance.platform.GovernanceNotificationPreview;
+import org.nexary.governance.platform.GovernanceNotificationRoute;
+import org.nexary.governance.platform.GovernanceNotificationTestResult;
+import org.nexary.governance.platform.GovernancePlanDiff;
+import org.nexary.governance.platform.GovernancePlanTarget;
 import org.nexary.governance.platform.GovernanceRequestFlow;
+import org.nexary.governance.platform.GovernanceReviewPlan;
 import org.nexary.governance.platform.GovernanceServiceNode;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSpan;
@@ -157,6 +165,113 @@ final class PlatformJson {
         json.put("lastError", host.lastError());
         json.put("lastSeenAt", host.lastSeenAt());
         json.put("attributes", host.attributes());
+        return json;
+    }
+
+    static Map<String, Object> reviewPlan(GovernanceReviewPlan plan) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("planKey", plan.planKey());
+        json.put("incidentKey", plan.incidentKey());
+        json.put("title", plan.title());
+        json.put("state", plan.state().name());
+        json.put("risk", plan.risk().name());
+        json.put("target", planTarget(plan.target()));
+        json.put("diffs", plan.diffs().stream().map(PlatformJson::planDiff).toList());
+        json.put("serviceKey", plan.serviceKey());
+        json.put("resourceKey", plan.resourceKey());
+        json.put("proposedAction", plan.proposedAction());
+        json.put("evidence", plan.evidence().stream().map(PlatformJson::evidence).toList());
+        json.put("evidenceCount", plan.evidenceCount());
+        json.put("impactedServiceCount", plan.impactedServiceCount());
+        json.put("impactedInstanceCount", plan.impactedInstanceCount());
+        json.put("createdAt", plan.createdAt());
+        json.put("updatedAt", plan.updatedAt());
+        return json;
+    }
+
+    static Map<String, Object> dryRun(GovernanceDryRunResult result) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("planKey", result.planKey());
+        json.put("passed", result.passed());
+        json.put("risk", result.risk().name());
+        json.put("impactedServices", result.impactedServices());
+        json.put("impactedInstances", result.impactedInstances());
+        json.put("impactedDependencies", result.impactedDependencies());
+        json.put("requestSampleCount", result.requestSampleCount());
+        json.put("blockers", result.blockers());
+        json.put("diffs", result.diffs().stream().map(PlatformJson::planDiff).toList());
+        json.put("evidence", result.evidence().stream().map(PlatformJson::evidence).toList());
+        json.put("summary", result.summary());
+        json.put("generatedAt", result.generatedAt());
+        return json;
+    }
+
+    static Map<String, Object> notificationRoute(GovernanceNotificationRoute route, long boundIncidentCount) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("routeKey", route.routeKey());
+        json.put("channel", route.channel());
+        json.put("displayName", route.displayName());
+        json.put("targetTeam", route.targetTeam());
+        json.put("minSeverity", route.minSeverity().name());
+        json.put("mode", route.mode().name());
+        json.put("state", route.state().name());
+        json.put("dryRun", route.mode().name().equals("DRY_RUN"));
+        json.put("testEnabled", route.testEnabled());
+        json.put("lastMessage", route.lastMessage());
+        json.put("boundIncidentCount", boundIncidentCount);
+        json.put("attributes", route.attributes());
+        return json;
+    }
+
+    static Map<String, Object> notificationPreview(GovernanceNotificationPreview preview) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("routeKey", preview.routeKey());
+        json.put("incidentKey", preview.incidentKey());
+        json.put("subject", preview.subject());
+        json.put("body", preview.body());
+        json.put("recipients", preview.recipients());
+        json.put("mode", preview.mode().name());
+        json.put("createdAt", preview.createdAt());
+        return json;
+    }
+
+    static Map<String, Object> notificationTest(GovernanceNotificationTestResult result) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("testKey", result.testKey());
+        json.put("routeKey", result.routeKey());
+        json.put("accepted", result.accepted());
+        json.put("status", result.status());
+        json.put("message", result.message());
+        json.put("attemptedAt", result.attemptedAt());
+        json.put("preview", result.preview() == null ? Map.of() : notificationPreview(result.preview()));
+        return json;
+    }
+
+    static Map<String, Object> auditRecord(GovernanceAuditRecord record) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("auditKey", record.auditKey());
+        json.put("action", record.action().name());
+        json.put("subjectKey", record.subjectKey());
+        json.put("result", record.result());
+        json.put("message", record.message());
+        json.put("createdAt", record.createdAt());
+        return json;
+    }
+
+    private static Map<String, Object> planTarget(GovernancePlanTarget target) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("kind", target.kind().name());
+        json.put("targetKey", target.targetKey());
+        json.put("displayName", target.displayName());
+        return json;
+    }
+
+    private static Map<String, Object> planDiff(GovernancePlanDiff diff) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("fieldKey", diff.fieldKey());
+        json.put("beforeValue", diff.beforeValue());
+        json.put("afterValue", diff.afterValue());
+        json.put("reason", diff.reason());
         return json;
     }
 

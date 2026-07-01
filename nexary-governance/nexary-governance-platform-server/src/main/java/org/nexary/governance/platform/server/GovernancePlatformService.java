@@ -1,17 +1,32 @@
 package org.nexary.governance.platform.server;
 
 import org.nexary.governance.platform.EvidenceItem;
+import org.nexary.governance.platform.GovernanceAuditAction;
+import org.nexary.governance.platform.GovernanceAuditRecord;
 import org.nexary.governance.platform.GovernanceAsset;
 import org.nexary.governance.platform.GovernanceAssetKind;
 import org.nexary.governance.platform.GovernanceConnector;
 import org.nexary.governance.platform.GovernanceConnectorStatus;
+import org.nexary.governance.platform.GovernanceConnectorKind;
+import org.nexary.governance.platform.GovernanceConnectorState;
 import org.nexary.governance.platform.GovernanceDependency;
 import org.nexary.governance.platform.GovernanceDependencyEdge;
+import org.nexary.governance.platform.GovernanceDryRunResult;
 import org.nexary.governance.platform.GovernanceEvidenceRef;
 import org.nexary.governance.platform.GovernanceEvidenceRefType;
 import org.nexary.governance.platform.GovernanceHostSignal;
+import org.nexary.governance.platform.GovernanceNotificationMode;
+import org.nexary.governance.platform.GovernanceNotificationPreview;
+import org.nexary.governance.platform.GovernanceNotificationRoute;
+import org.nexary.governance.platform.GovernanceNotificationTestResult;
 import org.nexary.governance.platform.GovernancePlatformResourceReport;
+import org.nexary.governance.platform.GovernancePlanDiff;
+import org.nexary.governance.platform.GovernancePlanRisk;
+import org.nexary.governance.platform.GovernancePlanState;
+import org.nexary.governance.platform.GovernancePlanTarget;
+import org.nexary.governance.platform.GovernancePlanTargetKind;
 import org.nexary.governance.platform.GovernanceRequestFlow;
+import org.nexary.governance.platform.GovernanceReviewPlan;
 import org.nexary.governance.platform.GovernanceServiceNode;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSignalSeverity;
@@ -23,6 +38,11 @@ import org.nexary.governance.platform.ImpactScope;
 import org.nexary.governance.platform.IncidentCandidate;
 import org.nexary.governance.platform.SuggestedCheck;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -142,6 +162,160 @@ public final class GovernancePlatformService {
                 .toList();
     }
 
+    /** Returns local governance review plans generated from current incident evidence. */
+    public List<GovernanceReviewPlan> plans() {
+        ensureReviewPlans();
+        return repository.reviewPlans().stream()
+                .sorted(Comparator.comparing(GovernanceReviewPlan::updatedAt).reversed()
+                        .thenComparing(GovernanceReviewPlan::planKey))
+                .toList();
+    }
+
+    /** Returns one local governance review plan by key. */
+    public Optional<GovernanceReviewPlan> plan(String planKey) {
+        if (isBlank(planKey)) {
+            return Optional.empty();
+        }
+        ensureReviewPlans();
+        return repository.reviewPlan(planKey);
+    }
+
+    /** Calculates a dry-run result for a local governance review plan. */
+    public Optional<GovernanceDryRunResult> dryRunPlan(String planKey) {
+        Optional<GovernanceReviewPlan> plan = plan(planKey);
+        if (plan.isEmpty()) {
+            return Optional.empty();
+        }
+        GovernanceReviewPlan current = plan.get();
+        List<GovernanceRequestFlow> matchingFlows = requestFlows().stream()
+                .filter(flow -> flow.entryServiceKey().equals(current.serviceKey())
+                        || flow.spans().stream().anyMatch(span -> span.resourceKey().equals(current.resourceKey())))
+                .toList();
+        List<String> impactedServices = matchingFlows.stream()
+                .flatMap(flow -> flow.spans().stream().map(GovernanceSpan::serviceKey))
+                .distinct()
+                .limit(8)
+                .toList();
+        if (impactedServices.isEmpty()) {
+            impactedServices = List.of(current.serviceKey());
+        }
+        List<String> impactedInstances = hosts().stream()
+                .filter(host -> host.serviceKey().equals(current.serviceKey()))
+                .map(GovernanceHostSignal::hostKey)
+                .distinct()
+                .limit(8)
+                .toList();
+        List<String> impactedDependencies = topology().dependencies().stream()
+                .filter(edge -> edge.sourceKey().equals(current.serviceKey()) || edge.resourceKey().equals(current.resourceKey()))
+                .map(GovernanceDependencyEdge::resourceKey)
+                .distinct()
+                .limit(8)
+                .toList();
+        List<String> blockers = dryRunBlockers(current, matchingFlows);
+        GovernanceDryRunResult result = new GovernanceDryRunResult(
+                current.planKey(),
+                blockers.isEmpty(),
+                current.risk(),
+                impactedServices,
+                impactedInstances,
+                impactedDependencies,
+                matchingFlows.size(),
+                blockers,
+                current.diffs(),
+                current.evidence(),
+                "TEST / DRY-RUN only; external systems are not changed",
+                Instant.now());
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.PLAN_DRY_RUN,
+                current.planKey(),
+                result.passed() ? "OK" : "BLOCKED",
+                result.summary()));
+        repository.saveReviewPlan(copyPlanWithState(current, result.passed() ? GovernancePlanState.DRY_RUN : GovernancePlanState.BLOCKED));
+        return Optional.of(result);
+    }
+
+    /** Exports review material for a local governance review plan. */
+    public Optional<Map<String, Object>> exportReview(String planKey) {
+        Optional<GovernanceReviewPlan> plan = plan(planKey);
+        if (plan.isEmpty()) {
+            return Optional.empty();
+        }
+        GovernanceReviewPlan current = plan.get();
+        Map<String, Object> review = new LinkedHashMap<>();
+        review.put("planKey", current.planKey());
+        review.put("incidentKey", current.incidentKey());
+        review.put("title", current.title());
+        review.put("mode", "REVIEW_ONLY");
+        review.put("summary", current.proposedAction());
+        review.put("plan", PlatformJson.reviewPlan(current));
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.PLAN_EXPORT_REVIEW,
+                current.planKey(),
+                "OK",
+                "Review material exported"));
+        repository.saveReviewPlan(copyPlanWithState(current, GovernancePlanState.REVIEW_EXPORTED));
+        return Optional.of(review);
+    }
+
+    /** Returns local notification routes derived from read-only connector metadata. */
+    public List<GovernanceNotificationRoute> notificationRoutes() {
+        ensureNotificationRoutes();
+        return repository.notificationRoutes().stream()
+                .sorted(Comparator.comparing(GovernanceNotificationRoute::routeKey))
+                .toList();
+    }
+
+    /** Renders a dry-run notification preview for a route. */
+    public Optional<GovernanceNotificationPreview> previewNotification(String routeKey) {
+        Optional<GovernanceNotificationRoute> route = notificationRoute(routeKey);
+        if (route.isEmpty()) {
+            return Optional.empty();
+        }
+        IncidentCandidate incident = incidentForRoute(route.get()).orElse(noIncident(route.get()));
+        GovernanceNotificationPreview preview = notificationPreview(route.get(), incident, GovernanceNotificationMode.DRY_RUN);
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.NOTIFICATION_PREVIEW,
+                route.get().routeKey(),
+                "OK",
+                "Notification preview rendered"));
+        return Optional.of(preview);
+    }
+
+    /** Attempts an explicitly marked test notification. Production send is not supported. */
+    public Optional<GovernanceNotificationTestResult> testNotification(String routeKey) {
+        Optional<GovernanceNotificationRoute> route = notificationRoute(routeKey);
+        if (route.isEmpty()) {
+            return Optional.empty();
+        }
+        GovernanceNotificationRoute current = route.get();
+        IncidentCandidate incident = incidentForRoute(current).orElse(noIncident(current));
+        GovernanceNotificationPreview preview = notificationPreview(current, incident, GovernanceNotificationMode.TEST);
+        boolean enabled = current.testEnabled() && current.mode() == GovernanceNotificationMode.TEST
+                && current.state() == GovernanceConnectorState.HEALTHY;
+        GovernanceNotificationTestResult result = enabled
+                ? sendTestNotification(current, preview)
+                : notificationTestResult(
+                current,
+                preview,
+                false,
+                "TEST_DISABLED",
+                "Notification test is disabled; configure test mode before sending");
+        repository.saveNotificationTestResult(result);
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.NOTIFICATION_TEST,
+                current.routeKey(),
+                notificationTestAuditResult(result),
+                result.message()));
+        return Optional.of(result);
+    }
+
+    /** Returns local audit records sorted newest first. */
+    public List<GovernanceAuditRecord> auditRecords() {
+        return repository.auditRecords().stream()
+                .sorted(Comparator.comparing(GovernanceAuditRecord::createdAt).reversed())
+                .toList();
+    }
+
     /** Returns a dashboard-ready overview projection for the operations workbench. */
     public Map<String, Object> overview() {
         List<GovernancePlatformResourceReport> reports = repository.resourceReports();
@@ -157,8 +331,10 @@ public final class GovernancePlatformService {
         overview.put("serviceWatermarks", serviceWatermarks(serviceNodes, incidentCandidates));
         overview.put("zoneWatermarks", zoneWatermarks(serviceNodes));
         overview.put("middlewareWatermarks", middlewareWatermarks(assets, dependencies));
-        overview.put("policyPlans", policyPlans(incidentCandidates));
-        overview.put("notificationRoutes", notificationRoutes(reports, incidentCandidates));
+        overview.put("policyPlans", plans().stream().limit(6).map(PlatformJson::reviewPlan).toList());
+        overview.put("notificationRoutes", notificationRoutes().stream()
+                .map(route -> PlatformJson.notificationRoute(route, boundIncidentCount(route)))
+                .toList());
         return overview;
     }
 
@@ -184,6 +360,11 @@ public final class GovernancePlatformService {
         snapshot.put("requestFlows", requestFlows().stream().map(PlatformJson::requestFlow).toList());
         snapshot.put("transactions", transactions().stream().map(PlatformJson::transaction).toList());
         snapshot.put("hosts", hosts().stream().map(PlatformJson::host).toList());
+        snapshot.put("plans", plans().stream().map(PlatformJson::reviewPlan).toList());
+        snapshot.put("notificationRoutes", notificationRoutes().stream()
+                .map(route -> PlatformJson.notificationRoute(route, boundIncidentCount(route)))
+                .toList());
+        snapshot.put("auditRecords", auditRecords().stream().limit(20).map(PlatformJson::auditRecord).toList());
         return snapshot;
     }
 
@@ -358,6 +539,351 @@ public final class GovernancePlatformService {
                         Instant.now(),
                         service.attributes()))
                 .toList();
+    }
+
+    private void ensureReviewPlans() {
+        for (IncidentCandidate incident : incidents()) {
+            String planKey = "plan-" + incident.incidentKey();
+            if (repository.reviewPlan(planKey).isPresent()) {
+                continue;
+            }
+            GovernanceReviewPlan plan = reviewPlanFromIncident(incident);
+            repository.saveReviewPlan(plan);
+            repository.saveAuditRecord(audit(
+                    GovernanceAuditAction.PLAN_GENERATED,
+                    plan.planKey(),
+                    "OK",
+                    "Review plan generated from incident evidence"));
+        }
+    }
+
+    private GovernanceReviewPlan reviewPlanFromIncident(IncidentCandidate incident) {
+        String signalType = incident.evidence().isEmpty()
+                ? GovernanceSignalType.RESOURCE_EVENT.name()
+                : incident.evidence().get(0).signalType().name();
+        GovernancePlanTarget target = new GovernancePlanTarget(
+                planTargetKind(signalType),
+                incident.primaryResourceKey(),
+                incident.primaryResourceKey());
+        List<GovernancePlanDiff> diffs = List.of(planDiff(signalType, incident));
+        int impactedInstances = (int) hosts().stream()
+                .filter(host -> host.serviceKey().equals(incident.impactScope().serviceKey()))
+                .map(GovernanceHostSignal::hostKey)
+                .distinct()
+                .count();
+        return new GovernanceReviewPlan(
+                "plan-" + incident.incidentKey(),
+                incident.incidentKey(),
+                "Review " + incident.primaryResourceKey(),
+                GovernancePlanState.DRAFT,
+                planRisk(incident),
+                target,
+                diffs,
+                incident.impactScope().serviceKey(),
+                incident.primaryResourceKey(),
+                proposedAction(signalType),
+                incident.evidence(),
+                incident.evidenceCount(),
+                1,
+                impactedInstances,
+                incident.startedAt() == null ? Instant.now() : incident.startedAt(),
+                incident.lastSeenAt() == null ? Instant.now() : incident.lastSeenAt());
+    }
+
+    private GovernancePlanTargetKind planTargetKind(String signalType) {
+        return switch (signalType) {
+            case "SENTINEL_BLOCK" -> GovernancePlanTargetKind.SENTINEL_RESOURCE;
+            case "GATEWAY_DISCONNECT", "BROKEN_PIPE", "CANCELLATION" -> GovernancePlanTargetKind.GATEWAY_ROUTE;
+            case "QUARANTINE_CANDIDATE", "INSTANCE_SUSPECT", "HOST_WATERMARK" -> GovernancePlanTargetKind.INSTANCE_CANDIDATE;
+            case "LATENCY", "ERROR_RATE", "ACTIVE_REQUESTS", "REQUEST_RATE", "DEPENDENCY_TIMEOUT" ->
+                    GovernancePlanTargetKind.ALERT_THRESHOLD;
+            default -> GovernancePlanTargetKind.OWNERSHIP_MAPPING;
+        };
+    }
+
+    private GovernancePlanRisk planRisk(IncidentCandidate incident) {
+        if (incident.severity() == GovernanceSignalSeverity.CRITICAL && incident.evidenceCount() >= 3) {
+            return GovernancePlanRisk.CRITICAL;
+        }
+        if (incident.severity() == GovernanceSignalSeverity.CRITICAL) {
+            return GovernancePlanRisk.HIGH;
+        }
+        return incident.evidenceCount() > 2 ? GovernancePlanRisk.MEDIUM : GovernancePlanRisk.LOW;
+    }
+
+    private GovernancePlanDiff planDiff(String signalType, IncidentCandidate incident) {
+        return switch (planTargetKind(signalType)) {
+            case SENTINEL_RESOURCE -> new GovernancePlanDiff(
+                    "sentinelResourcePolicy",
+                    "current-policy",
+                    "review-threshold-for-" + incident.primaryResourceKey(),
+                    "Sentinel evidence requires human threshold review");
+            case GATEWAY_ROUTE -> new GovernancePlanDiff(
+                    "gatewayRoutePolicy",
+                    "current-route",
+                    "review-timeout-and-retry",
+                    "Gateway evidence requires route review");
+            case INSTANCE_CANDIDATE -> new GovernancePlanDiff(
+                    "instanceIsolation",
+                    "none",
+                    "candidate-only",
+                    "Instance signal requires manual traffic review");
+            case ALERT_THRESHOLD -> new GovernancePlanDiff(
+                    "alertThreshold",
+                    "current-threshold",
+                    "review-window-from-evidence",
+                    "Metric evidence requires alert threshold review");
+            case OWNERSHIP_MAPPING -> new GovernancePlanDiff(
+                    "ownershipMapping",
+                    "unknown-owner",
+                    incident.impactScope().serviceKey(),
+                    "Evidence should be mapped to service ownership");
+        };
+    }
+
+    private List<String> dryRunBlockers(GovernanceReviewPlan plan, List<GovernanceRequestFlow> matchingFlows) {
+        List<String> blockers = new ArrayList<>();
+        if (plan.evidence().isEmpty()) {
+            blockers.add("No retained evidence is attached to this plan");
+        }
+        if (matchingFlows.isEmpty()) {
+            blockers.add("No retained request samples match this plan");
+        }
+        if (plan.risk() == GovernancePlanRisk.CRITICAL && plan.evidenceCount() < 2) {
+            blockers.add("Critical plan requires at least two evidence items");
+        }
+        return blockers;
+    }
+
+    private GovernanceReviewPlan copyPlanWithState(GovernanceReviewPlan plan, GovernancePlanState state) {
+        return new GovernanceReviewPlan(
+                plan.planKey(),
+                plan.incidentKey(),
+                plan.title(),
+                state,
+                plan.risk(),
+                plan.target(),
+                plan.diffs(),
+                plan.serviceKey(),
+                plan.resourceKey(),
+                plan.proposedAction(),
+                plan.evidence(),
+                plan.evidenceCount(),
+                plan.impactedServiceCount(),
+                plan.impactedInstanceCount(),
+                plan.createdAt(),
+                Instant.now());
+    }
+
+    private void ensureNotificationRoutes() {
+        for (GovernancePlatformResourceReport report : repository.resourceReports()) {
+            for (GovernanceConnector connector : report.connectors()) {
+                if (connector.kind() != GovernanceConnectorKind.FEISHU && connector.kind() != GovernanceConnectorKind.DINGTALK) {
+                    continue;
+                }
+                if (repository.notificationRoute(connector.connectorKey()).isPresent()) {
+                    continue;
+                }
+                GovernanceNotificationRoute route = routeFromConnector(connector);
+                repository.saveNotificationRoute(route);
+            }
+        }
+    }
+
+    private GovernanceNotificationRoute routeFromConnector(GovernanceConnector connector) {
+        Map<String, String> attributes = connector.attributes();
+        boolean testEnabled = Boolean.parseBoolean(attributes.getOrDefault("testEnabled", "false"));
+        GovernanceNotificationMode mode = testEnabled
+                ? GovernanceNotificationMode.TEST
+                : Boolean.parseBoolean(attributes.getOrDefault("dryRun", "true"))
+                ? GovernanceNotificationMode.DRY_RUN
+                : GovernanceNotificationMode.DISABLED;
+        Map<String, String> publicAttributes = new LinkedHashMap<>();
+        publicAttributes.put("readOnly", "true");
+        publicAttributes.put("writeDisabled", "true");
+        publicAttributes.put("testEnabled", Boolean.toString(testEnabled));
+        publicAttributes.put("productionSend", "false");
+        return new GovernanceNotificationRoute(
+                connector.connectorKey(),
+                connector.kind().name(),
+                connector.displayName(),
+                attributes.getOrDefault("targetTeam", "platform-team"),
+                severity(attributes.getOrDefault("minSeverity", "CRITICAL")),
+                mode,
+                connector.state(),
+                testEnabled,
+                connector.lastMessage(),
+                publicAttributes);
+    }
+
+    private GovernanceNotificationTestResult sendTestNotification(
+            GovernanceNotificationRoute route,
+            GovernanceNotificationPreview preview) {
+        Optional<GovernanceConnector> connector = connectorForRoute(route.routeKey());
+        String webhookUrl = connector.map(value -> value.attributes().getOrDefault("webhookUrl", "")).orElse("");
+        if (isBlank(webhookUrl)) {
+            return notificationTestResult(
+                    route,
+                    preview,
+                    false,
+                    "TEST_CONFIG_MISSING",
+                    "Notification test webhook is not configured");
+        }
+        HttpRequest request;
+        try {
+            request = HttpRequest.newBuilder(URI.create(webhookUrl))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(testNotificationPayload(preview)))
+                    .build();
+        } catch (IllegalArgumentException exception) {
+            return notificationTestResult(route, preview, false, "TEST_CONFIG_INVALID", "Notification test webhook is invalid");
+        }
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))
+                .build();
+        try {
+            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            boolean accepted = response.statusCode() >= 200 && response.statusCode() < 300;
+            return notificationTestResult(
+                    route,
+                    preview,
+                    accepted,
+                    accepted ? "TEST_SENT" : "TEST_FAILED",
+                    accepted ? "TEST / DRY-RUN message sent" : "Notification test webhook returned HTTP " + response.statusCode());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return notificationTestResult(route, preview, false, "TEST_FAILED", "Notification test webhook was interrupted");
+        } catch (IOException exception) {
+            return notificationTestResult(route, preview, false, "TEST_FAILED", "Notification test webhook request failed");
+        }
+    }
+
+    private GovernanceNotificationTestResult notificationTestResult(
+            GovernanceNotificationRoute route,
+            GovernanceNotificationPreview preview,
+            boolean accepted,
+            String status,
+            String message) {
+        return new GovernanceNotificationTestResult(
+                "test-" + route.routeKey() + "-" + Instant.now().toEpochMilli(),
+                route.routeKey(),
+                accepted,
+                status,
+                message,
+                Instant.now(),
+                preview);
+    }
+
+    private Optional<GovernanceConnector> connectorForRoute(String routeKey) {
+        return repository.resourceReports().stream()
+                .flatMap(report -> report.connectors().stream())
+                .filter(connector -> connector.connectorKey().equals(routeKey))
+                .findFirst();
+    }
+
+    private String testNotificationPayload(GovernanceNotificationPreview preview) {
+        return "{"
+                + "\"mode\":\"TEST\","
+                + "\"subject\":\"" + jsonEscape(preview.subject()) + "\","
+                + "\"body\":\"" + jsonEscape(preview.body()) + "\","
+                + "\"routeKey\":\"" + jsonEscape(preview.routeKey()) + "\","
+                + "\"incidentKey\":\"" + jsonEscape(preview.incidentKey()) + "\""
+                + "}";
+    }
+
+    private String jsonEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private String notificationTestAuditResult(GovernanceNotificationTestResult result) {
+        if (result.accepted()) {
+            return "OK";
+        }
+        return "TEST_DISABLED".equals(result.status()) ? "DISABLED" : "FAILED";
+    }
+
+    private Optional<GovernanceNotificationRoute> notificationRoute(String routeKey) {
+        if (isBlank(routeKey)) {
+            return Optional.empty();
+        }
+        ensureNotificationRoutes();
+        return repository.notificationRoute(routeKey);
+    }
+
+    private Optional<IncidentCandidate> incidentForRoute(GovernanceNotificationRoute route) {
+        return incidents().stream()
+                .filter(incident -> severityWeight(incident.severity()) >= severityWeight(route.minSeverity()))
+                .findFirst();
+    }
+
+    private IncidentCandidate noIncident(GovernanceNotificationRoute route) {
+        Instant now = Instant.now();
+        return new IncidentCandidate(
+                "incident-none-" + route.routeKey(),
+                "No active incident for " + route.displayName(),
+                GovernanceSignalSeverity.INFO,
+                new ImpactScope("unknown", "unknown", "unknown"),
+                List.of(),
+                new SuggestedCheck(route.routeKey(), "No production notification will be sent"),
+                now,
+                now,
+                route.routeKey(),
+                0,
+                0);
+    }
+
+    private GovernanceNotificationPreview notificationPreview(
+            GovernanceNotificationRoute route,
+            IncidentCandidate incident,
+            GovernanceNotificationMode mode) {
+        String subject = "TEST / DRY-RUN " + incident.severity().name() + " " + incident.primaryResourceKey();
+        String body = "TEST / DRY-RUN only; review evidence before action";
+        return new GovernanceNotificationPreview(
+                route.routeKey(),
+                incident.incidentKey(),
+                subject,
+                body,
+                List.of(route.targetTeam()),
+                mode,
+                Instant.now());
+    }
+
+    /** Counts active incident candidates bound to a local notification route. */
+    public long boundIncidentCount(GovernanceNotificationRoute route) {
+        return incidents().stream()
+                .filter(incident -> severityWeight(incident.severity()) >= severityWeight(route.minSeverity()))
+                .count();
+    }
+
+    private GovernanceSignalSeverity severity(String value) {
+        if (isBlank(value)) {
+            return GovernanceSignalSeverity.CRITICAL;
+        }
+        try {
+            return GovernanceSignalSeverity.valueOf(value);
+        } catch (IllegalArgumentException ignored) {
+            return GovernanceSignalSeverity.CRITICAL;
+        }
+    }
+
+    private GovernanceAuditRecord audit(
+            GovernanceAuditAction action,
+            String subjectKey,
+            String result,
+            String message) {
+        Instant now = Instant.now();
+        String suffix = Integer.toUnsignedString(Objects.hash(action, subjectKey, now), 36);
+        return new GovernanceAuditRecord(
+                "audit-" + action.name().toLowerCase() + "-" + now.toEpochMilli() + "-" + suffix,
+                action,
+                subjectKey,
+                result,
+                message,
+                now);
     }
 
     private String dataSourceMode(
