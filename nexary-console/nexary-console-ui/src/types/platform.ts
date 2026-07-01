@@ -51,6 +51,70 @@ export interface PlatformConnectorStatus {
   lastSeenAt: string | null;
 }
 
+export interface PlatformConnectorConfig {
+  connectorKey: string;
+  kind: string;
+  displayName: string;
+  endpoint: string;
+  authMode: string;
+  accessMode: string;
+  state: PlatformConnectorState;
+  testEnabled: boolean;
+  capabilities: readonly string[];
+  lastMessage: string;
+  attributes: Record<string, string>;
+  createdAt: string | null;
+  updatedAt: string | null;
+  writeDisabled: boolean;
+}
+
+export interface PlatformConnectorConfigPayload {
+  connectorKey: string;
+  kind: string;
+  displayName: string;
+  endpoint: string;
+  authMode: string;
+  accessMode: string;
+  state: PlatformConnectorState;
+  testEnabled: boolean;
+  capabilities?: string[];
+  lastMessage?: string;
+  attributes?: Record<string, string>;
+}
+
+export interface PlatformConnectorTestResult {
+  testKey: string;
+  connectorKey: string;
+  accepted: boolean;
+  status: string;
+  message: string;
+  testedAt: string | null;
+  capabilities: readonly string[];
+}
+
+export interface PlatformServiceMapping {
+  mappingKey: string;
+  serviceKey: string;
+  connectorKey: string;
+  sourceKind: string;
+  externalKey: string;
+  resourceKind: string;
+  confidence: number;
+  attributes: Record<string, string>;
+  updatedAt: string | null;
+}
+
+export interface PlatformServiceMappingPayload {
+  mappingKey: string;
+  serviceKey: string;
+  connectorKey: string;
+  sourceKind: string;
+  externalKey: string;
+  resourceKind: string;
+  confidence: number;
+  attributes?: Record<string, string>;
+}
+
 export interface PlatformImpactScope {
   serviceKey: string;
   clusterKey: string;
@@ -397,5 +461,8 @@ export interface PlatformSnapshot {
   hosts: PlatformHostSignal[];
   plans?: PlatformPolicyPlan[];
   notificationRoutes?: PlatformNotificationRoute[];
+  connectorConfigs?: PlatformConnectorConfig[];
+  connectorTests?: PlatformConnectorTestResult[];
+  serviceMappings?: PlatformServiceMapping[];
   auditRecords?: PlatformAuditRecord[];
 }

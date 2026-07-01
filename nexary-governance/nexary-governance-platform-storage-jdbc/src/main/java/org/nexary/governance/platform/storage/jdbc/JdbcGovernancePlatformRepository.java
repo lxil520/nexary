@@ -7,9 +7,14 @@ import org.nexary.governance.platform.GovernanceAuditAction;
 import org.nexary.governance.platform.GovernanceAuditRecord;
 import org.nexary.governance.platform.GovernanceAsset;
 import org.nexary.governance.platform.GovernanceAssetKind;
+import org.nexary.governance.platform.GovernanceConnectorAccessMode;
+import org.nexary.governance.platform.GovernanceConnectorAuthMode;
+import org.nexary.governance.platform.GovernanceConnectorCapability;
+import org.nexary.governance.platform.GovernanceConnectorConfig;
 import org.nexary.governance.platform.GovernanceConnector;
 import org.nexary.governance.platform.GovernanceConnectorKind;
 import org.nexary.governance.platform.GovernanceConnectorState;
+import org.nexary.governance.platform.GovernanceConnectorTestResult;
 import org.nexary.governance.platform.GovernanceDependency;
 import org.nexary.governance.platform.GovernanceDependencyKind;
 import org.nexary.governance.platform.GovernanceNotificationMode;
@@ -23,6 +28,7 @@ import org.nexary.governance.platform.GovernancePlanState;
 import org.nexary.governance.platform.GovernancePlanTarget;
 import org.nexary.governance.platform.GovernancePlanTargetKind;
 import org.nexary.governance.platform.GovernanceReviewPlan;
+import org.nexary.governance.platform.GovernanceServiceMapping;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSignalSeverity;
 import org.nexary.governance.platform.GovernanceSignalType;
@@ -43,6 +49,7 @@ import java.util.Optional;
 public class JdbcGovernancePlatformRepository implements GovernancePlatformRepository {
     private static final TypeReference<Map<String, String>> ATTRIBUTES_TYPE = new TypeReference<>() { };
     private static final TypeReference<List<Map<String, String>>> DIFFS_TYPE = new TypeReference<>() { };
+    private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() { };
     private final JdbcOperations jdbcOperations;
     private final ObjectMapper objectMapper;
     private final GovernancePlatformJdbcDialect dialect;
@@ -172,6 +179,70 @@ public class JdbcGovernancePlatformRepository implements GovernancePlatformRepos
                 route.testEnabled(),
                 route.lastMessage(),
                 writeAttributes(route.attributes()));
+    }
+
+    @Override
+    public void saveConnectorConfig(GovernanceConnectorConfig config) {
+        Objects.requireNonNull(config, "config");
+        jdbcOperations.update("delete from governance_connector_config where connector_key = ?", config.connectorKey());
+        jdbcOperations.update("""
+                insert into governance_connector_config(
+                    connector_key, kind, display_name, endpoint, auth_mode, access_mode, state,
+                    test_enabled, capabilities, last_message, attributes, created_at, updated_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                config.connectorKey(),
+                config.kind().name(),
+                config.displayName(),
+                config.endpoint(),
+                config.authMode().name(),
+                config.accessMode().name(),
+                config.state().name(),
+                config.testEnabled(),
+                writeCapabilities(config.capabilities()),
+                config.lastMessage(),
+                writeAttributes(config.attributes()),
+                Timestamp.from(config.createdAt()),
+                Timestamp.from(config.updatedAt()));
+    }
+
+    @Override
+    public void saveConnectorTestResult(GovernanceConnectorTestResult result) {
+        Objects.requireNonNull(result, "result");
+        jdbcOperations.update("delete from governance_connector_test where test_key = ?", result.testKey());
+        jdbcOperations.update("""
+                insert into governance_connector_test(
+                    test_key, connector_key, accepted, status, message, tested_at, capabilities)
+                values (?, ?, ?, ?, ?, ?, ?)
+                """,
+                result.testKey(),
+                result.connectorKey(),
+                result.accepted(),
+                result.status(),
+                result.message(),
+                Timestamp.from(result.testedAt()),
+                writeCapabilities(result.capabilities()));
+    }
+
+    @Override
+    public void saveServiceMapping(GovernanceServiceMapping mapping) {
+        Objects.requireNonNull(mapping, "mapping");
+        jdbcOperations.update("delete from governance_service_mapping where mapping_key = ?", mapping.mappingKey());
+        jdbcOperations.update("""
+                insert into governance_service_mapping(
+                    mapping_key, service_key, connector_key, source_kind, external_key,
+                    resource_kind, confidence, attributes, updated_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                mapping.mappingKey(),
+                mapping.serviceKey(),
+                mapping.connectorKey(),
+                mapping.sourceKind().name(),
+                mapping.externalKey(),
+                mapping.resourceKind(),
+                mapping.confidence(),
+                writeAttributes(mapping.attributes()),
+                Timestamp.from(mapping.updatedAt()));
     }
 
     @Override
@@ -331,6 +402,81 @@ public class JdbcGovernancePlatformRepository implements GovernancePlatformRepos
     }
 
     @Override
+    public List<GovernanceConnectorConfig> connectorConfigs() {
+        return jdbcOperations.query("""
+                select connector_key, kind, display_name, endpoint, auth_mode, access_mode, state,
+                       test_enabled, capabilities, last_message, attributes, created_at, updated_at
+                  from governance_connector_config
+                 order by connector_key
+                 limit 200
+                """, (rs, rowNum) -> new GovernanceConnectorConfig(
+                rs.getString("connector_key"),
+                GovernanceConnectorKind.valueOf(rs.getString("kind")),
+                rs.getString("display_name"),
+                rs.getString("endpoint"),
+                GovernanceConnectorAuthMode.valueOf(rs.getString("auth_mode")),
+                GovernanceConnectorAccessMode.valueOf(rs.getString("access_mode")),
+                GovernanceConnectorState.valueOf(rs.getString("state")),
+                rs.getBoolean("test_enabled"),
+                readCapabilities(rs.getString("capabilities")),
+                rs.getString("last_message"),
+                readAttributes(rs.getString("attributes")),
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("updated_at").toInstant()));
+    }
+
+    @Override
+    public Optional<GovernanceConnectorConfig> connectorConfig(String connectorKey) {
+        return connectorConfigs().stream()
+                .filter(config -> config.connectorKey().equals(connectorKey))
+                .findFirst();
+    }
+
+    @Override
+    public List<GovernanceConnectorTestResult> connectorTestResults() {
+        return jdbcOperations.query("""
+                select test_key, connector_key, accepted, status, message, tested_at, capabilities
+                  from governance_connector_test
+                 order by tested_at desc
+                 limit 200
+                """, (rs, rowNum) -> new GovernanceConnectorTestResult(
+                rs.getString("test_key"),
+                rs.getString("connector_key"),
+                rs.getBoolean("accepted"),
+                rs.getString("status"),
+                rs.getString("message"),
+                rs.getTimestamp("tested_at").toInstant(),
+                readCapabilities(rs.getString("capabilities"))));
+    }
+
+    @Override
+    public List<GovernanceServiceMapping> serviceMappings() {
+        return jdbcOperations.query("""
+                select mapping_key, service_key, connector_key, source_kind, external_key,
+                       resource_kind, confidence, attributes, updated_at
+                  from governance_service_mapping
+                 order by service_key, source_kind
+                 limit 500
+                """, (rs, rowNum) -> new GovernanceServiceMapping(
+                rs.getString("mapping_key"),
+                rs.getString("service_key"),
+                rs.getString("connector_key"),
+                GovernanceConnectorKind.valueOf(rs.getString("source_kind")),
+                rs.getString("external_key"),
+                rs.getString("resource_kind"),
+                rs.getDouble("confidence"),
+                readAttributes(rs.getString("attributes")),
+                rs.getTimestamp("updated_at").toInstant()));
+    }
+
+    @Override
+    public Optional<GovernanceServiceMapping> serviceMapping(String mappingKey) {
+        return serviceMappings().stream()
+                .filter(mapping -> mapping.mappingKey().equals(mappingKey))
+                .findFirst();
+    }
+
+    @Override
     public List<GovernanceNotificationTestResult> notificationTestResults() {
         return jdbcOperations.query("""
                 select test_key, route_key, accepted, status, message, attempted_at,
@@ -428,6 +574,28 @@ public class JdbcGovernancePlatformRepository implements GovernancePlatformRepos
             return items;
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid platform diffs", e);
+        }
+    }
+
+    private String writeCapabilities(List<GovernanceConnectorCapability> capabilities) {
+        try {
+            List<String> values = capabilities == null ? List.of() : capabilities.stream()
+                    .map(GovernanceConnectorCapability::name)
+                    .toList();
+            return objectMapper.writeValueAsString(values);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid platform connector capabilities", e);
+        }
+    }
+
+    private List<GovernanceConnectorCapability> readCapabilities(String capabilities) {
+        try {
+            List<String> values = objectMapper.readValue(capabilities == null ? "[]" : capabilities, STRING_LIST_TYPE);
+            return values.stream()
+                    .map(GovernanceConnectorCapability::valueOf)
+                    .toList();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid platform connector capabilities", e);
         }
     }
 

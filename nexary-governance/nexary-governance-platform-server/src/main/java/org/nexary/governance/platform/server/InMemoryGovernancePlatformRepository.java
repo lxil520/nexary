@@ -1,10 +1,13 @@
 package org.nexary.governance.platform.server;
 
 import org.nexary.governance.platform.GovernanceAuditRecord;
+import org.nexary.governance.platform.GovernanceConnectorConfig;
+import org.nexary.governance.platform.GovernanceConnectorTestResult;
 import org.nexary.governance.platform.GovernanceNotificationRoute;
 import org.nexary.governance.platform.GovernanceNotificationTestResult;
 import org.nexary.governance.platform.GovernancePlatformResourceReport;
 import org.nexary.governance.platform.GovernanceReviewPlan;
+import org.nexary.governance.platform.GovernanceServiceMapping;
 import org.nexary.governance.platform.GovernanceSignal;
 
 import java.util.ArrayList;
@@ -21,6 +24,9 @@ public final class InMemoryGovernancePlatformRepository implements GovernancePla
     private final List<GovernanceSignal> signals = new CopyOnWriteArrayList<>();
     private final Map<String, GovernanceReviewPlan> reviewPlans = new LinkedHashMap<>();
     private final Map<String, GovernanceNotificationRoute> notificationRoutes = new LinkedHashMap<>();
+    private final Map<String, GovernanceConnectorConfig> connectorConfigs = new LinkedHashMap<>();
+    private final List<GovernanceConnectorTestResult> connectorTests = new CopyOnWriteArrayList<>();
+    private final Map<String, GovernanceServiceMapping> serviceMappings = new LinkedHashMap<>();
     private final List<GovernanceNotificationTestResult> notificationTests = new CopyOnWriteArrayList<>();
     private final List<GovernanceAuditRecord> auditRecords = new CopyOnWriteArrayList<>();
 
@@ -44,6 +50,23 @@ public final class InMemoryGovernancePlatformRepository implements GovernancePla
     public synchronized void saveNotificationRoute(GovernanceNotificationRoute route) {
         Objects.requireNonNull(route, "route");
         notificationRoutes.put(route.routeKey(), route);
+    }
+
+    @Override
+    public synchronized void saveConnectorConfig(GovernanceConnectorConfig config) {
+        Objects.requireNonNull(config, "config");
+        connectorConfigs.put(config.connectorKey(), config);
+    }
+
+    @Override
+    public void saveConnectorTestResult(GovernanceConnectorTestResult result) {
+        connectorTests.add(Objects.requireNonNull(result, "result"));
+    }
+
+    @Override
+    public synchronized void saveServiceMapping(GovernanceServiceMapping mapping) {
+        Objects.requireNonNull(mapping, "mapping");
+        serviceMappings.put(mapping.mappingKey(), mapping);
     }
 
     @Override
@@ -84,6 +107,31 @@ public final class InMemoryGovernancePlatformRepository implements GovernancePla
     @Override
     public synchronized Optional<GovernanceNotificationRoute> notificationRoute(String routeKey) {
         return Optional.ofNullable(notificationRoutes.get(routeKey));
+    }
+
+    @Override
+    public synchronized List<GovernanceConnectorConfig> connectorConfigs() {
+        return new ArrayList<>(connectorConfigs.values());
+    }
+
+    @Override
+    public synchronized Optional<GovernanceConnectorConfig> connectorConfig(String connectorKey) {
+        return Optional.ofNullable(connectorConfigs.get(connectorKey));
+    }
+
+    @Override
+    public List<GovernanceConnectorTestResult> connectorTestResults() {
+        return new ArrayList<>(connectorTests);
+    }
+
+    @Override
+    public synchronized List<GovernanceServiceMapping> serviceMappings() {
+        return new ArrayList<>(serviceMappings.values());
+    }
+
+    @Override
+    public synchronized Optional<GovernanceServiceMapping> serviceMapping(String mappingKey) {
+        return Optional.ofNullable(serviceMappings.get(mappingKey));
     }
 
     @Override

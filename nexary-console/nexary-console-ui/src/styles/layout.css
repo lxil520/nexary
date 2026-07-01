@@ -780,6 +780,53 @@ dd {
   grid-template-columns: minmax(0, 1fr) 420px;
 }
 
+.ops-three-column {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.1fr) minmax(300px, 0.9fr);
+  gap: 10px;
+}
+
+.ops-integrations-workbench .ops-panel {
+  min-width: 0;
+}
+
+.connector-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.connector-form-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.connector-form-grid input,
+.connector-form-grid select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.68);
+  color: var(--color-text);
+  padding: 0 10px;
+  font: inherit;
+}
+
+.connector-form-grid .inline-check {
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.connector-form-grid .inline-check input {
+  min-height: auto;
+  padding: 0;
+}
+
 .ops-table {
   display: grid;
 }
@@ -2937,7 +2984,12 @@ body {
   .ops-topology-layout,
   .topology-stage,
   .ops-two-column,
-  .ops-two-column--wide {
+  .ops-two-column--wide,
+  .ops-three-column {
+    grid-template-columns: 1fr;
+  }
+
+  .connector-form-grid {
     grid-template-columns: 1fr;
   }
 

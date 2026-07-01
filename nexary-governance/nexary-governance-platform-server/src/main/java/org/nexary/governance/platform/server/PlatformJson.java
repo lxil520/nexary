@@ -2,7 +2,9 @@ package org.nexary.governance.platform.server;
 
 import org.nexary.governance.platform.EvidenceItem;
 import org.nexary.governance.platform.GovernanceAuditRecord;
+import org.nexary.governance.platform.GovernanceConnectorConfig;
 import org.nexary.governance.platform.GovernanceConnectorStatus;
+import org.nexary.governance.platform.GovernanceConnectorTestResult;
 import org.nexary.governance.platform.GovernanceDependencyEdge;
 import org.nexary.governance.platform.GovernanceDryRunResult;
 import org.nexary.governance.platform.GovernanceEvidenceRef;
@@ -14,6 +16,7 @@ import org.nexary.governance.platform.GovernancePlanDiff;
 import org.nexary.governance.platform.GovernancePlanTarget;
 import org.nexary.governance.platform.GovernanceRequestFlow;
 import org.nexary.governance.platform.GovernanceReviewPlan;
+import org.nexary.governance.platform.GovernanceServiceMapping;
 import org.nexary.governance.platform.GovernanceServiceNode;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSpan;
@@ -72,6 +75,51 @@ final class PlatformJson {
         json.put("displayName", connector.displayName());
         json.put("lastMessage", connector.lastMessage());
         json.put("lastSeenAt", connector.lastSeenAt());
+        return json;
+    }
+
+    static Map<String, Object> connectorConfig(GovernanceConnectorConfig config) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("connectorKey", config.connectorKey());
+        json.put("kind", config.kind().name());
+        json.put("displayName", config.displayName());
+        json.put("endpoint", maskEndpoint(config.endpoint()));
+        json.put("authMode", config.authMode().name());
+        json.put("accessMode", config.accessMode().name());
+        json.put("state", config.state().name());
+        json.put("testEnabled", config.testEnabled());
+        json.put("capabilities", config.capabilities().stream().map(Enum::name).toList());
+        json.put("lastMessage", config.lastMessage());
+        json.put("attributes", config.attributes());
+        json.put("createdAt", config.createdAt());
+        json.put("updatedAt", config.updatedAt());
+        json.put("writeDisabled", true);
+        return json;
+    }
+
+    static Map<String, Object> connectorTest(GovernanceConnectorTestResult result) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("testKey", result.testKey());
+        json.put("connectorKey", result.connectorKey());
+        json.put("accepted", result.accepted());
+        json.put("status", result.status());
+        json.put("message", result.message());
+        json.put("testedAt", result.testedAt());
+        json.put("capabilities", result.capabilities().stream().map(Enum::name).toList());
+        return json;
+    }
+
+    static Map<String, Object> serviceMapping(GovernanceServiceMapping mapping) {
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("mappingKey", mapping.mappingKey());
+        json.put("serviceKey", mapping.serviceKey());
+        json.put("connectorKey", mapping.connectorKey());
+        json.put("sourceKind", mapping.sourceKind().name());
+        json.put("externalKey", mapping.externalKey());
+        json.put("resourceKind", mapping.resourceKind());
+        json.put("confidence", mapping.confidence());
+        json.put("attributes", mapping.attributes());
+        json.put("updatedAt", mapping.updatedAt());
         return json;
     }
 
@@ -315,6 +363,18 @@ final class PlatformJson {
         json.put("referenceKey", evidence.referenceKey());
         json.put("timestamp", evidence.timestamp());
         return json;
+    }
+
+    private static String maskEndpoint(String endpoint) {
+        if (endpoint == null || endpoint.isBlank()) {
+            return "";
+        }
+        String trimmed = endpoint.trim();
+        int schemeIndex = trimmed.indexOf("://");
+        int hostStart = schemeIndex >= 0 ? schemeIndex + 3 : 0;
+        int pathStart = trimmed.indexOf('/', hostStart);
+        String prefix = pathStart >= 0 ? trimmed.substring(0, pathStart) : trimmed;
+        return prefix + "/***";
     }
 
     private static Map<String, Object> impact(ImpactScope impact) {

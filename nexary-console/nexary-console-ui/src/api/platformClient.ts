@@ -1,6 +1,9 @@
 import type {
   PlatformConnectorState,
+  PlatformConnectorConfig,
+  PlatformConnectorConfigPayload,
   PlatformConnectorStatus,
+  PlatformConnectorTestResult,
   PlatformAuditRecord,
   PlatformDataFreshness,
   PlatformDataSource,
@@ -21,6 +24,8 @@ import type {
   PlatformPlanTarget,
   PlatformPolicyPlan,
   PlatformServiceNode,
+  PlatformServiceMapping,
+  PlatformServiceMappingPayload,
   PlatformServiceWatermark,
   PlatformSeverity,
   PlatformSignal,
@@ -108,6 +113,18 @@ export async function testNotificationRoute(routeKey: string): Promise<PlatformN
   return toNotificationTestResult(await postJson(`/notification-routes/${encodeURIComponent(routeKey)}/test`));
 }
 
+export async function saveConnectorConfig(payload: PlatformConnectorConfigPayload): Promise<PlatformConnectorConfig> {
+  return toConnectorConfig(await postJson('/connector-configs', payload));
+}
+
+export async function testConnectorConfig(connectorKey: string): Promise<PlatformConnectorTestResult> {
+  return toConnectorTestResult(await postJson(`/connector-configs/${encodeURIComponent(connectorKey)}/test`));
+}
+
+export async function saveServiceMapping(payload: PlatformServiceMappingPayload): Promise<PlatformServiceMapping> {
+  return toServiceMapping(await postJson('/service-mappings', payload));
+}
+
 async function fetchJson(path: string): Promise<unknown> {
   const response = await fetch(`${platformApiBase}${path}`, {
     headers: { Accept: 'application/json' },
@@ -118,10 +135,11 @@ async function fetchJson(path: string): Promise<unknown> {
   return response.json() as Promise<unknown>;
 }
 
-async function postJson(path: string): Promise<unknown> {
+async function postJson(path: string, body?: unknown): Promise<unknown> {
   const response = await fetch(`${platformApiBase}${path}`, {
     method: 'POST',
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
     throw new Error(`Platform API ${response.status} ${response.statusText}`);
@@ -159,6 +177,9 @@ function toSnapshot(data: unknown): PlatformSnapshot {
     hosts: readItems(record.hosts).map(toHostSignal),
     plans: readItems(record.plans).map(toPolicyPlan),
     notificationRoutes: readItems(record.notificationRoutes).map(toNotificationRoute),
+    connectorConfigs: readItems(record.connectorConfigs).map(toConnectorConfig),
+    connectorTests: readItems(record.connectorTests).map(toConnectorTestResult),
+    serviceMappings: readItems(record.serviceMappings).map(toServiceMapping),
     auditRecords: readItems(record.auditRecords).map(toAuditRecord),
   };
   const sourceMode = toSourceMode(readString(record, 'sourceMode', inferSourceMode(payload.services, payload.connectors, payload.signals)));
@@ -432,6 +453,54 @@ function toConnector(data: unknown): PlatformConnectorStatus {
     displayName: readString(record, 'displayName', 'unknown'),
     lastMessage: readString(record, 'lastMessage', ''),
     lastSeenAt: readNullableString(record, 'lastSeenAt'),
+  };
+}
+
+function toConnectorConfig(data: unknown): PlatformConnectorConfig {
+  const record = asRecord(data);
+  return {
+    connectorKey: readString(record, 'connectorKey', 'unknown'),
+    kind: readString(record, 'kind', 'NEXARY_SDK'),
+    displayName: readString(record, 'displayName', 'Unknown connector'),
+    endpoint: readString(record, 'endpoint', ''),
+    authMode: readString(record, 'authMode', 'NONE'),
+    accessMode: readString(record, 'accessMode', 'READ_ONLY'),
+    state: readString(record, 'state', 'DISABLED') as PlatformConnectorState,
+    testEnabled: readBoolean(record, 'testEnabled'),
+    capabilities: readStringList(record.capabilities),
+    lastMessage: readString(record, 'lastMessage', ''),
+    attributes: readStringRecord(record, 'attributes'),
+    createdAt: readNullableString(record, 'createdAt'),
+    updatedAt: readNullableString(record, 'updatedAt'),
+    writeDisabled: record.writeDisabled !== false,
+  };
+}
+
+function toConnectorTestResult(data: unknown): PlatformConnectorTestResult {
+  const record = asRecord(data);
+  return {
+    testKey: readString(record, 'testKey', 'unknown'),
+    connectorKey: readString(record, 'connectorKey', 'unknown'),
+    accepted: readBoolean(record, 'accepted'),
+    status: readString(record, 'status', 'UNKNOWN'),
+    message: readString(record, 'message', ''),
+    testedAt: readNullableString(record, 'testedAt'),
+    capabilities: readStringList(record.capabilities),
+  };
+}
+
+function toServiceMapping(data: unknown): PlatformServiceMapping {
+  const record = asRecord(data);
+  return {
+    mappingKey: readString(record, 'mappingKey', 'unknown'),
+    serviceKey: readString(record, 'serviceKey', 'unknown'),
+    connectorKey: readString(record, 'connectorKey', 'unknown'),
+    sourceKind: readString(record, 'sourceKind', 'NEXARY_SDK'),
+    externalKey: readString(record, 'externalKey', 'unknown'),
+    resourceKind: readString(record, 'resourceKind', 'service'),
+    confidence: readNumber(record, 'confidence'),
+    attributes: readStringRecord(record, 'attributes'),
+    updatedAt: readNullableString(record, 'updatedAt'),
   };
 }
 

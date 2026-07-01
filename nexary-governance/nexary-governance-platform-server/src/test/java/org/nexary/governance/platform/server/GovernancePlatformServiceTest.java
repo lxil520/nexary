@@ -7,8 +7,13 @@ import org.nexary.governance.platform.GovernanceAssetKind;
 import org.nexary.governance.platform.GovernanceAuditAction;
 import org.nexary.governance.platform.GovernanceAuditRecord;
 import org.nexary.governance.platform.GovernanceConnector;
+import org.nexary.governance.platform.GovernanceConnectorAccessMode;
+import org.nexary.governance.platform.GovernanceConnectorAuthMode;
+import org.nexary.governance.platform.GovernanceConnectorCapability;
+import org.nexary.governance.platform.GovernanceConnectorConfig;
 import org.nexary.governance.platform.GovernanceConnectorKind;
 import org.nexary.governance.platform.GovernanceConnectorState;
+import org.nexary.governance.platform.GovernanceConnectorTestResult;
 import org.nexary.governance.platform.GovernanceDryRunResult;
 import org.nexary.governance.platform.GovernanceDependency;
 import org.nexary.governance.platform.GovernanceDependencyKind;
@@ -19,6 +24,7 @@ import org.nexary.governance.platform.GovernanceNotificationTestResult;
 import org.nexary.governance.platform.GovernancePlatformResourceReport;
 import org.nexary.governance.platform.GovernancePlanTargetKind;
 import org.nexary.governance.platform.GovernanceReviewPlan;
+import org.nexary.governance.platform.GovernanceServiceMapping;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSignalSeverity;
 import org.nexary.governance.platform.GovernanceSignalType;
@@ -33,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GovernancePlatformServiceTest {
@@ -342,6 +349,91 @@ class GovernancePlatformServiceTest {
         } finally {
             server.stop(0);
         }
+    }
+
+    @Test
+    void savesConnectorConfigAndTestsReadOnlyEndpointWithoutExternalWrite() throws IOException {
+        AtomicReference<String> requestMethod = new AtomicReference<>("");
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/graphql", exchange -> {
+            requestMethod.set(exchange.getRequestMethod());
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            GovernancePlatformService service = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+            String endpoint = "http://127.0.0.1:" + server.getAddress().getPort() + "/graphql";
+            GovernanceConnectorConfig saved = service.saveConnectorConfig(new GovernanceConnectorConfig(
+                    "skywalking-readonly",
+                    GovernanceConnectorKind.SKYWALKING,
+                    "SkyWalking Read-only",
+                    endpoint,
+                    GovernanceConnectorAuthMode.NONE,
+                    GovernanceConnectorAccessMode.READ_ONLY,
+                    GovernanceConnectorState.DISABLED,
+                    false,
+                    List.of(),
+                    "local config",
+                    Map.of("ownerTeam", "platform-team"),
+                    null,
+                    null));
+
+            GovernanceConnectorTestResult result = service.testConnector(saved.connectorKey()).orElseThrow();
+            Map<String, Object> publicJson = PlatformJson.connectorConfig(saved);
+
+            assertEquals("GET", requestMethod.get());
+            assertTrue(result.accepted());
+            assertEquals("TEST_REACHABLE", result.status());
+            assertTrue(result.capabilities().contains(GovernanceConnectorCapability.READ_TRACES));
+            assertTrue(result.capabilities().contains(GovernanceConnectorCapability.WRITE_DISABLED));
+            assertTrue(service.connectors().stream().anyMatch(connector ->
+                    connector.connectorKey().equals("skywalking-readonly")
+                            && connector.kind() == GovernanceConnectorKind.SKYWALKING));
+            assertTrue(String.valueOf(publicJson.get("endpoint")).startsWith("http://127.0.0.1:"));
+            assertTrue(String.valueOf(publicJson.get("endpoint")).endsWith("/***"));
+            assertTrue(service.auditRecords().stream().anyMatch(record ->
+                    record.action() == GovernanceAuditAction.CONNECTOR_CONFIG_SAVED && record.result().equals("OK")));
+            assertTrue(service.auditRecords().stream().anyMatch(record ->
+                    record.action() == GovernanceAuditAction.CONNECTOR_TEST && record.result().equals("OK")));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void savesServiceMappingsAndRejectsSensitiveConnectorAttributes() {
+        GovernancePlatformService service = new GovernancePlatformService(new InMemoryGovernancePlatformRepository());
+
+        GovernanceServiceMapping mapping = service.saveServiceMapping(new GovernanceServiceMapping(
+                "mapping-open-api-skywalking",
+                "open-api",
+                "skywalking-readonly",
+                GovernanceConnectorKind.SKYWALKING,
+                "service:open-api",
+                "service",
+                0.91,
+                Map.of("source", "operator-review"),
+                null));
+
+        assertEquals("open-api", mapping.serviceKey());
+        assertEquals(1, service.serviceMappings().size());
+        assertTrue(service.auditRecords().stream().anyMatch(record ->
+                record.action() == GovernanceAuditAction.SERVICE_MAPPING_SAVED && record.subjectKey().equals(mapping.mappingKey())));
+        assertThrows(IllegalArgumentException.class, () -> new GovernanceConnectorConfig(
+                "bad-feishu",
+                GovernanceConnectorKind.FEISHU,
+                "Bad Feishu",
+                "http://127.0.0.1/webhook",
+                GovernanceConnectorAuthMode.WEBHOOK_SECRET,
+                GovernanceConnectorAccessMode.TEST,
+                GovernanceConnectorState.DISABLED,
+                true,
+                List.of(),
+                "bad config",
+                Map.of("token", "secret"),
+                null,
+                null));
     }
 
     @Test

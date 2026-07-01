@@ -53,4 +53,27 @@ grep -q '"status":"TEST_DISABLED"' "${TMP_DIR}/notification-test.json"
 curl -fsS "${BASE_URL}/api/platform/audit-records" -o "${TMP_DIR}/audit-records.json"
 grep -q '"action"' "${TMP_DIR}/audit-records.json"
 
+cat >"${TMP_DIR}/connector-config.json" <<JSON
+{"connectorKey":"skywalking-smoke","kind":"SKYWALKING","displayName":"SkyWalking Smoke","endpoint":"${BASE_URL}/api/platform/topology","authMode":"NONE","accessMode":"READ_ONLY","state":"DISABLED","testEnabled":false,"attributes":{"targetTeam":"platform-team","writeDisabled":"true"}}
+JSON
+curl -fsS -X POST "${BASE_URL}/api/platform/connector-configs" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@${TMP_DIR}/connector-config.json" \
+  -o "${TMP_DIR}/saved-connector.json"
+grep -q '"connectorKey":"skywalking-smoke"' "${TMP_DIR}/saved-connector.json"
+grep -q '"writeDisabled":true' "${TMP_DIR}/saved-connector.json"
+curl -fsS -X POST "${BASE_URL}/api/platform/connector-configs/skywalking-smoke/test" -o "${TMP_DIR}/connector-test.json"
+grep -q '"accepted":true' "${TMP_DIR}/connector-test.json"
+grep -q '"status":"TEST_REACHABLE"' "${TMP_DIR}/connector-test.json"
+cat >"${TMP_DIR}/service-mapping.json" <<JSON
+{"mappingKey":"skywalking-smoke-room-resource","serviceKey":"room-resource","connectorKey":"skywalking-smoke","sourceKind":"SKYWALKING","externalKey":"service:room-resource","resourceKind":"service","confidence":0.9,"attributes":{"source":"smoke"}}
+JSON
+curl -fsS -X POST "${BASE_URL}/api/platform/service-mappings" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@${TMP_DIR}/service-mapping.json" \
+  -o "${TMP_DIR}/service-mapping-response.json"
+grep -q '"mappingKey":"skywalking-smoke-room-resource"' "${TMP_DIR}/service-mapping-response.json"
+curl -fsS "${BASE_URL}/api/platform/service-mappings" -o "${TMP_DIR}/service-mappings.json"
+grep -q '"skywalking-smoke-room-resource"' "${TMP_DIR}/service-mappings.json"
+
 echo "Nexary governance platform smoke passed at ${BASE_URL}"

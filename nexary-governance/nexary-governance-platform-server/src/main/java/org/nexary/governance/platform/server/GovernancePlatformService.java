@@ -5,10 +5,15 @@ import org.nexary.governance.platform.GovernanceAuditAction;
 import org.nexary.governance.platform.GovernanceAuditRecord;
 import org.nexary.governance.platform.GovernanceAsset;
 import org.nexary.governance.platform.GovernanceAssetKind;
+import org.nexary.governance.platform.GovernanceConnectorAccessMode;
+import org.nexary.governance.platform.GovernanceConnectorAuthMode;
+import org.nexary.governance.platform.GovernanceConnectorCapability;
 import org.nexary.governance.platform.GovernanceConnector;
+import org.nexary.governance.platform.GovernanceConnectorConfig;
 import org.nexary.governance.platform.GovernanceConnectorStatus;
 import org.nexary.governance.platform.GovernanceConnectorKind;
 import org.nexary.governance.platform.GovernanceConnectorState;
+import org.nexary.governance.platform.GovernanceConnectorTestResult;
 import org.nexary.governance.platform.GovernanceDependency;
 import org.nexary.governance.platform.GovernanceDependencyEdge;
 import org.nexary.governance.platform.GovernanceDryRunResult;
@@ -27,6 +32,7 @@ import org.nexary.governance.platform.GovernancePlanTarget;
 import org.nexary.governance.platform.GovernancePlanTargetKind;
 import org.nexary.governance.platform.GovernanceRequestFlow;
 import org.nexary.governance.platform.GovernanceReviewPlan;
+import org.nexary.governance.platform.GovernanceServiceMapping;
 import org.nexary.governance.platform.GovernanceServiceNode;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSignalSeverity;
@@ -40,6 +46,7 @@ import org.nexary.governance.platform.SuggestedCheck;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -153,6 +160,91 @@ public final class GovernancePlatformService {
     /** Returns connector statuses sorted by connector key. */
     public List<GovernanceConnectorStatus> connectors() {
         return topology().connectors();
+    }
+
+    /** Returns local connector configurations sorted by connector key. */
+    public List<GovernanceConnectorConfig> connectorConfigs() {
+        return repository.connectorConfigs().stream()
+                .sorted(Comparator.comparing(GovernanceConnectorConfig::connectorKey))
+                .toList();
+    }
+
+    /** Returns one local connector configuration by key. */
+    public Optional<GovernanceConnectorConfig> connectorConfig(String connectorKey) {
+        if (isBlank(connectorKey)) {
+            return Optional.empty();
+        }
+        return repository.connectorConfig(connectorKey);
+    }
+
+    /** Stores a local connector configuration and keeps external systems unchanged. */
+    public GovernanceConnectorConfig saveConnectorConfig(GovernanceConnectorConfig config) {
+        GovernanceConnectorConfig sanitized = withDefaultCapabilities(Objects.requireNonNull(config, "config"));
+        repository.saveConnectorConfig(sanitized);
+        if (sanitized.kind() == GovernanceConnectorKind.FEISHU || sanitized.kind() == GovernanceConnectorKind.DINGTALK) {
+            repository.saveNotificationRoute(routeFromConnectorConfig(sanitized));
+        }
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.CONNECTOR_CONFIG_SAVED,
+                sanitized.connectorKey(),
+                "OK",
+                "Local connector configuration saved"));
+        return sanitized;
+    }
+
+    /** Attempts an explicit local connector test. Production writes are never performed. */
+    public Optional<GovernanceConnectorTestResult> testConnector(String connectorKey) {
+        Optional<GovernanceConnectorConfig> config = connectorConfig(connectorKey);
+        if (config.isEmpty()) {
+            return Optional.empty();
+        }
+        GovernanceConnectorConfig current = config.get();
+        GovernanceConnectorTestResult result = executeConnectorTest(current);
+        repository.saveConnectorTestResult(result);
+        repository.saveConnectorConfig(copyConfigWithState(
+                current,
+                result.accepted() ? GovernanceConnectorState.HEALTHY : GovernanceConnectorState.DEGRADED,
+                result.message()));
+        if (current.kind() == GovernanceConnectorKind.FEISHU || current.kind() == GovernanceConnectorKind.DINGTALK) {
+            repository.saveNotificationRoute(routeFromConnectorConfig(copyConfigWithState(
+                    current,
+                    result.accepted() ? GovernanceConnectorState.HEALTHY : GovernanceConnectorState.DEGRADED,
+                    result.message())));
+        }
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.CONNECTOR_TEST,
+                current.connectorKey(),
+                result.accepted() ? "OK" : result.status(),
+                result.message()));
+        return Optional.of(result);
+    }
+
+    /** Returns retained connector test results sorted newest first. */
+    public List<GovernanceConnectorTestResult> connectorTestResults() {
+        return repository.connectorTestResults().stream()
+                .sorted(Comparator.comparing(GovernanceConnectorTestResult::testedAt).reversed())
+                .toList();
+    }
+
+    /** Returns local service mappings sorted by service key. */
+    public List<GovernanceServiceMapping> serviceMappings() {
+        return repository.serviceMappings().stream()
+                .sorted(Comparator.comparing(GovernanceServiceMapping::serviceKey)
+                        .thenComparing(GovernanceServiceMapping::sourceKind)
+                        .thenComparing(GovernanceServiceMapping::mappingKey))
+                .toList();
+    }
+
+    /** Stores a local service-to-tool mapping. */
+    public GovernanceServiceMapping saveServiceMapping(GovernanceServiceMapping mapping) {
+        GovernanceServiceMapping current = Objects.requireNonNull(mapping, "mapping");
+        repository.saveServiceMapping(current);
+        repository.saveAuditRecord(audit(
+                GovernanceAuditAction.SERVICE_MAPPING_SAVED,
+                current.mappingKey(),
+                "OK",
+                "Local service mapping saved"));
+        return current;
     }
 
     /** Returns retained signals sorted newest first. */
@@ -364,6 +456,9 @@ public final class GovernancePlatformService {
         snapshot.put("notificationRoutes", notificationRoutes().stream()
                 .map(route -> PlatformJson.notificationRoute(route, boundIncidentCount(route)))
                 .toList());
+        snapshot.put("connectorConfigs", connectorConfigs().stream().map(PlatformJson::connectorConfig).toList());
+        snapshot.put("connectorTests", connectorTestResults().stream().limit(20).map(PlatformJson::connectorTest).toList());
+        snapshot.put("serviceMappings", serviceMappings().stream().map(PlatformJson::serviceMapping).toList());
         snapshot.put("auditRecords", auditRecords().stream().limit(20).map(PlatformJson::auditRecord).toList());
         return snapshot;
     }
@@ -714,6 +809,173 @@ public final class GovernancePlatformService {
                 testEnabled,
                 connector.lastMessage(),
                 publicAttributes);
+    }
+
+    private GovernanceNotificationRoute routeFromConnectorConfig(GovernanceConnectorConfig config) {
+        GovernanceNotificationMode mode = config.testEnabled()
+                ? GovernanceNotificationMode.TEST
+                : config.accessMode() == GovernanceConnectorAccessMode.DISABLED
+                ? GovernanceNotificationMode.DISABLED
+                : GovernanceNotificationMode.DRY_RUN;
+        Map<String, String> publicAttributes = new LinkedHashMap<>();
+        publicAttributes.put("readOnly", "true");
+        publicAttributes.put("writeDisabled", "true");
+        publicAttributes.put("testEnabled", Boolean.toString(config.testEnabled()));
+        publicAttributes.put("productionSend", "false");
+        publicAttributes.put("source", "connector-config");
+        return new GovernanceNotificationRoute(
+                config.connectorKey(),
+                config.kind().name(),
+                config.displayName(),
+                config.attributes().getOrDefault("targetTeam", "platform-team"),
+                severity(config.attributes().getOrDefault("minSeverity", "CRITICAL")),
+                mode,
+                config.state(),
+                config.testEnabled(),
+                config.lastMessage(),
+                publicAttributes);
+    }
+
+    private GovernanceConnectorConfig withDefaultCapabilities(GovernanceConnectorConfig config) {
+        return new GovernanceConnectorConfig(
+                config.connectorKey(),
+                config.kind(),
+                config.displayName(),
+                config.endpoint(),
+                config.authMode(),
+                config.accessMode(),
+                config.state(),
+                config.testEnabled(),
+                capabilitiesFor(config.kind(), config.accessMode(), config.testEnabled()),
+                config.lastMessage(),
+                config.attributes(),
+                config.createdAt(),
+                Instant.now());
+    }
+
+    private GovernanceConnectorConfig copyConfigWithState(
+            GovernanceConnectorConfig config,
+            GovernanceConnectorState state,
+            String lastMessage) {
+        return new GovernanceConnectorConfig(
+                config.connectorKey(),
+                config.kind(),
+                config.displayName(),
+                config.endpoint(),
+                config.authMode(),
+                config.accessMode(),
+                state,
+                config.testEnabled(),
+                config.capabilities(),
+                lastMessage,
+                config.attributes(),
+                config.createdAt(),
+                Instant.now());
+    }
+
+    private List<GovernanceConnectorCapability> capabilitiesFor(
+            GovernanceConnectorKind kind,
+            GovernanceConnectorAccessMode accessMode,
+            boolean testEnabled) {
+        List<GovernanceConnectorCapability> capabilities = new ArrayList<>();
+        switch (kind) {
+            case SKYWALKING -> {
+                capabilities.add(GovernanceConnectorCapability.READ_TOPOLOGY);
+                capabilities.add(GovernanceConnectorCapability.READ_TRACES);
+                capabilities.add(GovernanceConnectorCapability.READ_ALERTS);
+            }
+            case PROMETHEUS, MICROMETER -> capabilities.add(GovernanceConnectorCapability.READ_METRICS);
+            case GATEWAY -> {
+                capabilities.add(GovernanceConnectorCapability.READ_GATEWAY_ROUTES);
+                capabilities.add(GovernanceConnectorCapability.DRY_RUN_PLAN);
+            }
+            case SENTINEL -> {
+                capabilities.add(GovernanceConnectorCapability.READ_SENTINEL_STATE);
+                capabilities.add(GovernanceConnectorCapability.DRY_RUN_PLAN);
+            }
+            case ALERTMANAGER -> capabilities.add(GovernanceConnectorCapability.READ_ALERTS);
+            case FEISHU, DINGTALK -> {
+                if (testEnabled) {
+                    capabilities.add(GovernanceConnectorCapability.TEST_NOTIFICATION);
+                }
+            }
+            default -> capabilities.add(GovernanceConnectorCapability.READ_METRICS);
+        }
+        if (accessMode == GovernanceConnectorAccessMode.DRY_RUN) {
+            capabilities.add(GovernanceConnectorCapability.DRY_RUN_PLAN);
+        }
+        capabilities.add(GovernanceConnectorCapability.WRITE_DISABLED);
+        return capabilities.stream().distinct().toList();
+    }
+
+    private GovernanceConnectorTestResult executeConnectorTest(GovernanceConnectorConfig config) {
+        if (config.accessMode() == GovernanceConnectorAccessMode.DISABLED) {
+            return connectorTestResult(config, false, "DISABLED", "Connector is disabled locally");
+        }
+        if (isBlank(config.endpoint())) {
+            return connectorTestResult(config, false, "TEST_CONFIG_MISSING", "Connector endpoint is not configured");
+        }
+        if ((config.kind() == GovernanceConnectorKind.FEISHU || config.kind() == GovernanceConnectorKind.DINGTALK)
+                && !config.testEnabled()) {
+            return connectorTestResult(config, false, "TEST_DISABLED", "Notification connector test is disabled");
+        }
+        HttpRequest request;
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(config.endpoint()))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Accept", "application/json");
+            if (config.kind() == GovernanceConnectorKind.FEISHU || config.kind() == GovernanceConnectorKind.DINGTALK) {
+                builder.header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(testConnectorPayload(config)));
+            } else {
+                builder.GET();
+            }
+            request = builder.build();
+        } catch (IllegalArgumentException exception) {
+            return connectorTestResult(config, false, "TEST_CONFIG_INVALID", "Connector endpoint is invalid");
+        }
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))
+                .build();
+        try {
+            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            boolean accepted = response.statusCode() >= 200 && response.statusCode() < 500;
+            String status = accepted ? "TEST_REACHABLE" : "TEST_FAILED";
+            if (config.kind() == GovernanceConnectorKind.FEISHU || config.kind() == GovernanceConnectorKind.DINGTALK) {
+                accepted = response.statusCode() >= 200 && response.statusCode() < 300;
+                status = accepted ? "TEST_SENT" : "TEST_FAILED";
+            }
+            return connectorTestResult(
+                    config,
+                    accepted,
+                    status,
+                    accepted ? "Connector test completed; production writes disabled" : "Connector endpoint returned HTTP " + response.statusCode());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return connectorTestResult(config, false, "TEST_FAILED", "Connector test was interrupted");
+        } catch (IOException exception) {
+            return connectorTestResult(config, false, "TEST_FAILED", "Connector test request failed");
+        }
+    }
+
+    private GovernanceConnectorTestResult connectorTestResult(
+            GovernanceConnectorConfig config,
+            boolean accepted,
+            String status,
+            String message) {
+        return new GovernanceConnectorTestResult(
+                "test-" + config.connectorKey() + "-" + Instant.now().toEpochMilli(),
+                config.connectorKey(),
+                accepted,
+                status,
+                message,
+                Instant.now(),
+                config.capabilities());
+    }
+
+    private String testConnectorPayload(GovernanceConnectorConfig config) {
+        return "{\"msg_type\":\"text\",\"content\":{\"text\":\"TEST / DRY-RUN Nexary connector test: "
+                + jsonEscape(config.displayName()) + "\"}}";
     }
 
     private GovernanceNotificationTestResult sendTestNotification(
@@ -1155,6 +1417,15 @@ public final class GovernancePlatformService {
             for (GovernanceConnector connector : report.connectors()) {
                 merged.put(connector.connectorKey(), connector);
             }
+        }
+        for (GovernanceConnectorConfig config : repository.connectorConfigs()) {
+            merged.putIfAbsent(config.connectorKey(), new GovernanceConnector(
+                    config.connectorKey(),
+                    config.kind(),
+                    config.state(),
+                    config.displayName(),
+                    config.lastMessage(),
+                    config.attributes()));
         }
         return merged.values().stream()
                 .map(connector -> new GovernanceConnectorStatus(

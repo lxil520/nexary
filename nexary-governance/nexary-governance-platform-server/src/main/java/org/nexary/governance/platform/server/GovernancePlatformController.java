@@ -2,12 +2,17 @@ package org.nexary.governance.platform.server;
 
 import org.nexary.governance.platform.GovernanceAsset;
 import org.nexary.governance.platform.GovernanceAssetKind;
+import org.nexary.governance.platform.GovernanceConnectorAccessMode;
+import org.nexary.governance.platform.GovernanceConnectorAuthMode;
+import org.nexary.governance.platform.GovernanceConnectorCapability;
 import org.nexary.governance.platform.GovernanceConnector;
+import org.nexary.governance.platform.GovernanceConnectorConfig;
 import org.nexary.governance.platform.GovernanceConnectorKind;
 import org.nexary.governance.platform.GovernanceConnectorState;
 import org.nexary.governance.platform.GovernanceDependency;
 import org.nexary.governance.platform.GovernanceDependencyKind;
 import org.nexary.governance.platform.GovernancePlatformResourceReport;
+import org.nexary.governance.platform.GovernanceServiceMapping;
 import org.nexary.governance.platform.GovernanceSignal;
 import org.nexary.governance.platform.GovernanceSignalSeverity;
 import org.nexary.governance.platform.GovernanceSignalType;
@@ -229,6 +234,48 @@ public final class GovernancePlatformController {
         return Map.of("items", service.connectors().stream().map(PlatformJson::connector).toList());
     }
 
+    /** Returns local connector configurations. */
+    @GetMapping("/connector-configs")
+    public Map<String, Object> connectorConfigs() {
+        return Map.of("items", service.connectorConfigs().stream().map(PlatformJson::connectorConfig).toList());
+    }
+
+    /** Returns one local connector configuration. */
+    @GetMapping("/connector-configs/{connectorKey}")
+    public ResponseEntity<Map<String, Object>> connectorConfig(@PathVariable("connectorKey") String connectorKey) {
+        return service.connectorConfig(connectorKey)
+                .map(PlatformJson::connectorConfig)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Saves local connector configuration without writing external systems. */
+    @PostMapping("/connector-configs")
+    public Map<String, Object> saveConnectorConfig(@RequestBody ConnectorConfigRequest request) {
+        return PlatformJson.connectorConfig(service.saveConnectorConfig(request.toConfig()));
+    }
+
+    /** Tests a local connector configuration without production writes. */
+    @PostMapping("/connector-configs/{connectorKey}/test")
+    public ResponseEntity<Map<String, Object>> testConnectorConfig(@PathVariable("connectorKey") String connectorKey) {
+        return service.testConnector(connectorKey)
+                .map(PlatformJson::connectorTest)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Returns local service-to-tool mappings. */
+    @GetMapping("/service-mappings")
+    public Map<String, Object> serviceMappings() {
+        return Map.of("items", service.serviceMappings().stream().map(PlatformJson::serviceMapping).toList());
+    }
+
+    /** Saves a local service-to-tool mapping. */
+    @PostMapping("/service-mappings")
+    public Map<String, Object> saveServiceMapping(@RequestBody ServiceMappingRequest request) {
+        return PlatformJson.serviceMapping(service.saveServiceMapping(request.toMapping()));
+    }
+
     /** Returns retained signals. */
     @GetMapping("/signals")
     public Map<String, Object> retainedSignals() {
@@ -426,6 +473,142 @@ public final class GovernancePlatformController {
                     displayName,
                     lastMessage,
                     attributes);
+        }
+    }
+
+    /** Mutable HTTP DTO for a local connector configuration. */
+    public static final class ConnectorConfigRequest {
+        private String connectorKey;
+        private String kind;
+        private String displayName;
+        private String endpoint;
+        private String authMode;
+        private String accessMode;
+        private String state;
+        private boolean testEnabled;
+        private List<String> capabilities = new ArrayList<>();
+        private String lastMessage;
+        private Map<String, String> attributes = new LinkedHashMap<>();
+
+        /** Returns connector key. */
+        public String getConnectorKey() { return connectorKey; }
+        /** Sets connector key. */
+        public void setConnectorKey(String connectorKey) { this.connectorKey = connectorKey; }
+        /** Returns kind. */
+        public String getKind() { return kind; }
+        /** Sets kind. */
+        public void setKind(String kind) { this.kind = kind; }
+        /** Returns display name. */
+        public String getDisplayName() { return displayName; }
+        /** Sets display name. */
+        public void setDisplayName(String displayName) { this.displayName = displayName; }
+        /** Returns endpoint. */
+        public String getEndpoint() { return endpoint; }
+        /** Sets endpoint. */
+        public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+        /** Returns auth mode. */
+        public String getAuthMode() { return authMode; }
+        /** Sets auth mode. */
+        public void setAuthMode(String authMode) { this.authMode = authMode; }
+        /** Returns access mode. */
+        public String getAccessMode() { return accessMode; }
+        /** Sets access mode. */
+        public void setAccessMode(String accessMode) { this.accessMode = accessMode; }
+        /** Returns state. */
+        public String getState() { return state; }
+        /** Sets state. */
+        public void setState(String state) { this.state = state; }
+        /** Returns whether explicit tests are enabled. */
+        public boolean isTestEnabled() { return testEnabled; }
+        /** Sets whether explicit tests are enabled. */
+        public void setTestEnabled(boolean testEnabled) { this.testEnabled = testEnabled; }
+        /** Returns capabilities. */
+        public List<String> getCapabilities() { return capabilities; }
+        /** Sets capabilities. */
+        public void setCapabilities(List<String> capabilities) { this.capabilities = capabilities == null ? new ArrayList<>() : capabilities; }
+        /** Returns last message. */
+        public String getLastMessage() { return lastMessage; }
+        /** Sets last message. */
+        public void setLastMessage(String lastMessage) { this.lastMessage = lastMessage; }
+        /** Returns attributes. */
+        public Map<String, String> getAttributes() { return attributes; }
+        /** Sets attributes. */
+        public void setAttributes(Map<String, String> attributes) { this.attributes = attributes == null ? new LinkedHashMap<>() : attributes; }
+
+        private GovernanceConnectorConfig toConfig() {
+            Instant now = Instant.now();
+            return new GovernanceConnectorConfig(
+                    connectorKey,
+                    GovernanceConnectorKind.valueOf(kind),
+                    displayName,
+                    endpoint,
+                    authMode == null || authMode.isBlank() ? GovernanceConnectorAuthMode.NONE : GovernanceConnectorAuthMode.valueOf(authMode),
+                    accessMode == null || accessMode.isBlank() ? GovernanceConnectorAccessMode.READ_ONLY : GovernanceConnectorAccessMode.valueOf(accessMode),
+                    state == null || state.isBlank() ? GovernanceConnectorState.DISABLED : GovernanceConnectorState.valueOf(state),
+                    testEnabled,
+                    capabilities.stream().map(GovernanceConnectorCapability::valueOf).toList(),
+                    lastMessage,
+                    attributes,
+                    now,
+                    now);
+        }
+    }
+
+    /** Mutable HTTP DTO for a local service mapping. */
+    public static final class ServiceMappingRequest {
+        private String mappingKey;
+        private String serviceKey;
+        private String connectorKey;
+        private String sourceKind;
+        private String externalKey;
+        private String resourceKind;
+        private double confidence = 0.5;
+        private Map<String, String> attributes = new LinkedHashMap<>();
+
+        /** Returns mapping key. */
+        public String getMappingKey() { return mappingKey; }
+        /** Sets mapping key. */
+        public void setMappingKey(String mappingKey) { this.mappingKey = mappingKey; }
+        /** Returns service key. */
+        public String getServiceKey() { return serviceKey; }
+        /** Sets service key. */
+        public void setServiceKey(String serviceKey) { this.serviceKey = serviceKey; }
+        /** Returns connector key. */
+        public String getConnectorKey() { return connectorKey; }
+        /** Sets connector key. */
+        public void setConnectorKey(String connectorKey) { this.connectorKey = connectorKey; }
+        /** Returns source kind. */
+        public String getSourceKind() { return sourceKind; }
+        /** Sets source kind. */
+        public void setSourceKind(String sourceKind) { this.sourceKind = sourceKind; }
+        /** Returns external key. */
+        public String getExternalKey() { return externalKey; }
+        /** Sets external key. */
+        public void setExternalKey(String externalKey) { this.externalKey = externalKey; }
+        /** Returns resource kind. */
+        public String getResourceKind() { return resourceKind; }
+        /** Sets resource kind. */
+        public void setResourceKind(String resourceKind) { this.resourceKind = resourceKind; }
+        /** Returns confidence. */
+        public double getConfidence() { return confidence; }
+        /** Sets confidence. */
+        public void setConfidence(double confidence) { this.confidence = confidence; }
+        /** Returns attributes. */
+        public Map<String, String> getAttributes() { return attributes; }
+        /** Sets attributes. */
+        public void setAttributes(Map<String, String> attributes) { this.attributes = attributes == null ? new LinkedHashMap<>() : attributes; }
+
+        private GovernanceServiceMapping toMapping() {
+            return new GovernanceServiceMapping(
+                    mappingKey,
+                    serviceKey,
+                    connectorKey,
+                    GovernanceConnectorKind.valueOf(sourceKind),
+                    externalKey,
+                    resourceKind,
+                    confidence,
+                    attributes,
+                    Instant.now());
         }
     }
 

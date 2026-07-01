@@ -75,6 +75,29 @@ grep '"accepted":false' "$TMP_DIR/notification-test.json" >/dev/null
 grep '"status":"TEST_DISABLED"' "$TMP_DIR/notification-test.json" >/dev/null
 curl -fsS "$BASE_URL/api/platform/audit-records" | grep '"action"' >/dev/null
 
+echo "[console] connector configuration center"
+cat >"$TMP_DIR/connector-config.json" <<JSON
+{"connectorKey":"skywalking-smoke","kind":"SKYWALKING","displayName":"SkyWalking Smoke","endpoint":"http://127.0.0.1:8080/api/platform/topology","authMode":"NONE","accessMode":"READ_ONLY","state":"DISABLED","testEnabled":false,"attributes":{"targetTeam":"platform-team","writeDisabled":"true"}}
+JSON
+curl -fsS -X POST "$BASE_URL/api/platform/connector-configs" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/connector-config.json" \
+  -o "$TMP_DIR/saved-connector.json"
+grep '"connectorKey":"skywalking-smoke"' "$TMP_DIR/saved-connector.json" >/dev/null
+grep '"writeDisabled":true' "$TMP_DIR/saved-connector.json" >/dev/null
+curl -fsS -X POST "$BASE_URL/api/platform/connector-configs/skywalking-smoke/test" -o "$TMP_DIR/connector-test.json"
+grep '"accepted":true' "$TMP_DIR/connector-test.json" >/dev/null
+grep '"status":"TEST_REACHABLE"' "$TMP_DIR/connector-test.json" >/dev/null
+cat >"$TMP_DIR/service-mapping.json" <<JSON
+{"mappingKey":"skywalking-smoke-room-resource","serviceKey":"room-resource","connectorKey":"skywalking-smoke","sourceKind":"SKYWALKING","externalKey":"service:room-resource","resourceKind":"service","confidence":0.9,"attributes":{"source":"smoke"}}
+JSON
+curl -fsS -X POST "$BASE_URL/api/platform/service-mappings" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/service-mapping.json" \
+  -o "$TMP_DIR/service-mapping-response.json"
+grep '"mappingKey":"skywalking-smoke-room-resource"' "$TMP_DIR/service-mapping-response.json" >/dev/null
+curl -fsS "$BASE_URL/api/platform/service-mappings" | grep '"skywalking-smoke-room-resource"' >/dev/null
+
 echo "[console] probe prometheus"
 curl -fsS "$BASE_URL/demo/platform/prometheus" | grep 'nexary_demo_probe_calls_total' >/dev/null
 for attempt in {1..8}; do

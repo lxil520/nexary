@@ -113,6 +113,47 @@ public final class JdbcGovernancePlatformSchema {
                 )
                 """);
         jdbcOperations.execute("""
+                create table if not exists governance_connector_config (
+                    connector_key varchar(160) not null primary key,
+                    kind varchar(64) not null,
+                    display_name varchar(160) not null,
+                    endpoint varchar(160) not null,
+                    auth_mode varchar(64) not null,
+                    access_mode varchar(64) not null,
+                    state varchar(64) not null,
+                    test_enabled boolean not null,
+                    capabilities text not null,
+                    last_message varchar(160) not null,
+                    attributes text not null,
+                    created_at timestamp not null,
+                    updated_at timestamp not null
+                )
+                """);
+        jdbcOperations.execute("""
+                create table if not exists governance_connector_test (
+                    test_key varchar(160) not null primary key,
+                    connector_key varchar(160) not null,
+                    accepted boolean not null,
+                    status varchar(64) not null,
+                    message varchar(160) not null,
+                    tested_at timestamp not null,
+                    capabilities text not null
+                )
+                """);
+        jdbcOperations.execute("""
+                create table if not exists governance_service_mapping (
+                    mapping_key varchar(160) not null primary key,
+                    service_key varchar(160) not null,
+                    connector_key varchar(160) not null,
+                    source_kind varchar(64) not null,
+                    external_key varchar(160) not null,
+                    resource_kind varchar(64) not null,
+                    confidence double precision not null,
+                    attributes text not null,
+                    updated_at timestamp not null
+                )
+                """);
+        jdbcOperations.execute("""
                 create table if not exists governance_notification_test (
                     test_key varchar(160) not null primary key,
                     route_key varchar(160) not null,

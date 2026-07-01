@@ -9,12 +9,18 @@ import {
   exportPlatformPlanReview,
   fetchPlatformTraces,
   previewNotificationRoute,
+  saveConnectorConfig,
+  saveServiceMapping,
+  testConnectorConfig,
   testNotificationRoute,
 } from '../api/platformClient';
 import { useLocale } from '../composables/useLocale';
 import { usePlatformData } from '../composables/usePlatformData';
 import type {
   PlatformConnectorStatus,
+  PlatformConnectorConfig,
+  PlatformConnectorState,
+  PlatformConnectorTestResult,
   PlatformDataSource,
   PlatformDependencyEdge,
   PlatformDryRunResult,
@@ -27,6 +33,7 @@ import type {
   PlatformPolicyPlan,
   PlatformRequestFlow,
   PlatformServiceNode,
+  PlatformServiceMapping,
   PlatformSignal,
   PlatformSpan,
   PlatformTransactionMetric,
@@ -132,6 +139,28 @@ const notificationPreview = ref<PlatformNotificationPreview | null>(null);
 const notificationTestResult = ref<PlatformNotificationTestResult | null>(null);
 const notificationActionError = ref<string | null>(null);
 const notificationActionLoading = ref(false);
+const connectorActionError = ref<string | null>(null);
+const connectorActionLoading = ref(false);
+const connectorTestResult = ref<PlatformConnectorTestResult | null>(null);
+const connectorForm = ref({
+  connectorKey: 'skywalking-readonly',
+  kind: 'SKYWALKING',
+  displayName: 'SkyWalking APM',
+  endpoint: 'http://127.0.0.1:18097/graphql',
+  authMode: 'NONE',
+  accessMode: 'READ_ONLY',
+  state: 'DISABLED' as PlatformConnectorState,
+  testEnabled: false,
+  targetTeam: 'platform-team',
+});
+const mappingForm = ref({
+  serviceKey: '',
+  connectorKey: 'skywalking-readonly',
+  sourceKind: 'SKYWALKING',
+  externalKey: '',
+  resourceKind: 'service',
+  confidence: 0.8,
+});
 const topologyDepth = ref('2');
 const USER_NODE_KEY = '__nexary_user__';
 const FLOW_PAGE_SIZE = 18;
@@ -536,6 +565,9 @@ const signals = computed(() => snapshot.value?.signals ?? []);
 const middleware = computed(() => snapshot.value?.overview.middlewareWatermarks ?? []);
 const notificationRoutes = computed(() => snapshot.value?.overview.notificationRoutes ?? []);
 const policyPlans = computed(() => snapshot.value?.overview.policyPlans ?? []);
+const connectorConfigs = computed(() => snapshot.value?.connectorConfigs ?? []);
+const connectorTests = computed(() => snapshot.value?.connectorTests ?? []);
+const serviceMappings = computed(() => snapshot.value?.serviceMappings ?? []);
 const serviceWatermarks = computed(() => snapshot.value?.overview.serviceWatermarks ?? []);
 const zoneWatermarks = computed(() => snapshot.value?.overview.zoneWatermarks ?? []);
 const summary = computed(() => snapshot.value?.overview.summary ?? null);
@@ -706,6 +738,24 @@ const selectedConnector = computed(
 );
 const selectedDataSource = computed(
   () => visibleDataSources.value.find((source) => source.sourceKey === selectedConnectorKey.value) ?? visibleDataSources.value[0] ?? null,
+);
+const visibleConnectorConfigs = computed(() =>
+  connectorConfigs.value
+    .filter((config) => matchesText([config.displayName, config.connectorKey, config.kind, config.state, config.lastMessage]))
+    .sort((left, right) => connectorRiskScore(toConnectorStatus(right)) - connectorRiskScore(toConnectorStatus(left)) || left.displayName.localeCompare(right.displayName)),
+);
+const selectedConnectorConfig = computed(
+  () => visibleConnectorConfigs.value.find((config) => config.connectorKey === selectedConnectorKey.value) ?? visibleConnectorConfigs.value[0] ?? null,
+);
+const latestConnectorTest = computed(() =>
+  connectorTestResult.value
+    ?? connectorTests.value.find((test) => test.connectorKey === selectedConnectorConfig.value?.connectorKey)
+    ?? null,
+);
+const visibleServiceMappings = computed(() =>
+  serviceMappings.value
+    .filter((mapping) => matchesText([mapping.serviceKey, mapping.connectorKey, mapping.sourceKind, mapping.externalKey, mapping.resourceKind]))
+    .sort((left, right) => left.serviceKey.localeCompare(right.serviceKey) || right.confidence - left.confidence),
 );
 const selectedConnectorViews = computed(() => connectorViewSections(selectedDataSource.value?.kind ?? selectedConnector.value?.kind ?? ''));
 const selectedConnectorCoverage = computed(() => selectedConnectorViews.value.map(sectionLabel).join(' / ') || copy.value.unavailable);
@@ -956,6 +1006,39 @@ watch(flowPageCount, (pageCount) => {
   }
 });
 
+watch(selectedConnectorConfig, (config) => {
+  if (!config) {
+    return;
+  }
+  connectorForm.value = {
+    connectorKey: config.connectorKey,
+    kind: config.kind,
+    displayName: config.displayName,
+    endpoint: isMaskedEndpoint(config.endpoint) ? '' : config.endpoint,
+    authMode: config.authMode,
+    accessMode: config.accessMode,
+    state: config.state,
+    testEnabled: config.testEnabled,
+    targetTeam: config.attributes.targetTeam ?? 'platform-team',
+  };
+  mappingForm.value = {
+    ...mappingForm.value,
+    connectorKey: config.connectorKey,
+    sourceKind: config.kind,
+  };
+}, { immediate: true });
+
+watch(selectedService, (service) => {
+  if (!service || mappingForm.value.serviceKey) {
+    return;
+  }
+  mappingForm.value = {
+    ...mappingForm.value,
+    serviceKey: service.serviceKey,
+    externalKey: service.serviceKey,
+  };
+}, { immediate: true });
+
 onMounted(() => {
   if (!hasLoaded.value) {
     void refreshPlatform();
@@ -1063,6 +1146,85 @@ async function testSelectedNotification(): Promise<void> {
     notificationActionError.value = error instanceof Error ? error.message : 'Notification test failed';
   } finally {
     notificationActionLoading.value = false;
+  }
+}
+
+async function saveCurrentConnectorConfig(): Promise<void> {
+  connectorActionError.value = null;
+  connectorActionLoading.value = true;
+  try {
+    const form = connectorForm.value;
+    if (isMaskedEndpoint(form.endpoint)) {
+      connectorActionError.value = 'Endpoint is masked in the API response. Re-enter the real connector URL before saving.';
+      return;
+    }
+    const saved = await saveConnectorConfig({
+      connectorKey: form.connectorKey.trim(),
+      kind: form.kind,
+      displayName: form.displayName.trim(),
+      endpoint: form.endpoint.trim(),
+      authMode: form.authMode,
+      accessMode: form.accessMode,
+      state: selectedConnectorConfig.value?.state ?? form.state,
+      testEnabled: form.testEnabled,
+      attributes: {
+        targetTeam: form.targetTeam.trim() || 'platform-team',
+        writeDisabled: 'true',
+        productionWrite: 'false',
+      },
+    });
+    selectedConnectorKey.value = saved.connectorKey;
+    await refreshPlatform();
+  } catch (error) {
+    connectorActionError.value = error instanceof Error ? error.message : 'Connector save failed';
+  } finally {
+    connectorActionLoading.value = false;
+  }
+}
+
+async function testSelectedConnector(): Promise<void> {
+  const key = selectedConnectorConfig.value?.connectorKey ?? connectorForm.value.connectorKey;
+  if (!key) {
+    return;
+  }
+  connectorActionError.value = null;
+  connectorActionLoading.value = true;
+  try {
+    connectorTestResult.value = await testConnectorConfig(key);
+    await refreshPlatform();
+  } catch (error) {
+    connectorActionError.value = error instanceof Error ? error.message : 'Connector test failed';
+  } finally {
+    connectorActionLoading.value = false;
+  }
+}
+
+async function saveCurrentServiceMapping(): Promise<void> {
+  connectorActionError.value = null;
+  connectorActionLoading.value = true;
+  try {
+    const form = mappingForm.value;
+    const serviceKey = form.serviceKey.trim();
+    const externalKey = form.externalKey.trim();
+    const connectorKey = form.connectorKey.trim();
+    await saveServiceMapping({
+      mappingKey: `${connectorKey}-${serviceKey}-${form.resourceKind}`.replace(/[^A-Za-z0-9_:.\\/-]/g, '-'),
+      serviceKey,
+      connectorKey,
+      sourceKind: form.sourceKind,
+      externalKey,
+      resourceKind: form.resourceKind,
+      confidence: Number(form.confidence),
+      attributes: {
+        writeDisabled: 'true',
+        reviewOnly: 'true',
+      },
+    });
+    await refreshPlatform();
+  } catch (error) {
+    connectorActionError.value = error instanceof Error ? error.message : 'Service mapping save failed';
+  } finally {
+    connectorActionLoading.value = false;
   }
 }
 
@@ -1295,6 +1457,21 @@ function connectorImpactText(source: PlatformDataSource | null): string {
   return locale.value === 'zh'
     ? `${views} 可使用该来源的只读证据。`
     : `${views} can use read-only evidence from this source.`;
+}
+
+function toConnectorStatus(config: PlatformConnectorConfig): PlatformConnectorStatus {
+  return {
+    connectorKey: config.connectorKey,
+    kind: config.kind,
+    state: config.state,
+    displayName: config.displayName,
+    lastMessage: config.lastMessage,
+    lastSeenAt: config.updatedAt,
+  };
+}
+
+function isMaskedEndpoint(endpoint: string): boolean {
+  return endpoint.includes('/***');
 }
 
 function routeRiskScore(route: PlatformNotificationRoute): number {
@@ -2888,44 +3065,123 @@ function spanStats(flow: FlowSpanInput | null): SpanAggregate[] {
     </template>
 
     <template v-else-if="section === 'integrations'">
-      <section class="ops-two-column">
+      <section class="ops-three-column ops-integrations-workbench">
         <div class="ops-panel">
-          <header><span>{{ copy.integrations }}</span><strong>{{ visibleDataSources.length }}</strong></header>
+          <header><span>{{ copy.integrations }}</span><strong>{{ visibleConnectorConfigs.length }}</strong></header>
           <div class="ops-table">
-            <button v-for="source in visibleDataSources" :key="source.sourceKey" type="button" :data-tone="stateTone(source.state)" :class="{ 'is-active': selectedDataSource?.sourceKey === source.sourceKey }" @click="selectedConnectorKey = source.sourceKey">
-              <span><strong>{{ source.displayName }}</strong><small>{{ source.kind }} / {{ source.sourceKey }}</small></span>
-              <b>{{ source.state }}</b>
-              <em>{{ formatTimestamp(source.lastSeenAt) }}</em>
+            <button v-for="config in visibleConnectorConfigs" :key="config.connectorKey" type="button" :data-tone="stateTone(config.state)" :class="{ 'is-active': selectedConnectorConfig?.connectorKey === config.connectorKey }" @click="selectedConnectorKey = config.connectorKey">
+              <span><strong>{{ config.displayName }}</strong><small>{{ config.kind }} / {{ config.connectorKey }}</small></span>
+              <b>{{ config.state }}</b>
+              <em>{{ config.accessMode }} / write disabled</em>
             </button>
+          </div>
+          <h3>Discovered sources</h3>
+          <div class="ref-list">
+            <span v-for="source in visibleDataSources" :key="source.sourceKey">{{ source.kind }} / {{ source.displayName }} / {{ source.state }}</span>
           </div>
         </div>
         <aside class="ops-panel detail-panel ops-evidence-drawer">
-          <header><span>{{ copy.selectedConnector }}</span><StatusBadge :label="selectedDataSource?.state ?? 'INFO'" :state="selectedDataSource?.state ?? 'INFO'" /></header>
-          <h2>{{ selectedDataSource?.displayName ?? '-' }}</h2>
-          <div class="drawer-actions">
-            <button
-              v-for="view in selectedConnectorViews"
-              :key="view"
-              type="button"
-              @click="emit('navigate-section', view)"
-            >
-              {{ sectionLabel(view) }}
-            </button>
+          <header><span>Connector setup</span><StatusBadge :label="selectedConnectorConfig?.state ?? 'DISABLED'" :state="selectedConnectorConfig?.state ?? 'DISABLED'" /></header>
+          <div class="connector-form-grid">
+            <label>
+              <span>Kind</span>
+              <select v-model="connectorForm.kind" :disabled="connectorActionLoading">
+                <option value="SKYWALKING">SkyWalking APM / alert</option>
+                <option value="GATEWAY">Spring Cloud Gateway</option>
+                <option value="SENTINEL">Sentinel</option>
+                <option value="PROMETHEUS">Prometheus</option>
+                <option value="MICROMETER">Micrometer</option>
+                <option value="ALERTMANAGER">Alertmanager</option>
+                <option value="FEISHU">Feishu</option>
+                <option value="DINGTALK">DingTalk</option>
+              </select>
+            </label>
+            <label><span>Connector key</span><input v-model="connectorForm.connectorKey" :disabled="connectorActionLoading" placeholder="skywalking-readonly" /></label>
+            <label><span>Name</span><input v-model="connectorForm.displayName" :disabled="connectorActionLoading" placeholder="SkyWalking APM" /></label>
+            <label><span>Endpoint</span><input v-model="connectorForm.endpoint" :disabled="connectorActionLoading" placeholder="http://127.0.0.1:18097/graphql" /></label>
+            <label>
+              <span>Auth</span>
+              <select v-model="connectorForm.authMode" :disabled="connectorActionLoading">
+                <option value="NONE">NONE</option>
+                <option value="BASIC">BASIC</option>
+                <option value="BEARER_TOKEN">BEARER_TOKEN</option>
+                <option value="WEBHOOK_SECRET">WEBHOOK_SECRET</option>
+                <option value="ACTUATOR_BASIC">ACTUATOR_BASIC</option>
+              </select>
+            </label>
+            <label>
+              <span>Mode</span>
+              <select v-model="connectorForm.accessMode" :disabled="connectorActionLoading">
+                <option value="READ_ONLY">READ_ONLY</option>
+                <option value="DRY_RUN">DRY_RUN</option>
+                <option value="TEST">TEST</option>
+                <option value="DISABLED">DISABLED</option>
+              </select>
+            </label>
+            <label><span>Team</span><input v-model="connectorForm.targetTeam" :disabled="connectorActionLoading" placeholder="platform-team" /></label>
+            <label class="inline-check"><input v-model="connectorForm.testEnabled" type="checkbox" :disabled="connectorActionLoading" /><span>Enable TEST / DRY-RUN delivery</span></label>
           </div>
-          <dl v-if="selectedDataSource">
-            <div><dt>{{ copy.kind }}</dt><dd>{{ selectedDataSource.kind }}</dd></div>
-            <div><dt>{{ copy.state }}</dt><dd>{{ selectedDataSource.state }}</dd></div>
-            <div><dt>{{ copy.lastSeen }}</dt><dd>{{ formatTimestamp(selectedDataSource.lastSeenAt) }}</dd></div>
-            <div><dt>{{ copy.dataSource }}</dt><dd>{{ selectedDataSource.sourceKey }}</dd></div>
-            <div><dt>{{ copy.connectorMode }}</dt><dd>{{ selectedDataSource.mode }}</dd></div>
-            <div><dt>{{ copy.affectedViews }}</dt><dd>{{ selectedConnectorCoverage }}</dd></div>
+          <div class="drawer-actions">
+            <button type="button" :disabled="connectorActionLoading" @click="saveCurrentConnectorConfig">Save local config</button>
+            <button type="button" :disabled="connectorActionLoading || !selectedConnectorConfig" @click="testSelectedConnector">Test connector</button>
+          </div>
+          <p v-if="connectorActionError" class="inline-warning">{{ connectorActionError }}</p>
+          <dl v-if="selectedConnectorConfig">
+            <div><dt>{{ copy.kind }}</dt><dd>{{ selectedConnectorConfig.kind }}</dd></div>
+            <div><dt>{{ copy.state }}</dt><dd>{{ selectedConnectorConfig.state }}</dd></div>
+            <div><dt>{{ copy.connectorMode }}</dt><dd>{{ selectedConnectorConfig.accessMode }}</dd></div>
+            <div><dt>{{ copy.affectedViews }}</dt><dd>{{ selectedConnectorConfig.capabilities.join(' / ') }}</dd></div>
+            <div><dt>{{ copy.lastSeen }}</dt><dd>{{ formatTimestamp(selectedConnectorConfig.updatedAt) }}</dd></div>
           </dl>
-          <h3>{{ copy.degradedScope }}</h3>
-          <p>{{ connectorImpactText(selectedDataSource) }}</p>
           <h3>{{ copy.readOnlyBoundary }}</h3>
           <p>{{ copy.noDirectWrite }}</p>
-          <h3>{{ copy.lastMessage }}</h3>
-          <p>{{ selectedDataSource?.lastMessage ?? '-' }}</p>
+          <template v-if="latestConnectorTest">
+            <h3>Last connector test</h3>
+            <dl>
+              <div><dt>{{ copy.status }}</dt><dd>{{ latestConnectorTest.status }}</dd></div>
+              <div><dt>{{ copy.state }}</dt><dd>{{ latestConnectorTest.accepted ? copy.enabled : copy.unavailable }}</dd></div>
+              <div><dt>{{ copy.observedAt }}</dt><dd>{{ formatTimestamp(latestConnectorTest.testedAt) }}</dd></div>
+            </dl>
+            <p>{{ latestConnectorTest.message }}</p>
+          </template>
+        </aside>
+        <aside class="ops-panel detail-panel ops-evidence-drawer">
+          <header><span>Service mapping</span><strong>{{ visibleServiceMappings.length }}</strong></header>
+          <div class="connector-form-grid">
+            <label>
+              <span>Service</span>
+              <select v-model="mappingForm.serviceKey" :disabled="connectorActionLoading">
+                <option value="">Select service</option>
+                <option v-for="service in services" :key="service.serviceKey" :value="service.serviceKey">{{ service.name }}</option>
+              </select>
+            </label>
+            <label>
+              <span>Connector</span>
+              <select v-model="mappingForm.connectorKey" :disabled="connectorActionLoading">
+                <option v-for="config in connectorConfigs" :key="config.connectorKey" :value="config.connectorKey">{{ config.displayName }}</option>
+              </select>
+            </label>
+            <label><span>External key</span><input v-model="mappingForm.externalKey" :disabled="connectorActionLoading" placeholder="nexary-governance-console" /></label>
+            <label>
+              <span>Resource kind</span>
+              <select v-model="mappingForm.resourceKind" :disabled="connectorActionLoading">
+                <option value="service">service</option>
+                <option value="route">route</option>
+                <option value="resource">resource</option>
+                <option value="alert">alert</option>
+              </select>
+            </label>
+            <label><span>Confidence</span><input v-model.number="mappingForm.confidence" type="number" min="0" max="1" step="0.1" :disabled="connectorActionLoading" /></label>
+          </div>
+          <div class="drawer-actions">
+            <button type="button" :disabled="connectorActionLoading || !mappingForm.serviceKey || !mappingForm.connectorKey || !mappingForm.externalKey" @click="saveCurrentServiceMapping">Save mapping</button>
+          </div>
+          <h3>Mappings</h3>
+          <div class="ref-list">
+            <span v-for="mapping in visibleServiceMappings" :key="mapping.mappingKey">{{ mapping.serviceKey }} / {{ mapping.sourceKind }} / {{ mapping.externalKey }} / {{ Math.round(mapping.confidence * 100) }}%</span>
+          </div>
+          <h3>{{ copy.degradedScope }}</h3>
+          <p>{{ connectorImpactText(selectedDataSource) }}</p>
         </aside>
       </section>
     </template>

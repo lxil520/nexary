@@ -11,5 +11,11 @@ public enum GovernanceAuditAction {
     /** A notification route preview was rendered. */
     NOTIFICATION_PREVIEW,
     /** A notification test was attempted. */
-    NOTIFICATION_TEST
+    NOTIFICATION_TEST,
+    /** A local connector configuration was saved. */
+    CONNECTOR_CONFIG_SAVED,
+    /** A local connector test was attempted. */
+    CONNECTOR_TEST,
+    /** A local service mapping was saved. */
+    SERVICE_MAPPING_SAVED
 }
